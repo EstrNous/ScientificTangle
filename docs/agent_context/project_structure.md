@@ -68,6 +68,9 @@
 ### Инфраструктура (`infra/`)
 
 - `infra/postgres/init.sql` — SQL-схемы PostgreSQL: users, audit_log, ingestion_tasks, query_runs, exports, notifications, user_interests, service_state, admin_settings.
+- `infra/orchestrator_db/` — модели и миграции Orchestrator (база `orchestrator_db`): IngestionTask, QueryRun, ExportJob. SQLAlchemy 2.0 async, Alembic.
+- `infra/chat_ui_db/` — модели и миграции Gateway/BFF (база `chat_ui_db`): ChatSession, ChatMessage, AdminSetting, ServiceState. SQLAlchemy 2.0 async, Alembic.
+- `infra/notification_db/` — модели и миграции Notification (база `notification_db`): UserInterest, Notification. SQLAlchemy 2.0 async, Alembic.
 - `infra/neo4j/` — конфигурация Neo4j.
 - `infra/qdrant/` — конфигурация Qdrant.
 - `infra/minio/buckets.txt` — список бакетов MinIO.
@@ -121,6 +124,41 @@
 - `README.md` — описание сервиса, стек, схема баз, индексы.
 
 Архитектура: DB-per-Service — каждая база (auth_db, audit_db) физически отдельная БД внутри одного PostgreSQL-инстанса.
+
+## Базы данных (DB-per-Service в infra/)
+
+### infra/orchestrator_db/
+
+База данных оркестратора (база `orchestrator_db`). Управление задачами ингеста, запусками запросов и экспортом.
+
+- `models.py` — модели: `IngestionTask`, `QueryRun`, `ExportJob`. Статусы через `StrEnum`. JSONB для report, query_ir, retrieval_trace.
+- `database.py` — фабрика `create_database()` (async engine + sessionmaker).
+- `config.py` — `OrchestratorDbSettings` (env prefix `ORCHESTRATOR_`).
+- `alembic.ini` — конфигурация Alembic, `script_location = storage`.
+- `storage/env.py` — окружение Alembic (async engine from config).
+- `storage/versions/0001_create_orchestrator_tables.py` — стартовая миграция.
+
+### infra/chat_ui_db/
+
+База данных шлюза/BFF (база `chat_ui_db`). История чатов, системные настройки, состояние сервисов.
+
+- `models.py` — модели: `ChatSession`, `ChatMessage` (FK на chat_sessions с CASCADE), `AdminSetting`, `ServiceState`. JSONB для setting_value.
+- `database.py` — фабрика `create_database()` (async engine + sessionmaker).
+- `config.py` — `ChatUiDbSettings` (env prefix `GATEWAY_`).
+- `alembic.ini` — конфигурация Alembic, `script_location = storage`.
+- `storage/env.py` — окружение Alembic (async engine from config).
+- `storage/versions/0001_create_chat_ui_tables.py` — стартовая миграция.
+
+### infra/notification_db/
+
+База данных уведомлений (база `notification_db`). Профили интересов пользователей и уведомления.
+
+- `models.py` — модели: `UserInterest` (unique index на user_id), `Notification` (index на is_read). JSONB для extracted_entities.
+- `database.py` — фабрика `create_database()` (async engine + sessionmaker).
+- `config.py` — `NotificationDbSettings` (env prefix `NOTIFICATION_`).
+- `alembic.ini` — конфигурация Alembic, `script_location = storage`.
+- `storage/env.py` — окружение Alembic (async engine from config).
+- `storage/versions/0001_create_notification_tables.py` — стартовая миграция.
 
 ## Как поддерживать файл
 

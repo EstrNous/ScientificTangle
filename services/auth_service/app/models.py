@@ -2,8 +2,8 @@ from datetime import datetime
 from enum import StrEnum
 from uuid import UUID, uuid4
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, String, func
-from sqlalchemy.dialects.postgresql import UUID as PostgreSQLUUID
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Index, String, func
+from sqlalchemy.dialects.postgresql import JSONB, UUID as PostgreSQLUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -64,3 +64,26 @@ class RefreshSession(Base):
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     ip_address: Mapped[str | None] = mapped_column(String(64))
     user_agent: Mapped[str | None] = mapped_column(String(512))
+
+
+class DocumentAccessPolicy(Base):
+    __tablename__ = "document_access_policies"
+    __table_args__ = (
+        CheckConstraint(
+            "access_level IN ('public', 'internal', 'confidential', 'restricted')",
+            name="ck_document_access_policies_access_level",
+        ),
+        Index("ix_document_access_policies_access_level", "access_level"),
+    )
+
+    id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), primary_key=True)
+    access_level: Mapped[str] = mapped_column(String(32), nullable=False)
+    allowed_roles: Mapped[list | None] = mapped_column(JSONB)
+    owner_team: Mapped[str | None] = mapped_column(String(128))
+    export_allowed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
