@@ -1,4 +1,6 @@
-from dataclasses import dataclass
+import json
+import logging
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Protocol
 from uuid import UUID
@@ -23,3 +25,11 @@ class AuthAuditSink(Protocol):
 class NullAuthAuditSink:
     async def record(self, event: AuthAuditEvent) -> None:
         return None
+
+
+class LoggingAuthAuditSink:
+    def __init__(self) -> None:
+        self._logger = logging.getLogger("auth_service.audit")
+
+    async def record(self, event: AuthAuditEvent) -> None:
+        self._logger.info(json.dumps(asdict(event), default=str, separators=(",", ":")))

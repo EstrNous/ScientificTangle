@@ -30,7 +30,7 @@ class User(Base):
 
     id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4)
     username: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
-    email: Mapped[str | None] = mapped_column(String(320))
+    email: Mapped[str | None] = mapped_column(String(320), unique=True)
     password_hash: Mapped[str] = mapped_column(String(512), nullable=False)
     role: Mapped[str] = mapped_column(String(32), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
@@ -40,6 +40,7 @@ class User(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
+    deactivated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class RefreshSession(Base):

@@ -6,6 +6,7 @@ from app.audit import AuthAuditEvent, AuthAuditSink
 from app.models import Role, User
 from app.repository import (
     AuthRepository,
+    NewUserData,
     RefreshSessionData,
     RotationStatus,
 )
@@ -19,6 +20,10 @@ from app.security import (
 
 
 class AuthenticationError(Exception):
+    pass
+
+
+class UserNotFoundError(Exception):
     pass
 
 
@@ -54,14 +59,31 @@ class AuthService:
         self._refresh_token_days = refresh_token_days
         self._dummy_password_hash = self._password_manager.dummy_hash
 
-    async def login(self, username: str, password: str, context: RequestContext) -> TokenPairResult:
-        normalized_username = username.strip().casefold()
-        user = await self._repository.get_user_by_username(normalized_username)
+    async def register(
+        self, username: str, email: str, password: str, context: RequestContext
+    ) -> TokenPairResult:
+        user = await self._repository.create_user(
+            NewUserData(
+                username=self._normalize(username),
+                email=self._normalize(email),
+                password_hash=self._password_manager.hash(password),
+                role=Role.EXTERNAL_PARTNER,
+            )
+        )
+        result = await self._new_session(user, uuid4(), context)
+        await self._record("registration", "success", context, user=user)
+        return result
+
+    async def login(
+        self, identifier: str, password: str, context: RequestContext
+    ) -> TokenPairResult:
+        normalized_identifier = self._normalize(identifier)
+        user = await self._repository.get_user_by_identifier(normalized_identifier)
         password_hash = user.password_hash if user is not None else self._dummy_password_hash
         password_valid = self._password_manager.verify(password, password_hash)
         if user is None or not password_valid or not user.is_active:
             await self._record(
-                "authentication", "denied", context, user=user, username=normalized_username
+                "authentication", "denied", context, user=user, username=normalized_identifier
             )
             raise AuthenticationError
         result = await self._new_session(user, uuid4(), context)
@@ -105,6 +127,69 @@ class AuthService:
         revoked = await self._repository.revoke_refresh_session(hash_refresh_token(refresh_token))
         await self._record("logout", "success" if revoked else "ignored", context)
 
+    async def update_profile(
+        self,
+        user: User,
+        current_password: str,
+        username: str | None,
+        email: str | None,
+        context: RequestContext,
+    ) -> User:
+        self._require_password(user, current_password)
+        updated = await self._repository.update_profile(
+            user.id,
+            self._normalize(username) if username is not None else None,
+            self._normalize(email) if email is not None else None,
+        )
+        if updated is None:
+            raise UserNotFoundError
+        await self._record("profile_update", "success", context, user=updated)
+        return updated
+
+    async def change_password(
+        self, user: User, current_password: str, new_password: str, context: RequestContext
+    ) -> TokenPairResult:
+        self._require_password(user, current_password)
+        updated = await self._repository.change_password(
+            user.id, self._password_manager.hash(new_password)
+        )
+        if updated is None:
+            raise UserNotFoundError
+        result = await self._new_session(updated, uuid4(), context)
+        await self._record("password_change", "success", context, user=updated)
+        return result
+
+    async def logout_all(self, user: User, context: RequestContext) -> None:
+        await self._repository.revoke_user_sessions(user.id)
+        await self._record("logout_all", "success", context, user=user)
+
+    async def deactivate(
+        self, user: User, current_password: str, context: RequestContext
+    ) -> None:
+        self._require_password(user, current_password)
+        deactivated = await self._repository.deactivate_user(user.id)
+        if deactivated is None:
+            raise UserNotFoundError
+        await self._record("account_deactivation", "success", context, user=deactivated)
+
+    async def list_users(self, offset: int, limit: int) -> tuple[list[User], int]:
+        return await self._repository.list_users(offset, limit)
+
+    async def update_user(
+        self,
+        user_id: UUID,
+        role: Role | None,
+        is_active: bool | None,
+        administrator: User,
+        context: RequestContext,
+    ) -> User:
+        updated = await self._repository.update_user(user_id, role, is_active)
+        if updated is None:
+            raise UserNotFoundError
+        await self._record("user_administration", "success", context, user=updated)
+        await self._record("user_administration_actor", "success", context, user=administrator)
+        return updated
+
     async def authenticate_access_token(self, token: str, context: RequestContext) -> User:
         try:
             claims = self._token_manager.decode_access_token(token)
@@ -119,6 +204,14 @@ class AuthService:
 
     async def record_access_denied(self, user: User, context: RequestContext) -> None:
         await self._record("authorization", "denied", context, user=user)
+
+    def _require_password(self, user: User, password: str) -> None:
+        if not self._password_manager.verify(password, user.password_hash):
+            raise AuthenticationError
+
+    @staticmethod
+    def _normalize(value: str) -> str:
+        return value.strip().casefold()
 
     async def _new_session(
         self, user: User, family_id: UUID, context: RequestContext

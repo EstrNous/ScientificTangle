@@ -64,6 +64,7 @@ async def seed_users() -> None:
                         "password_hash": statement.excluded.password_hash,
                         "role": statement.excluded.role,
                         "is_active": True,
+                        "deactivated_at": None,
                     },
                 )
                 await session.execute(statement)

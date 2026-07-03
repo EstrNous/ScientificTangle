@@ -6,11 +6,14 @@
 
 Its main purpose is to:
 
+- register and store user accounts;
 - verify user credentials;
 - issue short-lived JWT access tokens;
 - manage long-lived refresh sessions securely;
 - expose the current authenticated user;
 - provide role information for other services;
+- let users maintain their profile, password, sessions, and account state;
+- let administrators manage coarse roles and account activation;
 - publish the public signing key through JWKS so other parts of the system can validate tokens.
 
 In practical terms, this service answers the question: "Who is the user and can we trust this identity?"
@@ -29,12 +32,13 @@ Fields:
 
 - `id` — UUID primary key of the user.
 - `username` — unique normalized login name.
-- `email` — optional email address.
+- `email` — unique normalized email address, required for self-registration and optional for legacy seed users.
 - `password_hash` — hashed password, never plain text.
 - `role` — one of: `admin`, `researcher`, `analyst`, `manager`, `external_partner`.
 - `is_active` — whether the user is allowed to sign in.
 - `created_at` — creation timestamp.
 - `updated_at` — last update timestamp.
+- `deactivated_at` — timestamp of soft account deactivation.
 
 Why we store it:
 
@@ -76,15 +80,21 @@ Why we store it:
 - Refresh tokens are stored on the client only as cookies and in the database only as SHA-256 hashes.
 - Refresh cookies are configured as `HttpOnly`, `Secure`, `SameSite=Strict`, and are scoped to `/api/auth`.
 - Seed users can be created from environment variables such as `AUTH_SEED_ADMIN_USERNAME` and `AUTH_SEED_ADMIN_PASSWORD`.
-- The service emits internal audit events for login, refresh, logout, refresh-token reuse, and authorization denial.
+- The service writes structured audit events for identity, session, and role lifecycle actions without credentials or tokens.
 
 ## 3. Endpoints
+
+### `POST /api/auth/register`
+
+Creates an active `external_partner` account with a unique username and email, starts a refresh session, and returns the same token response shape as login. The request cannot select a role.
+
+New passwords must be 8–128 characters and contain at least one uppercase ASCII letter, one lowercase ASCII letter, and one digit.
 
 ### `POST /api/auth/login`
 
 What it does:
 
-- accepts `username` and `password`;
+- accepts `identifier` and `password`, where the identifier is a username or email address;
 - validates the credentials;
 - checks that the user exists and is active;
 - creates a JWT access token;
@@ -136,6 +146,30 @@ What it does:
 
 This endpoint is useful when the frontend wants to know who is currently signed in.
 
+### `PATCH /api/auth/me`
+
+Updates the authenticated user's normalized username or email after verifying the current password. Existing sessions remain active.
+
+### `POST /api/auth/change-password`
+
+Verifies the current password, applies the new-password policy, revokes every refresh session, and returns a fresh token pair.
+
+### `POST /api/auth/logout-all`
+
+Revokes every refresh session owned by the authenticated user and clears the refresh cookie.
+
+### `DELETE /api/auth/me`
+
+Verifies the current password, soft-deactivates the account, revokes all refresh sessions, and clears the refresh cookie.
+
+### `GET /api/auth/users`
+
+Returns a bounded paginated user list to administrators.
+
+### `PATCH /api/auth/users/{user_id}`
+
+Lets an administrator change a user's coarse role or active state. Role changes and deactivation revoke all refresh sessions.
+
 ### `GET /.well-known/jwks.json`
 
 What it does:
@@ -173,4 +207,4 @@ What it does:
 
 `auth_service` is the identity entry point of the project.
 
-It stores users and refresh sessions, signs access tokens, rotates refresh tokens safely, and gives the rest of the system a trusted authenticated user with a role.
+It owns the complete practical identity lifecycle: registration, user storage, authentication, profile and password maintenance, refresh sessions, soft deactivation, and coarse role administration. Domain services remain responsible for resource-specific authorization.
