@@ -8,6 +8,7 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 
 from shared.contracts import AccessPolicy, EvidenceBundle, EvidenceItem, NormalizedDocument, QueryIR, SourceSpan
+from shared.utils.source_span import compute_source_span_id as source_span_id
 
 from ..core.config import settings
 
@@ -468,11 +469,6 @@ def payload_to_span(payload: dict[str, Any]) -> SourceSpan:
         table_block_id=str(payload.get("table_block_id") or "") or None,
         source_type=payload.get("source_type") if payload.get("source_type") in {"text", "table", "figure", "caption"} else "text",
     )
-
-
-def source_span_id(span: SourceSpan) -> str:
-    raw = f"{span.document_id}:{span.page}:{span.start_offset}:{span.end_offset}:{span.table_block_id or ''}"
-    return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
 
 
 def point_id(span_id: str) -> str:

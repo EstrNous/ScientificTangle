@@ -44,6 +44,7 @@ lint:
 	cd ui && npm run lint
 
 test:
+	python -m pytest services/knowledge/tests
 	python -m pytest services/retrieval/tests
 	python -m pytest services/ingestion/tests
 	python -m pytest services/orchestrator/tests

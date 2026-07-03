@@ -4,9 +4,11 @@
 
 ## Ключевые файлы
 
-- `services/knowledge/app/` — schema registry, entities, claims
+- `services/knowledge/app/` — API extraction/graph/health, lifespan Neo4j
+- `services/knowledge/adapters/` — `Neo4jKnowledgeAdapter`, schema bootstrap, mapper, graph operations
+- `infra/neo4j/` — constraints, indexes, migrator
 - `ontology/` — core_schema, domain packs, validation
-- Neo4j adapters
+- `dictionaries/aliases_mvp.json` — seed aliases
 
 ## Принципы
 
@@ -14,4 +16,4 @@ Claim-based знание; не абсолютная истина без provenan
 
 ## Текущий ingestion boundary
 
-Structured extraction выполняется через Model Service. Запись в Neo4j пока представлена типизированным `StorageWriteResult` с `mode=mock` и warning `neo4j_adapter_pending`; mock не сохраняет факты.
+Structured extraction выполняется через Model Service. Подтверждённые артефакты пишутся в Neo4j через `Neo4jKnowledgeAdapter`; `StorageWriteResult.mode=live` при успешной записи.
