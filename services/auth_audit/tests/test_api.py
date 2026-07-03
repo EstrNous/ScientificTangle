@@ -160,7 +160,7 @@ async def test_operational_endpoints_and_jwks(client: AsyncClient) -> None:
     assert ready.json() == {"status": "ok"}
     assert jwks.json()["keys"][0]["alg"] == "RS256"
     assert jwks.json()["keys"][0]["kid"] == "auth-key-1"
-    assert "auth_http_requests_total" in metrics.text
+    assert "auth_audit_http_requests_total" in metrics.text
 
 
 async def test_validation_error_is_normalized(client: AsyncClient) -> None:

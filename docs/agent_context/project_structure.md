@@ -52,6 +52,7 @@
 - `shared/config/` — базовый класс ServiceSettings с подключениями ко всем хранилищам.
 - `shared/security/` — повторно используемая проверка access token через RS256/JWKS.
 - `shared/web/` — единый request_id, зависимости аутентификации и нормализованные API-ошибки.
+- `shared/metrics/` — Prometheus RED-метрики и `/metrics` для всех сервисов.
 
 ### Микросервисы (`services/`)
 
@@ -112,6 +113,8 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 - `infra/minio/buckets.txt` — список бакетов MinIO.
 - `infra/nginx/nginx.conf` — reverse proxy (порт 80), маршрутизирует `/api/auth/` и JWKS в `auth_audit`, остальные внешние API — в Gateway.
 - `infra/monitoring/prometheus.yml` — конфигурация Prometheus для сбора /metrics со всех сервисов.
+- `infra/monitoring/grafana/` — provisioning datasource и SRE-дашборды Grafana.
+- `infra/nginx/Dockerfile` — nginx с basic auth для `/grafana/`.
 - `infra/docker/Dockerfile.python-service` — multistage Dockerfile для Python-сервисов (deps + runtime, shared).
 - `infra/scripts/` — скрипты эксплуатации (seed, reset-demo — в разработке).
 

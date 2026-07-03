@@ -57,9 +57,9 @@ nginx (порт 80) проксирует запросы по prefix:
 Каждый сервис предоставляет три эндпоинта:
 - `GET /health` — живой ли сервис
 - `GET /ready` — готов ли к приему запросов
-- `GET /metrics` — базовая метрика (имя, версия)
+- `GET /metrics` — Prometheus exposition format (HTTP counters и histogram latency)
 
-Prometheus (infra/monitoring/prometheus.yml) опрашивает `/metrics` всех сервисов каждые 15 секунд.
+Prometheus ([`infra/monitoring/prometheus.yml`](infra/monitoring/prometheus.yml)) опрашивает `/metrics` всех сервисов каждые 15 секунд. Grafana доступна по `http://localhost/grafana/` (nginx basic auth, credentials в `.env`).
 
 ## Структура сервиса
 

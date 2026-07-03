@@ -13,8 +13,3 @@ async def health():
 @router.get("/ready")
 async def ready():
     return {"ready": True, "service": settings.service_name}
-
-
-@router.get("/metrics")
-async def metrics():
-    return {"service": settings.service_name, "version": "0.1.0"}

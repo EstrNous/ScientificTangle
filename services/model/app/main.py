@@ -7,6 +7,7 @@ from .api.health import router as health_router
 from .api.v1 import router as v1_router
 from .core.config import settings
 from .core.logging import setup_logging
+from shared.metrics import build_metrics_router, setup_metrics
 
 setup_logging(settings.service_name)
 
@@ -25,5 +26,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+setup_metrics(app, settings.service_name)
+app.include_router(build_metrics_router())
 app.include_router(health_router)
 app.include_router(v1_router)
