@@ -1,3 +1,7 @@
+import json
+from pathlib import Path
+from typing import Any
+
 import pytest
 from app import services
 from app.contracts import ExtractionArtifact
@@ -15,6 +19,7 @@ from shared.contracts import (
 )
 
 client = TestClient(app)
+GOLD_QUESTIONS = json.loads(Path("eval/gold_questions.json").read_text(encoding="utf-8"))["questions"]
 
 
 @pytest.fixture(autouse=True)
@@ -22,6 +27,33 @@ def disable_live_yandex_for_unit_tests(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(services.settings, "yandex_api_key", "")
     monkeypatch.setattr(services.settings, "yandex_folder_id", "")
     services.MODEL_CACHE.clear()
+    services.REDIS_CLIENT = None
+    services.REDIS_CACHE_AVAILABLE = None
+    services.REDIS_CACHE_DEGRADED_REASON = ""
+    FakeRedisClient.store = {}
+    FakeRedisClient.setex_calls = []
+    FakeRedisClient.get_calls = []
+
+
+class FakeRedisClient:
+    store: dict[str, str] = {}
+    setex_calls: list[tuple[str, int, str]] = []
+    get_calls: list[str] = []
+
+    @classmethod
+    def from_url(cls, *args: Any, **kwargs: Any) -> "FakeRedisClient":
+        return cls()
+
+    def ping(self) -> bool:
+        return True
+
+    def get(self, key: str) -> str | None:
+        self.get_calls.append(key)
+        return self.store.get(key)
+
+    def setex(self, key: str, ttl: int, value: str) -> None:
+        self.setex_calls.append((key, ttl, value))
+        self.store[key] = value
 
 
 def test_confirmed_artifact_requires_source_span() -> None:
@@ -177,6 +209,27 @@ def test_query_ir_keeps_numeric_geo_time_and_source_constraints() -> None:
     assert "publication" in constraints["source_type_constraints"]
 
 
+@pytest.mark.parametrize("question", GOLD_QUESTIONS, ids=[item["id"] for item in GOLD_QUESTIONS])
+def test_official_query_ir_preserves_required_constraints(question: dict[str, Any]) -> None:
+    response = client.post("/v1/query-ir", json={"raw_query": question["text"]})
+
+    assert response.status_code == 200
+    query_ir = response.json()["query_ir"]
+    filters = query_ir["filters"]
+    actual_units = {
+        item["unit"]
+        for item in filters.get("numeric_constraints", [])
+        if isinstance(item, dict) and item.get("unit")
+    }
+    for constraint in question.get("expected_numeric_constraints", []):
+        assert constraint["unit"] in actual_units
+    actual_geo = set(filters.get("geo_constraints", []))
+    for geo in question.get("expected_geo_constraints", []):
+        assert geo in actual_geo
+    for key, value in question.get("expected_time_constraints", {}).items():
+        assert filters.get("time_constraints", {}).get(key) == value
+
+
 def test_alias_mining_uses_seed_translit_and_fuzzy_candidates() -> None:
     span = SourceSpan(
         document_id="doc-alias",
@@ -296,6 +349,87 @@ def test_query_ir_cache_reuses_yandex_response(monkeypatch: pytest.MonkeyPatch) 
     assert second.status_code == 200
     assert calls["count"] == 1
     assert first.json()["constraints"]["numeric_constraints"][0]["operator"] == "range"
+
+
+def test_embedding_cache_uses_redis_per_text_and_preserves_order(monkeypatch: pytest.MonkeyPatch) -> None:
+    services.MODEL_CACHE.clear()
+    monkeypatch.setattr(services, "Redis", FakeRedisClient)
+    monkeypatch.setattr(services.settings, "yandex_api_key", "key")
+    monkeypatch.setattr(services.settings, "yandex_folder_id", "folder")
+    calls: list[str] = []
+
+    class FakeClient:
+        def __init__(self, settings: object) -> None:
+            pass
+
+        @property
+        def is_configured(self) -> bool:
+            return True
+
+        def embedding(self, text: str, model_name: str, dimensions: int) -> list[float]:
+            calls.append(text)
+            value = 1.0 if text == "alpha" else 2.0
+            return [value, *([0.0] * (dimensions - 1))]
+
+    monkeypatch.setattr(services, "YandexModelClient", FakeClient)
+
+    first = client.post("/v1/embeddings", json={"texts": ["alpha", "beta"], "dimensions": 4})
+    services.MODEL_CACHE.clear()
+    second = client.post("/v1/embeddings", json={"texts": ["beta", "alpha"], "dimensions": 4})
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert calls == ["alpha", "beta"]
+    vectors = [item["vector"][0] for item in second.json()["embeddings"]]
+    assert vectors == [2.0, 1.0]
+    assert all("alpha" not in key and "beta" not in key for key, _, _ in FakeRedisClient.setex_calls)
+
+
+def test_restricted_structured_extraction_skips_redis_cache(monkeypatch: pytest.MonkeyPatch) -> None:
+    services.MODEL_CACHE.clear()
+    monkeypatch.setattr(services, "Redis", FakeRedisClient)
+    span = SourceSpan(
+        document_id="doc-restricted",
+        page=1,
+        start_offset=0,
+        end_offset=31,
+        text="Nickel recovery reached 82 %.",
+        source_type="text",
+    )
+    document = NormalizedDocument(
+        id="doc-restricted",
+        source_type="report",
+        title="Restricted",
+        content=span.text,
+        source_spans=[span],
+        access_policy={"level": "restricted", "allowed_roles": ["admin"]},
+    )
+
+    response = client.post("/v1/extraction/structured", json={"document": document.model_dump(mode="json")})
+
+    assert response.status_code == 200
+    assert FakeRedisClient.setex_calls == []
+
+
+def test_model_status_reports_redis_cache_degraded(monkeypatch: pytest.MonkeyPatch) -> None:
+    class BrokenRedis:
+        @classmethod
+        def from_url(cls, *args: Any, **kwargs: Any) -> "BrokenRedis":
+            return cls()
+
+        def ping(self) -> bool:
+            raise RuntimeError("redis down")
+
+    monkeypatch.setattr(services, "Redis", BrokenRedis)
+    monkeypatch.setattr(services, "RedisError", Exception)
+
+    response = client.get("/v1/status")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["cache_backend"] == "redis"
+    assert payload["cache_available"] is False
+    assert payload["cache_mode"] == "memory"
 
 
 def test_answer_synthesis_does_not_present_candidates_as_facts() -> None:

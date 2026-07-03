@@ -1,9 +1,10 @@
 from unittest.mock import AsyncMock
 
 import httpx
-from app.main import app
 from fastapi.testclient import TestClient
 
+from app.api.query import source_span_id
+from app.main import app
 from shared.contracts import (
     KnowledgeIngestionResponse,
     NormalizedDocument,
@@ -16,6 +17,15 @@ COLLECTION_NAME = "st_evidence_v1"
 
 
 def test_indexing_returns_explicit_qdrant_mock_counts() -> None:
+    span = SourceSpan(
+        document_id="document-1",
+        page=1,
+        start_offset=0,
+        end_offset=20,
+        text="Nickel recovery 82 %",
+        source_type="text",
+    )
+    span_id = source_span_id(span)
     table = TableBlock(
         id="table-1",
         document_id="document-1",
@@ -28,20 +38,31 @@ def test_indexing_returns_explicit_qdrant_mock_counts() -> None:
         source_type="docx",
         title="report.docx",
         content="Nickel recovery 82 %",
-        source_spans=[
-            SourceSpan(
-                document_id="document-1",
-                page=1,
-                start_offset=0,
-                end_offset=20,
-                text="Nickel recovery 82 %",
-                source_type="text",
-            )
-        ],
+        source_spans=[span],
         table_blocks=[table],
     )
     knowledge_result = KnowledgeIngestionResponse(
         document_id=document.id,
+        extraction={
+            "confirmed": [
+                {
+                    "id": "claim-1",
+                    "kind": "claim",
+                    "source_span_ids": [span_id],
+                },
+                {
+                    "id": "entity-1",
+                    "kind": "entity",
+                    "source_span_ids": [span_id],
+                },
+                {
+                    "id": "candidate-ignored",
+                    "kind": "claim",
+                    "source_span_ids": [],
+                },
+            ],
+            "candidates": [],
+        },
         graph_write=StorageWriteResult(
             backend="neo4j",
             document_ids=[document.id],
@@ -69,10 +90,11 @@ def test_indexing_returns_explicit_qdrant_mock_counts() -> None:
 
     async def mock_post(url: str, **kwargs):
         if url.endswith("/embeddings"):
+            texts = kwargs["json"]["texts"]
             return httpx.Response(
                 200,
                 json={
-                    "embeddings": [{"vector": [0.0] * 256}],
+                    "embeddings": [{"vector": [0.0] * 256} for _ in texts],
                     "warnings": [],
                 },
                 request=httpx.Request("POST", url),
@@ -93,6 +115,14 @@ def test_indexing_returns_explicit_qdrant_mock_counts() -> None:
         assert response.status_code == 200
         body = response.json()
         assert body["vector_write"]["backend"] == "qdrant"
-        assert body["vector_write"]["mode"] == "mock"
-        assert body["vector_write"]["records_count"] == 1
+        assert body["vector_write"]["mode"] == "live"
+        assert body["vector_write"]["records_count"] == 2
         assert body["vector_write"]["document_ids"] == [document.id]
+
+        put_calls = client.app.state.http_client.put.await_args_list
+        points_payload = put_calls[-1].kwargs["json"]["points"]
+        text_point = next(point for point in points_payload if point["payload"]["item_type"] == "source_span")
+        table_point = next(point for point in points_payload if point["payload"]["item_type"] == "table_row")
+        assert text_point["payload"]["claim_ids"] == ["claim-1"]
+        assert text_point["payload"]["graph_entity_ids"] == ["entity-1"]
+        assert table_point["payload"]["claim_ids"] == []
