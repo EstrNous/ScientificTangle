@@ -21,7 +21,7 @@
 - `.cursor/rules/project.mdc` — always-on правила для Cursor.
 - `.github/copilot-instructions.md` — инструкции для GitHub Copilot.
 - `.zed/rules/project.md` — правила для Zed Agent.
-- `docker-compose.yml` — полная локальная среда (сервисы + PostgreSQL + Neo4j + Qdrant + MinIO + Redis + nginx), включая запуск миграций `auth_audit` и подключение внешних RSA-секретов.
+- `docker-compose.yml` — полная локальная среда (сервисы + PostgreSQL + Neo4j + Qdrant + MinIO + Redis + nginx), включая запуск миграций `auth_audit` и `orchestrator`, а также подключение внешних RSA-секретов.
 - `docker-compose.prod.yml` — production-оверрайды (ресурсы, логирование, реплики).
 - `Makefile` — цели сборки и управления: up, up-auth, down, build, logs, seed, e2e, eval, test и др.
 - `.env.example` — шаблон переменных окружения для копирования в `.env`.
@@ -40,10 +40,12 @@
 ### Общий код (`shared/`)
 
 - `shared/pyproject.toml` — пакет `scientific-tangle-shared`, подключается как path dependency из каждого сервиса.
-- `shared/contracts/` — Pydantic-модели DTO: NormalizedDocument, SourceSpan, TableBlock, Quantity, GeoContext, AccessPolicy, Claim, QueryIR, EvidenceItem, EvidenceBundle, AnswerPayload, ServiceInfo.
+- `shared/contracts/` — Pydantic-модели DTO, включая NormalizedDocument, SourceSpan, QueryIR, EvidenceBundle, AnswerPayload, UserRole, StoredSource, IngestionReport и IngestionTaskPayload.
 - `shared/utils/` — утилиты (generate_request_id).
 - `shared/logging/` — единая конфигурация structlog (JSON, контекст сервиса).
 - `shared/config/` — базовый класс ServiceSettings с подключениями ко всем хранилищам.
+- `shared/security/` — повторно используемая проверка access token через RS256/JWKS.
+- `shared/web/` — единый request_id, зависимости аутентификации и нормализованные API-ошибки.
 
 ### Микросервисы (`services/`)
 
@@ -60,6 +62,8 @@
 | `services/model/` | 8006 | Model — LLM, embeddings, reranking, structured extraction, caching |
 | `services/export/` | 8007 | Export — Markdown, PDF, JSON, JSON-LD |
 | `services/notification/` | 8008 | Notification — профиль интересов, сопоставление с источниками, уведомления |
+
+Gateway, Orchestrator и Ingestion используют слои по образцу `auth_audit`: HTTP-маршруты находятся в `app/api`, сборка зависимостей — в `app/core`, работа с БД — в `app/db`, прикладная логика — в `app/service`, миграции — в `storage`.
 
 ### UI (`ui/`)
 
@@ -124,6 +128,18 @@
 - `README.md` — описание сервиса, стек, схема баз, индексы.
 
 Архитектура: DB-per-Service — каждая база (auth_db, audit_db) физически отдельная БД внутри одного PostgreSQL-инстанса.
+
+### services/gateway/
+
+Внешний API для загрузки документов и чтения статуса ingestion-задач. Проверяет JWT через JWKS, создаёт или принимает `request_id`, нормализует ошибки и передаёт запросы в Orchestrator.
+
+### services/orchestrator/
+
+Владелец состояния ingestion-задач. Сохраняет задачи в PostgreSQL, контролирует доступ владельца и администратора, вызывает Ingestion и хранит отчёт о загруженных источниках. Миграции находятся в `storage/`, образ собирается через собственный multistage `Dockerfile`.
+
+### services/ingestion/
+
+Принимает аутентифицированные исходные файлы, безопасно формирует объектные ключи, вычисляет SHA-256 и сохраняет данные в бакет MinIO `source-files`. При частичном сбое удаляет уже записанные объекты.
 
 ## Как поддерживать файл
 

@@ -1,11 +1,18 @@
 from contextlib import asynccontextmanager
 
 import structlog
+import httpx
 from fastapi import FastAPI
+from minio import Minio
 
 from app.api.health import router as health_router
+from app.api.ingestion import router as ingestion_router
 from app.core.config import settings
 from app.core.logging import setup_logging
+from app.service.service import IngestionService
+from app.service.storage import SourceStorage
+from shared.security import JWKSValidator
+from shared.web import install_error_handlers, request_id_middleware
 
 setup_logging(settings.service_name)
 
@@ -13,8 +20,30 @@ setup_logging(settings.service_name)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger = structlog.get_logger()
+    http_client = httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=5.0))
+    source_storage = SourceStorage(
+        client=Minio(
+            settings.minio_endpoint,
+            access_key=settings.minio_access_key,
+            secret_key=settings.minio_secret_key,
+            secure=settings.minio_secure,
+        ),
+        bucket=settings.source_bucket,
+        upload_limit_bytes=settings.upload_limit_bytes,
+    )
+    await source_storage.ensure_bucket()
+    app.state.ingestion_service = IngestionService(source_storage)
+    app.state.jwt_validator = JWKSValidator(
+        auth_url=settings.auth_url,
+        issuer=settings.auth_jwt_issuer,
+        audience=settings.auth_jwt_audience,
+        cache_seconds=settings.auth_jwks_cache_seconds,
+        clock_skew_seconds=settings.auth_clock_skew_seconds,
+        client=http_client,
+    )
     logger.info("service_started", service=settings.service_name, port=settings.port)
     yield
+    await http_client.aclose()
     logger.info("service_stopped", service=settings.service_name)
 
 
@@ -24,4 +53,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.middleware("http")(request_id_middleware)
+install_error_handlers(app)
 app.include_router(health_router)
+app.include_router(ingestion_router)

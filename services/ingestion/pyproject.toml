@@ -8,6 +8,8 @@ dependencies = [
     "structlog>=24.0",
     "pydantic-settings>=2.0",
     "httpx>=0.27",
+    "python-multipart>=0.0.12",
+    "minio>=7.2",
     "scientific-tangle-shared",
 ]
 

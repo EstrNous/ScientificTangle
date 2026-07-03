@@ -1,8 +1,54 @@
 import uuid
 from datetime import datetime
+from enum import StrEnum
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel, Field
+
+
+class UserRole(StrEnum):
+    ADMIN = "admin"
+    RESEARCHER = "researcher"
+    ANALYST = "analyst"
+    MANAGER = "manager"
+    EXTERNAL_PARTNER = "external_partner"
+
+
+class IngestionTaskStatus(StrEnum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class StoredSource(BaseModel):
+    object_key: str
+    original_filename: str
+    content_type: str
+    size_bytes: int = Field(gt=0)
+    sha256: str = Field(min_length=64, max_length=64)
+
+
+class IngestionReport(BaseModel):
+    stage: Literal["uploaded"] = "uploaded"
+    sources: list[StoredSource] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class IngestionTaskPayload(BaseModel):
+    id: UUID
+    status: IngestionTaskStatus
+    report: IngestionReport | None = None
+    error_message: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class ApiError(BaseModel):
+    code: str
+    message: str
+    request_id: str
 
 
 class SourceSpan(BaseModel):
