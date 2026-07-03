@@ -2,11 +2,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
-from ..core.dependencies import get_graph_service
-from ..service.graph_service import GraphService
 from shared.contracts import GraphPayload, SearchResultsPayload
 from shared.security import AuthenticatedPrincipal
 from shared.web import require_principal
+
+from ..core.dependencies import get_graph_service
+from ..service.graph_service import GraphService
 
 router = APIRouter(tags=["graph"])
 

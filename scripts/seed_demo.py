@@ -6,7 +6,6 @@ from typing import Any
 
 import httpx
 
-
 DEFAULT_RETRIEVAL_URL = "http://localhost:8005"
 DEFAULT_SEED_PATH = "demo/seed_data/mvp_normalized_documents.json"
 

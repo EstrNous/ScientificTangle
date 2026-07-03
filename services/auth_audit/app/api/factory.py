@@ -1,13 +1,12 @@
-import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-
 from infra.postgres.auth_audit_db import AuthRepository, create_database
 from shared.contracts import ApiError
 from shared.metrics import build_metrics_router, setup_metrics
 from shared.web import install_error_handlers, request_id_middleware
+
 from ..core.audit import AuthAuditSink, LoggingAuthAuditSink
 from ..core.config import Settings
 from ..service.security import KeyStore, PasswordManager, TokenManager

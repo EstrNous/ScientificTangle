@@ -464,7 +464,7 @@ class ParserRegistry:
         rows: list[list[str]],
     ) -> TableBlock:
         table_id = hashlib.sha1(
-            f"{document_id}:{page}:{table_index}".encode("utf-8")
+            f"{document_id}:{page}:{table_index}".encode()
         ).hexdigest()[:16]
         return TableBlock(
             id=table_id,

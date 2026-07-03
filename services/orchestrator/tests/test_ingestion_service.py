@@ -5,9 +5,9 @@ from uuid import UUID, uuid4
 
 import httpx
 import pytest
+from app.service.service import OrchestratorService, OrchestratorServiceError
 from fastapi import UploadFile
 
-from app.service.service import OrchestratorService, OrchestratorServiceError
 from infra.postgres.orchestrator_db import IngestionTask
 from shared.contracts import IngestionReport, UserRole
 from shared.security import AuthenticatedPrincipal

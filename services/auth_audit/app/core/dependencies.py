@@ -3,9 +3,9 @@ from typing import Annotated, Any
 
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-
 from infra.postgres.auth_audit_db import AuthRepository, Role, SqlAlchemyAuthRepository, User
 from shared.web import ServiceError
+
 from ..service.service import AuthenticationError, AuthService, RequestContext
 
 bearer_scheme = HTTPBearer(auto_error=False)

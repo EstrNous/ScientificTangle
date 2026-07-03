@@ -4,10 +4,10 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import fitz
+from app.parsers import ParserRegistry, SourceContent
 from docx import Document
 from pptx import Presentation
 
-from app.parsers import ParserRegistry, SourceContent
 from shared.contracts import AccessPolicy
 
 

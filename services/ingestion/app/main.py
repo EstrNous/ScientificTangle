@@ -1,9 +1,13 @@
 from contextlib import asynccontextmanager
 
-import structlog
 import httpx
+import structlog
 from fastapi import FastAPI
 from minio import Minio
+
+from shared.metrics import build_metrics_router, setup_metrics
+from shared.security import JWKSValidator
+from shared.web import install_error_handlers, request_id_middleware
 
 from .api.documents import router as documents_router
 from .api.health import router as health_router
@@ -13,9 +17,6 @@ from .core.logging import setup_logging
 from .parsers import ParserRegistry
 from .service.service import IngestionService
 from .service.storage import SourceStorage
-from shared.metrics import build_metrics_router, setup_metrics
-from shared.security import JWKSValidator
-from shared.web import install_error_handlers, request_id_middleware
 
 setup_logging(settings.service_name)
 

@@ -1,5 +1,6 @@
-from shared.config.settings import ServiceSettings
 from pydantic_settings import SettingsConfigDict
+
+from shared.config.settings import ServiceSettings
 
 
 class Settings(ServiceSettings):

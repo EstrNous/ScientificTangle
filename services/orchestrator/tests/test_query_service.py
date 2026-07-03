@@ -3,9 +3,8 @@ from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 import httpx
-import pytest
-
 from app.service.service import OrchestratorService
+
 from infra.postgres.orchestrator_db import QueryRun
 from shared.contracts import NormalizedDocument, SourceSpan, UserRole
 from shared.security import AuthenticatedPrincipal

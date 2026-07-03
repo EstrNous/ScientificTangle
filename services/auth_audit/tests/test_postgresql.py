@@ -7,17 +7,19 @@ from uuid import UUID, uuid4
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import func, select
-
-from infra.postgres.auth_audit_db import create_database
-from infra.postgres.auth_audit_db import RefreshSession, Role, User
 from infra.postgres.auth_audit_db import (
     IdentityConflictError,
     NewUserData,
+    RefreshSession,
     RefreshSessionData,
+    Role,
     RotationStatus,
     SqlAlchemyAuthRepository,
+    User,
+    create_database,
 )
+from sqlalchemy import func, select
+
 from app.service.security import PasswordManager
 
 TEST_DATABASE_URL = os.getenv("AUTH_TEST_DATABASE_URL")
