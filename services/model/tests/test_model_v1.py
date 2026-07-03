@@ -4,10 +4,18 @@ from pydantic import ValidationError
 
 from app.contracts import ExtractionArtifact
 from app.main import app
+from app import services
 from shared.contracts import EvidenceBundle, EvidenceItem, NormalizedDocument, QueryIR, SourceSpan, TableBlock
 
 
 client = TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def disable_live_yandex_for_unit_tests(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(services.settings, "yandex_api_key", "")
+    monkeypatch.setattr(services.settings, "yandex_folder_id", "")
+    services.MODEL_CACHE.clear()
 
 
 def test_confirmed_artifact_requires_source_span() -> None:
@@ -161,6 +169,127 @@ def test_query_ir_keeps_numeric_geo_time_and_source_constraints() -> None:
     assert constraints["time_constraints"]["relative_years"] == 5
     assert "Россия" in constraints["geo_constraints"]
     assert "publication" in constraints["source_type_constraints"]
+
+
+def test_alias_mining_uses_seed_translit_and_fuzzy_candidates() -> None:
+    span = SourceSpan(
+        document_id="doc-alias",
+        page=1,
+        start_offset=0,
+        end_offset=120,
+        text="Металлы платиновой группы (МПГ), platinovye элементы и nickle связаны с PGM.",
+        source_type="text",
+    )
+    document = NormalizedDocument(
+        id="doc-alias",
+        source_type="article",
+        title="Alias mining",
+        content=span.text,
+        source_spans=[span],
+    )
+
+    response = client.post("/v1/extraction/structured", json={"document": document.model_dump(mode="json")})
+
+    assert response.status_code == 200
+    aliases = [item for item in [*response.json()["confirmed"], *response.json()["candidates"]] if item["kind"] == "alias"]
+    values = {item["value"].lower() for item in aliases}
+    assert any("мпг" in value for value in values)
+    assert any("pgm" in value for value in values)
+    assert any("никель" in value for value in values)
+
+
+def test_alias_embedding_similarity_handles_near_aliases() -> None:
+    score = services.cosine_similarity(
+        services.alias_embedding("ферроникель"),
+        services.alias_embedding("ферро-никель"),
+    )
+
+    assert score > 0.7
+
+
+def test_llm_structured_extraction_fills_source_spans_and_preserves_rule_measurements(monkeypatch: pytest.MonkeyPatch) -> None:
+    services.MODEL_CACHE.clear()
+    span = SourceSpan(
+        document_id="doc-llm",
+        page=1,
+        start_offset=0,
+        end_offset=74,
+        text="Никель показал извлекаемость 82 % при флотации.",
+        source_type="text",
+    )
+    span_id = services.source_span_id(span)
+    document = NormalizedDocument(
+        id="doc-llm",
+        source_type="article",
+        title="LLM extraction",
+        content=span.text,
+        source_spans=[span],
+    )
+
+    class FakeClient:
+        def __init__(self, settings: object) -> None:
+            pass
+
+        @property
+        def is_configured(self) -> bool:
+            return True
+
+        def complete_json(self, system_prompt: str, user_prompt: str, schema: dict, model_name: str | None = None) -> dict:
+            return {
+                "document_id": "doc-llm",
+                "profile": {"source_type": "article", "document_purpose": "research_article", "confidence": 0.9},
+                "confirmed": [
+                    {
+                        "kind": "claim",
+                        "value": "Никель показал извлекаемость 82 % при флотации.",
+                        "confidence": 0.91,
+                        "status": "confirmed",
+                        "source_span_ids": [span_id],
+                    }
+                ],
+                "candidates": [],
+            }
+
+    monkeypatch.setattr(services, "YandexModelClient", FakeClient)
+
+    response = client.post("/v1/extraction/structured", json={"document": document.model_dump(mode="json")})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["mode"] == "llm"
+    assert any(item["kind"] == "claim" and item["source_spans"] for item in payload["confirmed"])
+    assert any(item["kind"] == "measurement" for item in payload["confirmed"])
+
+
+def test_query_ir_cache_reuses_yandex_response(monkeypatch: pytest.MonkeyPatch) -> None:
+    services.MODEL_CACHE.clear()
+    calls = {"count": 0}
+
+    class FakeClient:
+        def __init__(self, settings: object) -> None:
+            pass
+
+        @property
+        def is_configured(self) -> bool:
+            return True
+
+        def complete_json(self, system_prompt: str, user_prompt: str, schema: dict, model_name: str | None = None) -> dict:
+            calls["count"] += 1
+            return {
+                "query_ir": {"raw_query": "методы в России 200-300 мг/л", "entities": ["методы"], "intent": "find_methods"},
+                "constraints": {},
+                "warnings": [],
+            }
+
+    monkeypatch.setattr(services, "YandexModelClient", FakeClient)
+
+    first = client.post("/v1/query-ir", json={"raw_query": "методы в России 200-300 мг/л"})
+    second = client.post("/v1/query-ir", json={"raw_query": "методы в России 200-300 мг/л"})
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert calls["count"] == 1
+    assert first.json()["constraints"]["numeric_constraints"][0]["operator"] == "range"
 
 
 def test_answer_synthesis_does_not_present_candidates_as_facts() -> None:

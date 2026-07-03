@@ -10,17 +10,20 @@
 - Версионированные prompts и JSON Schema registry лежат в репозитории.
 - Eval dataset содержит 4 official MVP questions и 12 corpus-derived regression questions из публичного корпуса.
 - Eval script считает MVP/top-1 метрики и пишет Markdown/JSON отчёты.
+- Schema-aware LLM extraction подключен как основной путь при настроенном Yandex, с deterministic fallback и обязательной проверкой `SourceSpan`.
+- Model routing разведен по задачам: long-context для structured extraction, fast model для Query IR, multilingual model для alias/user-interest задач, chat model для answer synthesis.
+- Alias mining расширен: seed aliases, русско-английские соответствия, транслитерация, нормализация дефисов/формул и fuzzy matching через `thefuzz`.
+- In-memory model cache добавлен для embeddings, Query IR и structured extraction.
+- Добавлен тонкий internal integration slice: ingestion normalize, knowledge extraction handoff, retrieval query, orchestrator query run, gateway query proxy.
+- Добавлен live Yandex smoke test без секретов в коде; тест пропускается, если `YANDEX_API_KEY` и `YANDEX_FOLDER_ID` не настроены.
+- `eval/run_eval.py` умеет прогонять `/api/query` с auth token из env, нормализовать raw eval documents через ingestion `/v1/documents/normalize` и писать dashboard-ready JSON/Markdown.
+- Alias mining получил локальный embedding-similarity слой без привязки к Qdrant.
 
 ## Что ещё не закрыто до полного ML MVP
 
-- Schema-aware LLM extraction для entities, relations, measurements, aliases и claims ещё не является основным путём; сейчас основной путь rule-based с Yandex fallback только для embeddings и answer synthesis.
-- Model routing по `YANDEX_FAST_MODEL`, `YANDEX_LONG_CONTEXT_MODEL` и `YANDEX_MULTILINGUAL_MODEL` задан в config, но не полностью разведен по задачам extraction, Query IR и alias mining.
-- Alias mining не добит до полного набора: русско-английские соответствия, транслитерация, fuzzy matching, embedding similarity и seed dictionaries пока частично покрыты.
-- Нет интеграционного ML-прогона через реальные `NormalizedDocument` из ingestion service; corpus-derived gold собран dev-only пайплайном из временных normalized artifacts.
-- Нет проверки live Yandex API в CI/smoke без секретов; локально `/v1/status` показывает готовность по факту заполненного `.env`.
-- Нет model cache для повторных embeddings, Query IR и structured extraction.
-- Нет end-to-end связки model outputs с Knowledge/Neo4j и Retrieval/Qdrant.
+- Нет полноценной записи model outputs в Knowledge/Neo4j и индексации в Retrieval/Qdrant: сейчас есть adapter boundary и degraded integration slice, реальные хранилища остаются задачей DB-интеграции.
 - Нет UI/evaluation dashboard; доступны Markdown/JSON eval reports.
+- Нет зафиксированного командного live eval artifact на общем demo corpus: runner готов, но результат зависит от поднятого стэка, auth token и предоставленных raw/normalized documents.
 
 ## Top-1 ML backlog
 

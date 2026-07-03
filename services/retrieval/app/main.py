@@ -1,9 +1,11 @@
 from contextlib import asynccontextmanager
 
 import structlog
+import httpx
 from fastapi import FastAPI
 
 from app.api.health import router as health_router
+from app.api.query import router as query_router
 from app.core.config import settings
 from app.core.logging import setup_logging
 from shared.metrics import build_metrics_router, setup_metrics
@@ -14,8 +16,11 @@ setup_logging(settings.service_name)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger = structlog.get_logger()
+    http_client = httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=5.0))
+    app.state.http_client = http_client
     logger.info("service_started", service=settings.service_name, port=settings.port)
     yield
+    await http_client.aclose()
     logger.info("service_stopped", service=settings.service_name)
 
 
@@ -28,3 +33,4 @@ app = FastAPI(
 setup_metrics(app, settings.service_name)
 app.include_router(build_metrics_router())
 app.include_router(health_router)
+app.include_router(query_router)

@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import hashlib
 import json
+import os
 import time
 from pathlib import Path
 from typing import Any
@@ -11,32 +12,79 @@ import httpx
 
 DEFAULT_EVAL_SERVICE_URL = "http://localhost:8000/api/query"
 DEFAULT_GOLD_QUESTIONS_PATH = "eval/gold_questions.json"
+DEFAULT_REPORT_BASE = "eval/reports/latest"
 
 
-async def run_evaluation(service_url: str, gold_questions_path: str) -> None:
+async def run_evaluation(
+    service_url: str,
+    gold_questions_path: str,
+    documents_path: str | None,
+    ingestion_normalize_url: str | None,
+    auth_token: str | None,
+    output_base: str,
+) -> None:
     gold = load_gold_questions(gold_questions_path)
     results = []
     async with httpx.AsyncClient(timeout=30.0) as client:
+        documents = await load_eval_documents(client, documents_path, ingestion_normalize_url)
         for question in gold:
             started_at = time.perf_counter()
             try:
-                response = await client.post(service_url, json={"query": question["text"]})
+                response = await client.post(
+                    service_url,
+                    json={"query": question["text"], "documents": documents},
+                    headers=auth_headers(auth_token),
+                )
                 elapsed_ms = round((time.perf_counter() - started_at) * 1000, 2)
                 data = response.json() if response.headers.get("content-type", "").startswith("application/json") else {}
                 result = evaluate_response(question, response.status_code, data, elapsed_ms)
+                result["input_documents_count"] = len(documents)
             except httpx.HTTPError as exc:
                 elapsed_ms = round((time.perf_counter() - started_at) * 1000, 2)
                 result = evaluate_response(question, 0, {"error": str(exc)}, elapsed_ms)
+                result["input_documents_count"] = len(documents)
             results.append(result)
 
     report = build_report(results)
-    write_reports(report, Path("eval/reports/latest"))
+    write_reports(report, Path(output_base))
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
 
 def load_gold_questions(path: str) -> list[dict[str, Any]]:
     data = json.loads(Path(path).read_text(encoding="utf-8"))
     return [*data.get("questions", []), *data.get("corpus_regression_questions", [])]
+
+
+async def load_eval_documents(client: httpx.AsyncClient, documents_path: str | None, ingestion_normalize_url: str | None) -> list[dict[str, Any]]:
+    if not documents_path:
+        return []
+    data = json.loads(Path(documents_path).read_text(encoding="utf-8"))
+    if "normalized_documents" in data:
+        return data["normalized_documents"]
+    raw_documents = data.get("documents", [])
+    if not ingestion_normalize_url:
+        raise ValueError("Raw eval documents require --ingestion-normalize-url")
+    documents = []
+    for item in raw_documents:
+        response = await client.post(ingestion_normalize_url, json=item)
+        response.raise_for_status()
+        payload = response.json()
+        documents.append(payload["document"])
+    return documents
+
+
+def auth_headers(auth_token: str | None) -> dict[str, str]:
+    if not auth_token:
+        return {}
+    return {"Authorization": f"Bearer {auth_token}"}
+
+
+def resolve_auth_token(auth_token: str | None, auth_token_env: str | None) -> str | None:
+    if auth_token:
+        return auth_token
+    if auth_token_env:
+        return os.getenv(auth_token_env)
+    return None
 
 
 def evaluate_response(question: dict[str, Any], status_code: int, data: dict[str, Any], latency_ms: float) -> dict[str, Any]:
@@ -234,29 +282,71 @@ def query_ir_time_value(filters: dict[str, Any], key: str) -> Any:
 
 
 def build_report(results: list[dict[str, Any]]) -> dict[str, Any]:
+    metrics = {
+        "citation_coverage": average_metric(results, "citation_coverage"),
+        "numeric_correctness": average_metric(results, "numeric_correctness"),
+        "query_ir_constraint_recall": average_metric(results, "query_ir_constraint_recall"),
+        "evidence_recall_at_k": average_metric(results, "evidence_recall_at_k"),
+        "unsupported_claim_rate": average_metric(results, "unsupported_claim_rate"),
+        "entity_linking_f1": average_metric(results, "entity_linking_f1"),
+        "candidate_quality_review_rate": average_metric(results, "candidate_quality_review_rate"),
+        "answer_completeness": average_metric(results, "answer_completeness"),
+        "geo_correctness": average_metric(results, "geo_correctness"),
+        "conflict_detection_accuracy": average_metric(results, "conflict_detection_accuracy"),
+        "gap_precision": average_metric(results, "gap_precision"),
+        "query_trace_completeness": average_metric(results, "query_trace_completeness"),
+        "latency_ms_avg": average_metric(results, "latency_ms"),
+        "latency_ms_p50": percentile_metric(results, "latency_ms", 0.5),
+        "latency_ms_p95": percentile_metric(results, "latency_ms", 0.95),
+    }
     return {
         "total_questions": len(results),
         "answered_200": sum(1 for item in results if item["status_code"] == 200),
         "with_evidence": sum(1 for item in results if item["has_evidence"]),
-        "metrics": {
-            "citation_coverage": average_metric(results, "citation_coverage"),
-            "numeric_correctness": average_metric(results, "numeric_correctness"),
-            "query_ir_constraint_recall": average_metric(results, "query_ir_constraint_recall"),
-            "evidence_recall_at_k": average_metric(results, "evidence_recall_at_k"),
-            "unsupported_claim_rate": average_metric(results, "unsupported_claim_rate"),
-            "entity_linking_f1": average_metric(results, "entity_linking_f1"),
-            "candidate_quality_review_rate": average_metric(results, "candidate_quality_review_rate"),
-            "answer_completeness": average_metric(results, "answer_completeness"),
-            "geo_correctness": average_metric(results, "geo_correctness"),
-            "conflict_detection_accuracy": average_metric(results, "conflict_detection_accuracy"),
-            "gap_precision": average_metric(results, "gap_precision"),
-            "query_trace_completeness": average_metric(results, "query_trace_completeness"),
-            "latency_ms_avg": average_metric(results, "latency_ms"),
-            "latency_ms_p50": percentile_metric(results, "latency_ms", 0.5),
-            "latency_ms_p95": percentile_metric(results, "latency_ms", 0.95),
-        },
+        "metrics": metrics,
+        "dashboard_data": build_dashboard_data(results, metrics),
         "results": results,
     }
+
+
+def build_dashboard_data(results: list[dict[str, Any]], metrics: dict[str, Any]) -> dict[str, Any]:
+    official = [item for item in results if item.get("question_id", "").startswith("official-")]
+    blockers = [
+        item["question_id"]
+        for item in results
+        if item["status_code"] != 200 or not item["has_evidence"] or item.get("unsupported_claim_rate", 0) > 0.25
+    ]
+    return {
+        "official_questions_total": len(official),
+        "official_questions_200": sum(1 for item in official if item["status_code"] == 200),
+        "official_questions_with_evidence": sum(1 for item in official if item["has_evidence"]),
+        "blocker_question_ids": blockers,
+        "metric_status": {
+            "citation_coverage": threshold_status(metrics.get("citation_coverage"), 0.8, higher_is_better=True),
+            "numeric_correctness": threshold_status(metrics.get("numeric_correctness"), 0.9, higher_is_better=True),
+            "unsupported_claim_rate": threshold_status(metrics.get("unsupported_claim_rate"), 0.1, higher_is_better=False),
+            "query_ir_constraint_recall": threshold_status(metrics.get("query_ir_constraint_recall"), 0.9, higher_is_better=True),
+            "latency_ms_p95": threshold_status(metrics.get("latency_ms_p95"), 5000, higher_is_better=False),
+        },
+        "summary_rows": [
+            {
+                "question_id": item["question_id"],
+                "status_code": item["status_code"],
+                "has_evidence": item["has_evidence"],
+                "latency_ms": item["latency_ms"],
+                "input_documents_count": item.get("input_documents_count", 0),
+            }
+            for item in results
+        ],
+    }
+
+
+def threshold_status(value: float | None, threshold: float, higher_is_better: bool) -> str:
+    if value is None:
+        return "unknown"
+    if higher_is_better:
+        return "pass" if value >= threshold else "warn"
+    return "pass" if value <= threshold else "warn"
 
 
 def average_metric(results: list[dict[str, Any]], key: str) -> float | None:
@@ -293,6 +383,12 @@ def render_markdown_report(report: dict[str, Any]) -> str:
     ]
     for key, value in report["metrics"].items():
         lines.append(f"- {key}: {value}")
+    lines.extend(["", "## Dashboard data", ""])
+    dashboard = report["dashboard_data"]
+    lines.append(f"- official_questions_total: {dashboard['official_questions_total']}")
+    lines.append(f"- official_questions_200: {dashboard['official_questions_200']}")
+    lines.append(f"- official_questions_with_evidence: {dashboard['official_questions_with_evidence']}")
+    lines.append(f"- blocker_question_ids: {', '.join(dashboard['blocker_question_ids']) if dashboard['blocker_question_ids'] else 'none'}")
     lines.extend(["", "## Questions", ""])
     for item in report["results"]:
         lines.append(f"- {item['question_id']}: status={item['status_code']}, evidence={item['has_evidence']}, latency_ms={item['latency_ms']}")
@@ -304,9 +400,23 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--service-url", default=DEFAULT_EVAL_SERVICE_URL)
     parser.add_argument("--gold", default=DEFAULT_GOLD_QUESTIONS_PATH)
+    parser.add_argument("--documents")
+    parser.add_argument("--ingestion-normalize-url")
+    parser.add_argument("--auth-token")
+    parser.add_argument("--auth-token-env", default="EVAL_AUTH_TOKEN")
+    parser.add_argument("--output-base", default=DEFAULT_REPORT_BASE)
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    asyncio.run(run_evaluation(args.service_url, args.gold))
+    asyncio.run(
+        run_evaluation(
+            args.service_url,
+            args.gold,
+            args.documents,
+            args.ingestion_normalize_url,
+            resolve_auth_token(args.auth_token, args.auth_token_env),
+            args.output_base,
+        )
+    )

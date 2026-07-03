@@ -1,8 +1,16 @@
 import hashlib
+import json
 import math
 import re
 import uuid
+from difflib import SequenceMatcher
 from typing import Any
+
+try:
+    from thefuzz import fuzz, process
+except ImportError:
+    fuzz = None
+    process = None
 
 from shared.contracts import AccessPolicy, AnswerPayload, EvidenceBundle, EvidenceItem, GeoContext, NormalizedDocument, Quantity, QueryIR, SourceSpan
 
@@ -178,6 +186,37 @@ PROPERTY_TERMS = {
 }
 EXPERT_PATTERN = re.compile(r"\b[А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ]\.){1,2}|\b[A-Z][a-z]+(?:\s+[A-Z]\.){1,2}")
 DATE_PATTERN = re.compile(r"\b(?:19|20)\d{2}\b|\b\d{1,2}[./-]\d{1,2}[./-](?:19|20)?\d{2}\b")
+MODEL_CACHE: dict[str, dict[str, Any]] = {}
+FUZZY_ALIAS_THRESHOLD = 88
+
+SEED_ALIASES = {
+    "мпг": "металлы платиновой группы",
+    "пгэ": "платиноидные элементы",
+    "pgm": "металлы платиновой группы",
+    "pge": "платиноидные элементы",
+    "fe-ni": "ферроникель",
+    "feni": "ферроникель",
+    "cu-ni": "медно-никелевые руды",
+    "ni": "никель",
+    "cu": "медь",
+    "co": "кобальт",
+    "au": "золото",
+    "ag": "серебро",
+}
+
+RU_EN_ALIASES = {
+    "nickel": "никель",
+    "copper": "медь",
+    "cobalt": "кобальт",
+    "gold": "золото",
+    "silver": "серебро",
+    "slag": "шлак",
+    "matte": "штейн",
+    "flotation": "флотация",
+    "leaching": "выщелачивание",
+    "desalination": "обессоливание",
+    "electroextraction": "электроэкстракция",
+}
 
 
 def source_span_id(span: SourceSpan) -> str:
@@ -185,9 +224,31 @@ def source_span_id(span: SourceSpan) -> str:
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
 
 
+def cache_key(operation: str, version: str, model_name: str, payload: dict[str, Any]) -> str:
+    raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str)
+    digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
+    return f"{operation}:{version}:{model_name}:{digest}"
+
+
+def cached_response(model_cls: type[Any], key: str) -> Any | None:
+    cached = MODEL_CACHE.get(key)
+    if cached is None:
+        return None
+    return model_cls.model_validate(cached)
+
+
+def store_cache(key: str, response: Any) -> Any:
+    MODEL_CACHE[key] = response.model_dump(mode="json")
+    return response
+
+
 def build_embeddings(request: EmbeddingRequest) -> EmbeddingResponse:
     client = YandexModelClient(settings)
     selected_model = select_embedding_model(request)
+    key = cache_key("embeddings", "embeddings.v1", selected_model, request.model_dump(mode="json"))
+    cached = cached_response(EmbeddingResponse, key)
+    if cached:
+        return cached
     warnings = []
     mode = "deterministic_degraded"
     embeddings = []
@@ -213,7 +274,7 @@ def build_embeddings(request: EmbeddingRequest) -> EmbeddingResponse:
         embeddings=embeddings,
         warnings=warnings,
     )
-    return EmbeddingResponse.model_validate(response.model_dump())
+    return store_cache(key, EmbeddingResponse.model_validate(response.model_dump()))
 
 
 def select_embedding_model(request: EmbeddingRequest) -> str:
@@ -240,11 +301,32 @@ def hash_embedding(text: str, dimensions: int) -> list[float]:
 
 def build_structured_extraction(request: StructuredExtractionRequest) -> StructuredExtractionResponse:
     document = request.document
+    selected_model = settings.yandex_long_context_model
+    key = cache_key("structured_extraction", "structured_extraction.v1", selected_model, request.model_dump(mode="json"))
+    cached = cached_response(StructuredExtractionResponse, key)
+    if cached:
+        return cached
     span_index = {source_span_id(span): span for span in document.source_spans}
     confirmed: list[ExtractionArtifact] = []
     candidates: list[ExtractionArtifact] = []
     warnings: list[UnsupportedWarning] = []
     seen: set[tuple[str, str, str]] = set()
+    llm_warnings: list[str] = []
+    mode = "deterministic_degraded"
+
+    client = YandexModelClient(settings)
+    if client.is_configured:
+        try:
+            llm_response = build_llm_structured_extraction(client, request, span_index)
+            for item in llm_response.confirmed:
+                add_artifact(item, confirmed, candidates, seen)
+            for item in llm_response.candidates:
+                add_artifact(item, confirmed, candidates, seen)
+            warnings.extend(llm_response.unsupported_warnings)
+            llm_warnings.extend(llm_response.warnings)
+            mode = "llm"
+        except Exception as exc:
+            llm_warnings.append(f"Yandex structured extraction failed, deterministic fallback used: {exc}")
 
     for span_id, span in span_index.items():
         add_span_artifacts(span_id, span, confirmed, candidates, warnings, seen)
@@ -263,16 +345,110 @@ def build_structured_extraction(request: StructuredExtractionRequest) -> Structu
     confirmed = confirmed[: request.max_artifacts]
     candidates = candidates[: request.max_artifacts]
     profile = suggest_document_profile(document)
+    response_warnings = llm_warnings
+    if mode == "deterministic_degraded":
+        response_warnings = [*response_warnings, DEGRADED_WARNING]
     response = StructuredExtractionResponse(
-        mode="llm" if settings.yandex_enabled else "deterministic_degraded",
+        mode=mode,
         document_id=document.id,
         profile=profile,
         confirmed=confirmed,
         candidates=candidates,
         unsupported_warnings=warnings,
-        warnings=[DEGRADED_WARNING],
+        warnings=response_warnings,
     )
-    return StructuredExtractionResponse.model_validate(response.model_dump())
+    return store_cache(key, StructuredExtractionResponse.model_validate(response.model_dump()))
+
+
+def build_llm_structured_extraction(
+    client: YandexModelClient,
+    request: StructuredExtractionRequest,
+    span_index: dict[str, SourceSpan],
+) -> StructuredExtractionResponse:
+    document = request.document
+    payload = {
+        "document": document.model_dump(mode="json"),
+        "source_span_ids": list(span_index),
+        "max_artifacts": request.max_artifacts,
+        "confirmed_confidence_threshold": request.confirmed_confidence_threshold,
+    }
+    data = complete_json_with_fallback(
+        client,
+        "Extract structured evidence-first artifacts. Return confirmed items only when source_span_ids point to provided source spans. Put weak or unsourced findings into candidates with reason_codes.",
+        json_dumps(payload),
+        StructuredExtractionResponse.model_json_schema(),
+        settings.yandex_long_context_model,
+        [settings.yandex_chat_model, settings.yandex_fast_model],
+    )
+    data.setdefault("profile", suggest_document_profile(document).model_dump(mode="json"))
+    confirmed: list[ExtractionArtifact] = []
+    candidates: list[ExtractionArtifact] = []
+    warnings = [
+        UnsupportedWarning.model_validate(item)
+        for item in data.get("unsupported_warnings", [])
+        if isinstance(item, dict) and item.get("statement")
+    ]
+    seen: set[tuple[str, str, str]] = set()
+    for item in [*data.get("confirmed", []), *data.get("candidates", [])]:
+        if not isinstance(item, dict):
+            continue
+        try:
+            normalized = normalize_llm_artifact(item, span_index)
+        except (TypeError, ValueError):
+            continue
+        add_artifact(normalized, confirmed, candidates, seen)
+        if normalized.status != "confirmed":
+            warnings.append(UnsupportedWarning(statement=normalized.value, reason_codes=normalized.reason_codes, source_span_ids=normalized.source_span_ids))
+    return StructuredExtractionResponse(
+        mode="llm",
+        document_id=document.id,
+        profile=DocumentProfileSuggestion.model_validate(data["profile"]),
+        confirmed=confirmed,
+        candidates=candidates,
+        unsupported_warnings=warnings,
+        warnings=[str(item) for item in data.get("warnings", [])],
+    )
+
+
+def normalize_llm_artifact(raw_artifact: dict[str, Any], span_index: dict[str, SourceSpan]) -> ExtractionArtifact:
+    source_span_ids_raw = raw_artifact.get("source_span_ids", [])
+    source_span_ids = [str(span_id) for span_id in source_span_ids_raw if str(span_id) in span_index]
+    source_spans = [span_index[span_id] for span_id in source_span_ids]
+    confidence = float(raw_artifact.get("confidence", 0.0))
+    reason_codes = [str(code) for code in raw_artifact.get("reason_codes", [])]
+    status = raw_artifact.get("status", "candidate")
+    base = {
+        "id": raw_artifact.get("id") or uuid.uuid4().hex,
+        "kind": raw_artifact.get("kind", "claim"),
+        "value": str(raw_artifact.get("value", "")).strip(),
+        "metadata": raw_artifact.get("metadata", {}) if isinstance(raw_artifact.get("metadata", {}), dict) else {},
+    }
+    if status == "confirmed" and source_span_ids and confidence >= CONFIRMED_MIN_CONFIDENCE and not reason_codes:
+        return ExtractionArtifact(
+            id=base["id"],
+            kind=base["kind"],
+            value=base["value"],
+            confidence=confidence,
+            status="confirmed",
+            source_span_ids=source_span_ids,
+            source_spans=source_spans,
+            metadata={**base["metadata"], "source": "llm_schema"},
+        )
+    if not source_span_ids:
+        reason_codes.append("missing_source_span")
+    if confidence < CONFIRMED_MIN_CONFIDENCE:
+        reason_codes.append("low_confidence")
+    return ExtractionArtifact(
+        id=base["id"],
+        kind=base["kind"],
+        value=base["value"],
+        confidence=min(confidence, 0.68),
+        status="candidate",
+        source_span_ids=[],
+        source_spans=[],
+        reason_codes=stable_unique(reason_codes) or ["schema_candidate"],
+        metadata={**base["metadata"], "source": "llm_schema"},
+    )
 
 
 def apply_confirmed_threshold(
@@ -650,7 +826,156 @@ def extract_aliases(text: str) -> list[tuple[str, list[str], float]]:
             confidence = min(confidence, 0.56)
         seen_expansions[short_name.lower()] = long_name.lower()
         aliases.append((value, reason_codes, confidence))
+    aliases.extend(extract_seed_aliases(text))
+    aliases.extend(extract_translit_aliases(text))
+    aliases.extend(extract_fuzzy_aliases(text))
+    aliases.extend(extract_embedding_aliases(text))
+    return unique_aliases(aliases)
+
+
+def extract_seed_aliases(text: str) -> list[tuple[str, list[str], float]]:
+    lowered = normalize_alias_text(text)
+    aliases = []
+    for alias, canonical in {**SEED_ALIASES, **RU_EN_ALIASES}.items():
+        if normalize_alias_text(alias) in lowered:
+            aliases.append((f"{alias} -> {canonical}", ["schema_candidate"], 0.66))
     return aliases
+
+
+def extract_translit_aliases(text: str) -> list[tuple[str, list[str], float]]:
+    aliases = []
+    lowered = normalize_alias_text(text)
+    for alias, canonical in RU_EN_ALIASES.items():
+        transliterated = transliterate_ru_to_latin(canonical)
+        if transliterated and transliterated in lowered:
+            aliases.append((f"{transliterated} -> {canonical}", ["schema_candidate"], 0.62))
+    return aliases
+
+
+def extract_fuzzy_aliases(text: str) -> list[tuple[str, list[str], float]]:
+    tokens = sorted({normalize_alias_text(token) for token in TOKEN_PATTERN.findall(text) if len(token) >= 4})
+    choices = list({*SEED_ALIASES, *RU_EN_ALIASES, *SEED_ALIASES.values(), *RU_EN_ALIASES.values()})
+    aliases = []
+    for token in tokens[:80]:
+        match_value, score = fuzzy_best_match(token, choices)
+        if not match_value or score < FUZZY_ALIAS_THRESHOLD or token == normalize_alias_text(match_value):
+            continue
+        canonical = SEED_ALIASES.get(match_value.lower()) or RU_EN_ALIASES.get(match_value.lower()) or match_value
+        aliases.append((f"{token} -> {canonical}", ["schema_candidate"], round(score / 100, 2)))
+    return aliases
+
+
+def extract_embedding_aliases(text: str) -> list[tuple[str, list[str], float]]:
+    tokens = sorted({normalize_alias_text(token) for token in TOKEN_PATTERN.findall(text) if len(token) >= 3})
+    choices = list({*SEED_ALIASES, *RU_EN_ALIASES, *SEED_ALIASES.values(), *RU_EN_ALIASES.values()})
+    aliases = []
+    choice_vectors = {choice: alias_embedding(normalize_alias_text(choice)) for choice in choices}
+    for token in tokens[:80]:
+        token_vector = alias_embedding(token)
+        best_choice = None
+        best_score = 0.0
+        for choice, choice_vector in choice_vectors.items():
+            score = cosine_similarity(token_vector, choice_vector)
+            if score > best_score:
+                best_choice = choice
+                best_score = score
+        if not best_choice or best_score < 0.72 or token == normalize_alias_text(best_choice):
+            continue
+        canonical = SEED_ALIASES.get(best_choice.lower()) or RU_EN_ALIASES.get(best_choice.lower()) or best_choice
+        aliases.append((f"{token} -> {canonical}", ["schema_candidate"], round(best_score, 2)))
+    return aliases
+
+
+def cosine_similarity(left: list[float], right: list[float]) -> float:
+    numerator = sum(a * b for a, b in zip(left, right))
+    left_norm = math.sqrt(sum(value * value for value in left)) or 1.0
+    right_norm = math.sqrt(sum(value * value for value in right)) or 1.0
+    return numerator / (left_norm * right_norm)
+
+
+def alias_embedding(text: str, dimensions: int = 64) -> list[float]:
+    vector = [0.0] * dimensions
+    normalized = f"  {normalize_alias_text(text)}  "
+    for size in (2, 3):
+        for index in range(max(0, len(normalized) - size + 1)):
+            ngram = normalized[index : index + size]
+            bucket = int(hashlib.sha1(ngram.encode("utf-8")).hexdigest()[:8], 16) % dimensions
+            vector[bucket] += 1.0
+    norm = math.sqrt(sum(value * value for value in vector)) or 1.0
+    return [value / norm for value in vector]
+
+
+def fuzzy_best_match(token: str, choices: list[str]) -> tuple[str | None, int]:
+    if process is not None:
+        result = process.extractOne(token, choices, scorer=fuzz.WRatio if fuzz else None)
+        if not result:
+            return None, 0
+        return str(result[0]), int(result[1])
+    best = None
+    best_score = 0
+    for choice in choices:
+        score = round(SequenceMatcher(None, token, normalize_alias_text(choice)).ratio() * 100)
+        if score > best_score:
+            best = choice
+            best_score = score
+    return best, best_score
+
+
+def normalize_alias_text(value: str) -> str:
+    return re.sub(r"\s+", " ", value.lower().replace("–", "-").replace("—", "-").replace("‑", "-")).strip()
+
+
+def unique_aliases(aliases: list[tuple[str, list[str], float]]) -> list[tuple[str, list[str], float]]:
+    result = []
+    seen = set()
+    for value, reason_codes, confidence in aliases:
+        key = value.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append((value, stable_unique(reason_codes), confidence))
+    return result
+
+
+def transliterate_ru_to_latin(value: str) -> str:
+    table = str.maketrans(
+        {
+            "а": "a",
+            "б": "b",
+            "в": "v",
+            "г": "g",
+            "д": "d",
+            "е": "e",
+            "ё": "e",
+            "ж": "zh",
+            "з": "z",
+            "и": "i",
+            "й": "y",
+            "к": "k",
+            "л": "l",
+            "м": "m",
+            "н": "n",
+            "о": "o",
+            "п": "p",
+            "р": "r",
+            "с": "s",
+            "т": "t",
+            "у": "u",
+            "ф": "f",
+            "х": "h",
+            "ц": "ts",
+            "ч": "ch",
+            "ш": "sh",
+            "щ": "sch",
+            "ы": "y",
+            "э": "e",
+            "ю": "yu",
+            "я": "ya",
+            "ь": "",
+            "ъ": "",
+        }
+    )
+    return normalize_alias_text(value.translate(table))
 
 
 def extract_relation(text: str) -> str | None:
@@ -710,6 +1035,11 @@ def suggest_document_profile(document: NormalizedDocument) -> DocumentProfileSug
 
 def build_query_ir(request: QueryIRBuildRequest) -> QueryIRBuildResponse:
     raw_query = request.raw_query
+    selected_model = settings.yandex_fast_model
+    key = cache_key("query_ir", "query_ir.v1", selected_model, request.model_dump(mode="json"))
+    cached = cached_response(QueryIRBuildResponse, key)
+    if cached:
+        return cached
     numeric_constraints = extract_numeric_constraints(raw_query)
     entities = stable_unique(extract_entities(raw_query) + extract_query_terms(raw_query))
     geo_constraints = extract_geo_constraints(raw_query)
@@ -732,12 +1062,98 @@ def build_query_ir(request: QueryIRBuildRequest) -> QueryIRBuildResponse:
         source_type_filter=source_type_filter or None,
         limit=request.limit,
     )
+    mode = "deterministic_degraded"
+    warnings: list[str] = []
+    client = YandexModelClient(settings)
+    if client.is_configured:
+        try:
+            llm_response = build_llm_query_ir(client, request)
+            query_ir = merge_query_ir(llm_response.query_ir, query_ir)
+            constraints = merge_constraints(llm_response.constraints, constraints)
+            query_ir.filters = constraints
+            mode = "llm"
+            warnings.extend(llm_response.warnings)
+        except Exception as exc:
+            warnings.append(f"Yandex Query IR failed, deterministic fallback used: {exc}")
+    if mode == "deterministic_degraded":
+        warnings.append(DEGRADED_WARNING)
     response = QueryIRBuildResponse(
+        mode=mode,
         query_ir=query_ir,
         constraints=constraints,
-        warnings=[DEGRADED_WARNING],
+        warnings=warnings,
     )
-    return QueryIRBuildResponse.model_validate(response.model_dump())
+    return store_cache(key, QueryIRBuildResponse.model_validate(response.model_dump()))
+
+
+def build_llm_query_ir(client: YandexModelClient, request: QueryIRBuildRequest) -> QueryIRBuildResponse:
+    data = complete_json_with_fallback(
+        client,
+        "Convert the question into QueryIR. Preserve numeric constraints, units, ranges, geography, time ranges, source type constraints, aliases and entity hints. Do not answer.",
+        json_dumps(request.model_dump(mode="json")),
+        QueryIRBuildResponse.model_json_schema(),
+        settings.yandex_fast_model,
+        [settings.yandex_chat_model],
+    )
+    data.setdefault("query_ir", {"raw_query": request.raw_query, "limit": request.limit})
+    data.setdefault("constraints", {})
+    data.setdefault("warnings", [])
+    normalize_llm_query_ir_payload(data)
+    return QueryIRBuildResponse.model_validate(data)
+
+
+def complete_json_with_fallback(
+    client: YandexModelClient,
+    system_prompt: str,
+    user_prompt: str,
+    schema: dict[str, Any],
+    primary_model: str,
+    fallback_models: list[str],
+) -> dict[str, Any]:
+    errors = []
+    for model_name in stable_unique([primary_model, *fallback_models]):
+        try:
+            return client.complete_json(system_prompt, user_prompt, schema, model_name)
+        except Exception as exc:
+            errors.append(f"{model_name}: {exc}")
+    raise RuntimeError("; ".join(errors))
+
+
+def normalize_llm_query_ir_payload(data: dict[str, Any]) -> None:
+    query_ir = data.get("query_ir")
+    if not isinstance(query_ir, dict):
+        return
+    geo_filter = query_ir.get("geo_filter")
+    if isinstance(geo_filter, dict) and not geo_filter.get("location_name"):
+        query_ir["geo_filter"] = None
+    numeric_filter = query_ir.get("numeric_filter")
+    if isinstance(numeric_filter, dict) and numeric_filter.get("value") is None:
+        query_ir["numeric_filter"] = None
+
+
+def merge_query_ir(llm_query_ir: QueryIR, rule_query_ir: QueryIR) -> QueryIR:
+    return QueryIR(
+        id=llm_query_ir.id,
+        raw_query=rule_query_ir.raw_query,
+        entities=stable_unique([*llm_query_ir.entities, *rule_query_ir.entities]),
+        intent=llm_query_ir.intent or rule_query_ir.intent,
+        filters=rule_query_ir.filters,
+        geo_filter=rule_query_ir.geo_filter or llm_query_ir.geo_filter,
+        numeric_filter=rule_query_ir.numeric_filter or llm_query_ir.numeric_filter,
+        source_type_filter=rule_query_ir.source_type_filter or llm_query_ir.source_type_filter,
+        limit=rule_query_ir.limit,
+        offset=rule_query_ir.offset,
+    )
+
+
+def merge_constraints(llm_constraints: dict[str, Any], rule_constraints: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(llm_constraints)
+    for key, value in rule_constraints.items():
+        if value:
+            merged[key] = value
+        else:
+            merged.setdefault(key, value)
+    return merged
 
 
 def extract_query_terms(query: str) -> list[str]:
