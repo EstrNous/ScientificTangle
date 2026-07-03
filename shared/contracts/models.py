@@ -1,10 +1,11 @@
+import hashlib
 import uuid
 from datetime import datetime
 from enum import StrEnum
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class UserRole(StrEnum):
@@ -16,6 +17,13 @@ class UserRole(StrEnum):
 
 
 class IngestionTaskStatus(StrEnum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class QueryRunStatus(StrEnum):
     PENDING = "pending"
     PROCESSING = "processing"
     COMPLETED = "completed"
@@ -56,9 +64,11 @@ class ApiError(BaseModel):
     code: str
     message: str
     request_id: str
+    query_run_id: UUID | None = None
 
 
 class SourceSpan(BaseModel):
+    id: str
     document_id: str
     page: int
     start_offset: int
@@ -66,6 +76,18 @@ class SourceSpan(BaseModel):
     text: str
     table_block_id: str | None = None
     source_type: Literal["text", "table", "figure", "caption"]
+
+    @model_validator(mode="before")
+    @classmethod
+    def ensure_id(cls, value: object) -> object:
+        if not isinstance(value, dict) or value.get("id"):
+            return value
+        raw = (
+            f"{value.get('document_id', '')}:{value.get('page', '')}:"
+            f"{value.get('start_offset', '')}:{value.get('end_offset', '')}:"
+            f"{value.get('table_block_id') or ''}"
+        )
+        return {**value, "id": hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]}
 
 
 class TableBlock(BaseModel):
@@ -124,9 +146,12 @@ class NormalizeStoredSourcesResponse(BaseModel):
 
 class StorageWriteResult(BaseModel):
     backend: Literal["neo4j", "qdrant"]
-    mode: Literal["mock"] = "mock"
+    mode: Literal["mock", "live", "adapter_pending"] = "mock"
     document_ids: list[str] = Field(default_factory=list)
     records_count: int = Field(default=0, ge=0)
+    confirmed_count: int = Field(default=0, ge=0)
+    claim_ids: list[str] = Field(default_factory=list)
+    graph_entity_ids: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
 
 
@@ -179,6 +204,7 @@ class EvidenceItem(BaseModel):
     source_span: SourceSpan
     relevance_score: float = 0.0
     claim_ids: list[str] = Field(default_factory=list)
+    entity_ids: list[str] = Field(default_factory=list)
     extraction_method: Literal["exact", "semantic", "table", "numeric", "geo"] = "semantic"
 
 
@@ -227,6 +253,45 @@ class GraphLink(BaseModel):
 class GraphSubgraph(BaseModel):
     nodes: list[GraphNode] = Field(default_factory=list)
     links: list[GraphLink] = Field(default_factory=list)
+
+
+class SourcePayload(BaseModel):
+    source_span: SourceSpan
+    document_title: str
+    source_type: str
+    metadata: dict = Field(default_factory=dict)
+    access_policy: AccessPolicy
+
+
+class SearchResult(BaseModel):
+    source: SourcePayload
+    relevance_score: float = 0.0
+    claim_ids: list[str] = Field(default_factory=list)
+    entity_ids: list[str] = Field(default_factory=list)
+
+
+class SearchResultPayload(BaseModel):
+    items: list[SearchResult] = Field(default_factory=list)
+    total_found: int = 0
+    warnings: list[str] = Field(default_factory=list)
+
+
+class QueryRunPayload(BaseModel):
+    id: UUID
+    status: QueryRunStatus
+    question: str
+    query_ir: QueryIR | None = None
+    evidence_bundle: EvidenceBundle | None = None
+    answer: AnswerPayload | None = None
+    graph_subgraph: GraphSubgraph = Field(default_factory=GraphSubgraph)
+    retrieval_trace: dict = Field(default_factory=dict)
+    warnings: list[str] = Field(default_factory=list)
+    error_code: str | None = None
+    error_message: str | None = None
+    request_id: str
+    latency_ms: int | None = None
+    created_at: datetime
+    updated_at: datetime
 
 
 class GraphEntity(BaseModel):

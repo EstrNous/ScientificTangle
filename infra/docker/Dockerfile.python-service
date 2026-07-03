@@ -8,8 +8,13 @@ ARG SERVICE_DIR
 ARG SERVICE_PORT
 
 COPY shared /app/shared
-COPY ${SERVICE_DIR}/pyproject.toml /app/services/service/pyproject.toml
-COPY ${SERVICE_DIR}/app /app/services/service/app
+COPY infra/neo4j /app/infra/neo4j
+COPY ontology /app/ontology
+COPY dictionaries /app/dictionaries
+COPY ${SERVICE_DIR} /tmp/service_src
+RUN cp -r /tmp/service_src/app /app/services/service/app && \
+    cp /tmp/service_src/pyproject.toml /app/services/service/pyproject.toml && \
+    if [ -d /tmp/service_src/adapters ]; then cp -r /tmp/service_src/adapters /app/services/service/adapters; else mkdir -p /app/services/service/adapters && touch /app/services/service/adapters/__init__.py; fi
 WORKDIR /app/services/service
 
 RUN uv sync --no-dev
@@ -31,10 +36,15 @@ WORKDIR /app/services/service
 
 COPY --from=deps /app/services/service/.venv /app/services/service/.venv
 COPY --from=deps /app/shared /app/shared
-COPY ${SERVICE_DIR}/app ./app
+COPY --from=deps /app/infra/neo4j /app/infra/neo4j
+COPY --from=deps /app/ontology /app/ontology
+COPY --from=deps /app/dictionaries /app/dictionaries
+COPY ${SERVICE_DIR} /tmp/service_src
+RUN cp -r /tmp/service_src/app ./app && \
+    if [ -d /tmp/service_src/adapters ]; then cp -r /tmp/service_src/adapters ./adapters; else mkdir -p ./adapters && touch ./adapters/__init__.py; fi
 
 ENV PATH="/app/services/service/.venv/bin:$PATH"
-ENV PYTHONPATH=/app
+ENV PYTHONPATH=/app:/app/services/service
 
 ENV SERVICE_PORT=${SERVICE_PORT}
 

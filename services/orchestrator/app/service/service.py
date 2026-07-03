@@ -1,35 +1,47 @@
+import time
 from time import perf_counter
 from uuid import UUID
 
 import httpx
 from fastapi import UploadFile, status
 
-from infra.postgres.orchestrator_db import IngestionTask, IngestionTaskRepository
+from infra.postgres.orchestrator_db import IngestionTaskRepository, QueryRunRepository,IngestionTask, QueryRun
 from shared.contracts import (
     AnswerPayload,
     ApiError,
     EvidenceBundle,
+    GraphSubgraph,
     IngestionReport,
     IngestionTaskPayload,
     IngestionTaskStatus,
     KnowledgeIngestionRequest,
     KnowledgeIngestionResponse,
-    NormalizedDocument,
     NormalizeStoredSourcesRequest,
     NormalizeStoredSourcesResponse,
     QueryIR,
+    QueryRunPayload,
+    QueryRunStatus,
     RetrievalIndexRequest,
     RetrievalIndexResponse,
+    SearchResultPayload,
+    SourcePayload,
     UserRole,
 )
 from shared.security import AuthenticatedPrincipal
 
 
 class OrchestratorServiceError(Exception):
-    def __init__(self, status_code: int, code: str, message: str) -> None:
+    def __init__(
+        self,
+        status_code: int,
+        code: str,
+        message: str,
+        query_run_id: UUID | None = None,
+    ) -> None:
         self.status_code = status_code
         self.code = code
         self.message = message
+        self.query_run_id = query_run_id
         super().__init__(message)
 
 
@@ -42,6 +54,7 @@ class OrchestratorService:
         knowledge_url: str,
         retrieval_url: str,
         model_url: str,
+        query_repository: QueryRunRepository | None = None,
     ) -> None:
         self._repository = repository
         self._client = client
@@ -49,6 +62,7 @@ class OrchestratorService:
         self._knowledge_url = knowledge_url.rstrip("/")
         self._retrieval_url = retrieval_url.rstrip("/")
         self._model_url = model_url.rstrip("/")
+        self._query_repository = query_repository
 
     async def create_task(
         self,
@@ -97,6 +111,12 @@ class OrchestratorService:
                         )
                     )
                 )
+            if any(result.graph_write.mode != "real" for result in knowledge_results):
+                raise OrchestratorServiceError(
+                    503,
+                    "storage_adapter_not_ready",
+                    "Neo4j storage adapter is not ready",
+                )
             retrieval_result = RetrievalIndexResponse.model_validate(
                 await self._request_downstream(
                     "POST",
@@ -110,6 +130,12 @@ class OrchestratorService:
                     "retrieval",
                 )
             )
+            if retrieval_result.vector_write.mode != "real":
+                raise OrchestratorServiceError(
+                    503,
+                    "storage_adapter_not_ready",
+                    "Qdrant storage adapter is not ready",
+                )
             warnings = [*report.warnings, *normalized.warnings]
             for result in knowledge_results:
                 warnings.extend(result.warnings)
@@ -229,21 +255,23 @@ class OrchestratorService:
     async def run_query(
         self,
         principal: AuthenticatedPrincipal,
-        query: str,
-        documents: list[NormalizedDocument],
+        question: str,
+        filters: dict,
         request_id: str,
         limit: int,
-    ) -> dict:
-        started_at = perf_counter()
-        query_run = await self._repository.create_query_run(principal.user_id, query)
+    ) -> QueryRunPayload:
+        repository = self._require_query_repository()
+        run = await repository.create(principal.user_id, question, request_id)
+        started_at = time.perf_counter()
+        await repository.mark_processing(run)
         try:
             retrieval_response = await self._request_downstream(
                 "POST",
                 self._retrieval_url,
                 "/v1/query",
                 {
-                    "query": query,
-                    "documents": [document.model_dump(mode="json") for document in documents],
+                    "question": question,
+                    "filters": filters,
                     "access_roles": [principal.role.value],
                     "limit": limit,
                 },
@@ -252,81 +280,202 @@ class OrchestratorService:
             )
             query_ir = QueryIR.model_validate(retrieval_response["query_ir"])
             evidence_bundle = EvidenceBundle.model_validate(retrieval_response["evidence_bundle"])
-            gaps_response = await self._request_downstream(
-                "POST",
-                self._model_url,
-                "/v1/gaps/suggest",
-                {
-                    "query_ir": query_ir.model_dump(mode="json"),
-                    "evidence_bundle": evidence_bundle.model_dump(mode="json"),
-                    "candidates": [],
-                },
-                request_id,
-                "model",
-            )
-            evidence_bundle.gaps = [
-                gap.get("description", str(gap))
-                for gap in gaps_response.get("gaps", [])
-            ]
-            evidence_bundle.has_gaps = bool(evidence_bundle.gaps)
-            answer_response = await self._request_downstream(
-                "POST",
-                self._model_url,
-                "/v1/answers/synthesize",
-                {
-                    "query_ir": query_ir.model_dump(mode="json"),
-                    "evidence_bundle": evidence_bundle.model_dump(mode="json"),
-                    "candidate_items": [],
-                },
-                request_id,
-                "model",
-            )
-            answer = AnswerPayload.model_validate(answer_response["answer"])
-            result = {
-                "query_run_id": str(query_run.id),
-                "query_ir": query_ir.model_dump(mode="json"),
-                "evidence_bundle": evidence_bundle.model_dump(mode="json"),
-                "answer": answer.model_dump(mode="json"),
-                "unsupported_warnings": answer_response.get("unsupported_warnings", []),
-                "warnings": [
-                    *retrieval_response.get("warnings", []),
-                    *gaps_response.get("warnings", []),
-                    *answer_response.get("warnings", []),
-                ],
-            }
-            latency_ms = int((perf_counter() - started_at) * 1000)
-            await self._repository.complete_query_run(
-                query_run,
-                query_ir.model_dump(mode="json"),
-                {
-                    "retrieval": retrieval_response,
-                    "gaps": gaps_response,
-                    "request_id": request_id,
-                },
-                answer.model_dump(mode="json"),
+            retrieval_trace = retrieval_response.get("retrieval_trace", {})
+            warnings = list(retrieval_response.get("warnings", []))
+            graph = GraphSubgraph()
+            if evidence_bundle.evidence_items:
+                gaps_response = await self._request_downstream(
+                    "POST",
+                    self._model_url,
+                    "/v1/gaps/suggest",
+                    {
+                        "query_ir": query_ir.model_dump(mode="json"),
+                        "evidence_bundle": evidence_bundle.model_dump(mode="json"),
+                        "candidates": [],
+                    },
+                    request_id,
+                    "model",
+                )
+                evidence_bundle.gaps = [
+                    gap.get("description", str(gap))
+                    for gap in gaps_response.get("gaps", [])
+                ]
+                evidence_bundle.has_gaps = bool(evidence_bundle.gaps)
+                graph = GraphSubgraph.model_validate(
+                    await self._request_downstream(
+                        "POST",
+                        self._knowledge_url,
+                        "/v1/graph/subgraph",
+                        {
+                            "claim_ids": sorted(
+                                {
+                                    claim_id
+                                    for item in evidence_bundle.evidence_items
+                                    for claim_id in item.claim_ids
+                                }
+                            ),
+                            "entity_ids": sorted(
+                                {
+                                    entity_id
+                                    for item in evidence_bundle.evidence_items
+                                    for entity_id in item.entity_ids
+                                }
+                            ),
+                            "source_span_ids": [
+                                item.source_span.id
+                                for item in evidence_bundle.evidence_items
+                            ],
+                        },
+                        request_id,
+                        "knowledge",
+                    )
+                )
+                answer_response = await self._request_downstream(
+                    "POST",
+                    self._model_url,
+                    "/v1/answers/synthesize",
+                    {
+                        "query_ir": query_ir.model_dump(mode="json"),
+                        "evidence_bundle": evidence_bundle.model_dump(mode="json"),
+                        "candidate_items": [],
+                    },
+                    request_id,
+                    "model",
+                )
+                answer = AnswerPayload.model_validate(answer_response["answer"])
+                warnings.extend(gaps_response.get("warnings", []))
+                warnings.extend(answer_response.get("warnings", []))
+                for unsupported in answer_response.get("unsupported_warnings", []):
+                    if not isinstance(unsupported, dict):
+                        continue
+                    reason_codes = unsupported.get("reason_codes") or ["unsupported_claim"]
+                    warnings.extend(str(code) for code in reason_codes)
+            else:
+                warning = "insufficient_accessible_evidence"
+                warnings.append(warning)
+                evidence_bundle.has_gaps = True
+                if warning not in evidence_bundle.gaps:
+                    evidence_bundle.gaps.append(warning)
+                answer = AnswerPayload(
+                    query_ir=query_ir,
+                    evidence_bundle=evidence_bundle,
+                    answer_text="Недостаточно доступных доказательств для подтверждённого ответа.",
+                    confidence=0.0,
+                    sources_count=0,
+                    model_used="none",
+                )
+            latency_ms = round((time.perf_counter() - started_at) * 1000)
+            await repository.mark_completed(
+                run,
+                query_ir,
+                evidence_bundle,
+                answer,
+                graph,
+                retrieval_trace,
+                list(dict.fromkeys(warnings)),
                 latency_ms,
             )
-            await self._repository.record_audit_event(
-                principal.user_id,
-                "query.completed",
-                "query_run",
-                str(query_run.id),
-                {"raw_query": query, "sources_count": answer.sources_count, "latency_ms": latency_ms},
-                request_id,
-            )
-            return result
+            return self._query_payload(run)
         except OrchestratorServiceError as error:
-            latency_ms = int((perf_counter() - started_at) * 1000)
-            await self._repository.fail_query_run(query_run, error.message, latency_ms)
-            await self._repository.record_audit_event(
-                principal.user_id,
-                "query.failed",
-                "query_run",
-                str(query_run.id),
-                {"raw_query": query, "error": error.message, "latency_ms": latency_ms},
-                request_id,
-            )
+            latency_ms = round((time.perf_counter() - started_at) * 1000)
+            await repository.mark_failed(run, error.code, error.message, latency_ms)
+            error.query_run_id = run.id
             raise
+        except (KeyError, TypeError, ValueError) as error:
+            latency_ms = round((time.perf_counter() - started_at) * 1000)
+            code = "invalid_query_pipeline_response"
+            message = "Query pipeline returned invalid data"
+            await repository.mark_failed(run, code, message, latency_ms)
+            raise OrchestratorServiceError(502, code, message, run.id) from error
+
+    async def get_run(
+        self,
+        run_id: UUID,
+        principal: AuthenticatedPrincipal,
+    ) -> QueryRunPayload:
+        run = await self._require_query_repository().get(run_id)
+        if run is None or (
+            principal.role != UserRole.ADMIN and run.user_id != principal.user_id
+        ):
+            raise OrchestratorServiceError(404, "query_run_not_found", "Query run not found")
+        return self._query_payload(run)
+
+    async def get_source(
+        self,
+        source_span_id: str,
+        principal: AuthenticatedPrincipal,
+        request_id: str,
+    ) -> SourcePayload:
+        return SourcePayload.model_validate(
+            await self._request_downstream(
+                "POST",
+                self._retrieval_url,
+                f"/v1/sources/{source_span_id}/resolve",
+                {"access_roles": [principal.role.value]},
+                request_id,
+                "retrieval",
+            )
+        )
+
+    async def get_subgraph(
+        self,
+        run_id: UUID,
+        principal: AuthenticatedPrincipal,
+    ) -> GraphSubgraph:
+        return (await self.get_run(run_id, principal)).graph_subgraph
+
+    async def search(
+        self,
+        principal: AuthenticatedPrincipal,
+        question: str,
+        filters: dict,
+        limit: int,
+        request_id: str,
+    ) -> SearchResultPayload:
+        return SearchResultPayload.model_validate(
+            await self._request_downstream(
+                "POST",
+                self._retrieval_url,
+                "/v1/search",
+                {
+                    "question": question,
+                    "filters": filters,
+                    "access_roles": [principal.role.value],
+                    "limit": limit,
+                },
+                request_id,
+                "retrieval",
+            )
+        )
+
+    def _require_query_repository(self) -> QueryRunRepository:
+        if self._query_repository is None:
+            raise RuntimeError("query_repository_not_configured")
+        return self._query_repository
+
+    @staticmethod
+    def _query_payload(run: QueryRun) -> QueryRunPayload:
+        return QueryRunPayload(
+            id=run.id,
+            status=QueryRunStatus(run.status),
+            question=run.raw_question,
+            query_ir=QueryIR.model_validate(run.query_ir) if run.query_ir else None,
+            evidence_bundle=(
+                EvidenceBundle.model_validate(run.evidence_bundle)
+                if run.evidence_bundle
+                else None
+            ),
+            answer=AnswerPayload.model_validate(run.answer) if run.answer else None,
+            graph_subgraph=GraphSubgraph.model_validate(run.graph_subgraph or {}),
+            retrieval_trace=run.retrieval_trace or {},
+            warnings=run.warnings or [],
+            error_code=run.error_code,
+            error_message=run.error_message,
+            request_id=run.request_id,
+            latency_ms=run.latency_ms,
+            created_at=run.created_at,
+            updated_at=run.updated_at,
+        )
 
     async def _request_downstream(
         self,

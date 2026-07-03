@@ -291,6 +291,10 @@ class ModelStatusResponse(BaseModel):
     embedding_query_model: str
     embedding_dimensions: int
     mode: ModelMode
+    cache_backend: str = "memory"
+    cache_available: bool = True
+    cache_mode: str = "memory"
+    cache_degraded_reason: str = ""
 
 
 class SchemaEntry(BaseModel):

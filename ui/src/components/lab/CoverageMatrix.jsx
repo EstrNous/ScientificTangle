@@ -1,6 +1,6 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getMatrixCellSources } from '../../api/mock/sourceBindings.js';
+import { collectSourceRefs } from '../../utils/sourceRefs.js';
 import { useSourceRefsPopover } from '../../hooks/useSourceRefsPopover.js';
 import { useThemeStore } from '../../stores/themeStore.js';
 import { captureElementImage, waitForPaint } from '../../utils/captureElement.js';
@@ -77,9 +77,12 @@ const CoverageMatrix = forwardRef(function CoverageMatrix(
   const rowTypeLabel = axisLabel(t, view.rowType);
   const colTypeLabel = axisLabel(t, view.colType);
 
-  const handleCellClick = (event, row, col, value) => {
+  const handleCellClick = (event, row, col, value, rowIndex, colIndex) => {
     if (!value) return;
-    const sources = getMatrixCellSources(row, col, value, view.rowType, view.colType);
+    const cellSources = view.cell_sources ?? view.cellSources;
+    const cellItem = cellSources?.[rowIndex]?.[colIndex];
+    const sources = collectSourceRefs(cellItem, value);
+    if (!sources.length) return;
     openPopover(event, {
       title: t('source.refsTitle'),
       subtitle: t('lab.cellTooltip', { row, col, count: value }),
@@ -164,7 +167,7 @@ const CoverageMatrix = forwardRef(function CoverageMatrix(
                             ? t('lab.cellTooltip', { row, col, count: value })
                             : t('lab.legend.none')
                         }
-                        onClick={(event) => handleCellClick(event, row, col, value)}
+                        onClick={(event) => handleCellClick(event, row, col, value, rowIndex, colIndex)}
                         style={{ backgroundColor: colors.bg }}
                         className={`flex h-10 w-full min-w-[2.5rem] items-center justify-center rounded-md ${
                           clickable

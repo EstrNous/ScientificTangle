@@ -46,7 +46,7 @@
 ### Общий код (`shared/`)
 
 - `shared/pyproject.toml` — пакет `scientific-tangle-shared`, подключается как path dependency из каждого сервиса.
-- `shared/contracts/` — Pydantic-модели DTO, включая NormalizedDocument, SourceSpan, QueryIR, EvidenceBundle, AnswerPayload, UserRole, ingestion task, нормализацию сохранённых источников и типизированные mock-результаты Neo4j/Qdrant.
+- `shared/contracts/` — Pydantic-модели DTO, включая стабильный SourceSpan ID, QueryIR, EvidenceBundle, QueryRunPayload, SourcePayload, GraphSubgraph, SearchResultPayload и результаты записи Neo4j/Qdrant.
 - `shared/utils/` — утилиты (generate_request_id).
 - `shared/logging/` — единая конфигурация structlog (JSON, контекст сервиса).
 - `shared/config/` — базовый класс ServiceSettings с подключениями ко всем хранилищам.
@@ -80,7 +80,7 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 - `ui/vite.config.js` — Vite, proxy `/api` → Gateway.
 - `ui/tailwind.config.js`, `ui/postcss.config.js` — Tailwind CSS.
 - `ui/index.html` — точка входа HTML.
-- `ui/Dockerfile` — nginx-skeleton на порту 3000.
+- `ui/Dockerfile` — multi-stage: Vite build + nginx на порту 3000.
 - `ui/nginx.conf` — конфигурация nginx внутри UI-контейнера.
 - `ui/public/` — статические файлы для контейнера.
 - `ui/.env.local.example` — шаблон переменных UI.
@@ -111,7 +111,7 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 - `infra/orchestrator_db/` — модели и миграции Orchestrator (база `orchestrator_db`): IngestionTask, QueryRun, ExportJob. SQLAlchemy 2.0 async, Alembic.
 - `infra/chat_ui_db/` — модели и миграции Gateway/BFF (база `chat_ui_db`): ChatSession, ChatMessage, AdminSetting, ServiceState. SQLAlchemy 2.0 async, Alembic.
 - `infra/notification_db/` — модели и миграции Notification (база `notification_db`): UserInterest, Notification. SQLAlchemy 2.0 async, Alembic.
-- `infra/neo4j/` — конфигурация Neo4j.
+- `infra/neo4j/` — схема Neo4j MVP: `constraints.cypher`, `indexes.cypher`, `migrator.py` (SchemaVersion, bootstrap при старте Knowledge).
 - `infra/qdrant/` — описание Qdrant collection `st_evidence_v1`, payload indexes и access-aware retrieval.
 - `infra/minio/buckets.txt` — список бакетов MinIO.
 - `infra/nginx/nginx.conf` — reverse proxy (порт 80), маршрутизирует `/api/auth/` и JWKS в `auth_audit`, остальные внешние API — в Gateway.
@@ -120,7 +120,7 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 - `infra/nginx/Dockerfile` — nginx с basic auth для `/grafana/`.
 - `infra/docker/Dockerfile.python-service` — multistage Dockerfile для Python-сервисов (deps + runtime, shared).
 - `infra/scripts/` — скрипты эксплуатации.
-- `scripts/` — локальные MVP smoke/eval/seed scripts: demo seed, Yandex live smoke, official eval, performance smoke.
+- `scripts/` — локальные MVP smoke/eval/seed scripts: demo seed, Yandex live smoke, official eval, performance smoke, `neo4j_smoke.py`.
 
 ### Онтология (`ontology/`)
 
@@ -155,7 +155,7 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 ### Тесты (`tests/`)
 
 - `tests/e2e/` — сквозные тесты.
-- `tests/integration/` — интеграционные тесты.
+- `tests/integration/` — интеграционные тесты; `test_neo4j_smoke.py` — opt-in smoke Neo4j (`RUN_NEO4J_INTEGRATION=1`, `make test-neo4j-integration`).
 - `tests/performance/` — нагрузочные тесты.
 
 ## Сервисы
@@ -175,7 +175,9 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 ### ML integration slice
 
 - `services/ingestion/app/api/documents.py` — internal text/table fallback normalization endpoint; task pipeline дополнительно нормализует сохранённые PDF, DOCX, PPTX, DOC и ZIP через реестр parser-адаптеров.
-- `services/knowledge/app/api/extraction.py` — internal handoff `NormalizedDocument` → model structured extraction с явным mock boundary для будущей записи в Neo4j.
+- `services/knowledge/app/api/extraction.py` — internal handoff `NormalizedDocument` → model structured extraction → `Neo4jKnowledgeAdapter.write_bundle`.
+- `services/knowledge/app/api/graph.py` — bootstrap/reset/subgraph/neighbors/aliases/conflicts/gaps/entities/filter/measurements/evidence/claims-rank.
+- `services/knowledge/adapters/` — `Neo4jKnowledgeAdapter`, DTO, mapper, Query IR compiler, graph operations.
 - `services/retrieval/app/api/indexing.py` — legacy internal mock boundary индексации документов, не подключается в FastAPI app.
 - `services/retrieval/app/api/query.py` — internal Query IR, Qdrant bootstrap/index/reset, Qdrant-first evidence retrieval, lexical fallback и model rerank; переданные `NormalizedDocument` остаются in-memory fallback.
 - `services/orchestrator/app/api/query.py` и `services/gateway/app/api/query.py` — тонкий query run/proxy path для eval-compatible ответа через `EvidenceBundle` и answer synthesis.
@@ -210,7 +212,7 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 - `repository.py` — `IngestionTaskRepository` (create/get/set_report/mark_failed).
 - `database.py` — `create_database()`, `get_session()`.
 - `config.py` — `OrchestratorDbSettings` (env prefix `ORCHESTRATOR_`).
-- Alembic: `services/orchestrator/alembic.ini`, миграции в `services/orchestrator/storage/versions/` (`0001` — ingestion_tasks, `0002` — query_runs/export_jobs, `0003` — совместимость query_runs с прежним init SQL).
+- Alembic: `services/orchestrator/alembic.ini`, миграции в `services/orchestrator/storage/versions/` (`0001` — ingestion_tasks, `0002` — query_runs/export_jobs, `0003` — совместимость query_runs с прежним init SQL, `0004` — полный сохраняемый результат query run).
 
 ### infra/postgres/chat_ui_db/
 

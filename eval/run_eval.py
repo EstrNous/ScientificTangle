@@ -1,6 +1,5 @@
 import argparse
 import asyncio
-import hashlib
 import json
 import os
 import time
@@ -8,6 +7,8 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+
+from shared.utils.source_span import compute_source_span_id_from_parts
 
 
 DEFAULT_EVAL_SERVICE_URL = "http://localhost:8000/api/query"
@@ -26,23 +27,22 @@ async def run_evaluation(
     gold = load_gold_questions(gold_questions_path)
     results = []
     async with httpx.AsyncClient(timeout=30.0) as client:
-        documents = await load_eval_documents(client, documents_path, ingestion_normalize_url)
         for question in gold:
             started_at = time.perf_counter()
             try:
                 response = await client.post(
                     service_url,
-                    json={"query": question["text"], "documents": documents},
+                    json={"question": question["text"]},
                     headers=auth_headers(auth_token),
                 )
                 elapsed_ms = round((time.perf_counter() - started_at) * 1000, 2)
                 data = response.json() if response.headers.get("content-type", "").startswith("application/json") else {}
                 result = evaluate_response(question, response.status_code, data, elapsed_ms)
-                result["input_documents_count"] = len(documents)
+                result["input_documents_count"] = 0
             except httpx.HTTPError as exc:
                 elapsed_ms = round((time.perf_counter() - started_at) * 1000, 2)
                 result = evaluate_response(question, 0, {"error": str(exc)}, elapsed_ms)
-                result["input_documents_count"] = len(documents)
+                result["input_documents_count"] = 0
             results.append(result)
 
     report = build_report(results)
@@ -270,8 +270,13 @@ def stable_source_span_id(span: dict[str, Any]) -> str | None:
     required = ("document_id", "page", "start_offset", "end_offset")
     if not all(key in span for key in required):
         return None
-    raw = f"{span['document_id']}:{span['page']}:{span['start_offset']}:{span['end_offset']}:{span.get('table_block_id') or ''}"
-    return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
+    return compute_source_span_id_from_parts(
+        str(span["document_id"]),
+        int(span["page"]),
+        int(span["start_offset"]),
+        int(span["end_offset"]),
+        str(span.get("table_block_id") or "") or None,
+    )
 
 
 def query_ir_time_value(filters: dict[str, Any], key: str) -> Any:
