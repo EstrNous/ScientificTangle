@@ -63,6 +63,28 @@ class GatewayService:
             raise self._downstream_error(response)
         return self._task_payload(response)
 
+    async def run_query(
+        self,
+        payload: dict,
+        authorization: str,
+        request_id: str,
+    ) -> dict:
+        response = await self._request(
+            "POST",
+            "/query/run",
+            authorization,
+            request_id,
+            json_body=payload,
+        )
+        if response.status_code != status.HTTP_200_OK:
+            raise self._downstream_error(response)
+        try:
+            return response.json()
+        except ValueError as error:
+            raise GatewayServiceError(
+                502, "invalid_orchestrator_response", "Orchestrator returned invalid data"
+            ) from error
+
     async def _measure_uploads(self, files: list[UploadFile]) -> None:
         total_size = 0
         for upload in files:
@@ -85,12 +107,14 @@ class GatewayService:
         authorization: str,
         request_id: str,
         files: list[tuple[str, tuple[str | None, object, str]]] | None = None,
+        json_body: dict | None = None,
     ) -> httpx.Response:
         try:
             return await self._client.request(
                 method,
                 f"{self._orchestrator_url}{path}",
                 files=files,
+                json=json_body,
                 headers={"Authorization": authorization, "X-Request-ID": request_id},
             )
         except httpx.TimeoutException as error:

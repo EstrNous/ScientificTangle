@@ -138,7 +138,7 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 - `eval/gold_questions.json` — эталонные MVP-вопросы с ожидаемыми сущностями, числовыми, географическими и временными constraints.
 - `eval/gold_mining.py` — dev-only генератор corpus-derived gold candidates из `NormalizedDocument` и `SourceSpan`.
 - `eval/yandex_disk_corpus.py` — dev-only загрузчик публичного корпуса с Яндекс.Диска в локальную ignored-директорию.
-- `eval/run_eval.py` — скрипт для запуска оценки через API, расчёта evidence-first/top-1 метрик и записи Markdown/JSON отчётов.
+- `eval/run_eval.py` — скрипт для запуска оценки через API, опциональной нормализации raw eval documents через ingestion, расчёта evidence-first/top-1 метрик и записи Markdown/JSON отчётов с dashboard-ready блоком.
 - `eval/reports/` — отчёты оценки.
 
 ### Демо (`demo/`)
@@ -161,11 +161,18 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 
 - `app/api/v1.py` — локальные v1 endpoints для embeddings, structured extraction, Query IR, reranking/scoring, answer synthesis, prompt registry и schema registry.
 - `app/contracts.py` — локальные Pydantic-модели model service: confirmed/candidate extraction layer, reason codes, unsupported warnings, conflict/gap/interest/notification/JSON-LD DTO и JSON Schema registry entries.
-- `app/services.py` — модельные операции с Yandex provider через `.env` и deterministic degraded fallback; confirmed outputs требуют `SourceSpan`, candidates получают reason codes.
+- `app/services.py` — модельные операции с Yandex provider через `.env`, task routing, in-memory cache и deterministic degraded fallback; confirmed outputs требуют `SourceSpan`, candidates получают reason codes.
 - `app/yandex_client.py` — HTTP-клиент Yandex AI Studio для embeddings и text generation по `YANDEX_API_KEY` и `YANDEX_FOLDER_ID`.
 - `app/prompt_registry.py` и `app/prompts/` — версионированные prompt templates для model outputs.
 - `app/schema_registry.py` — registry JSON Schema для валидируемых model outputs.
 - `tests/test_model_v1.py` — проверки evidence-first правил, Query IR constraints, candidate reason codes, answer synthesis, conflict/gap logic, interests, notifications и JSON-LD enrichment.
+
+### ML integration slice
+
+- `services/ingestion/app/api/documents.py` — internal text/table fallback normalization endpoint, возвращает `NormalizedDocument` и `SourceSpan`.
+- `services/knowledge/app/api/extraction.py` — internal handoff `NormalizedDocument` → model structured extraction с adapter boundary для будущей записи в Neo4j.
+- `services/retrieval/app/api/query.py` — internal Query IR + evidence collection + model rerank поверх переданных `NormalizedDocument`, с access-aware фильтрацией.
+- `services/orchestrator/app/api/query.py` и `services/gateway/app/api/query.py` — тонкий query run/proxy path для eval-compatible ответа через `EvidenceBundle` и answer synthesis.
 
 ### services/auth_audit/
 
