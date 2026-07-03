@@ -6,15 +6,18 @@ from uuid import UUID, uuid4
 import pytest
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.database import create_database
 from app.models import RefreshSession, Role, User
 from app.repository import (
+    IdentityConflictError,
+    NewUserData,
     RefreshSessionData,
     RotationStatus,
     SqlAlchemyAuthRepository,
 )
+from app.security import PasswordManager
 
 TEST_DATABASE_URL = os.getenv("AUTH_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
@@ -93,3 +96,62 @@ def refresh_data(user_id: UUID, family_id: UUID, token_hash: str) -> RefreshSess
         ip_address="127.0.0.1",
         user_agent="pytest",
     )
+
+
+async def test_concurrent_registration_enforces_unique_email(migrated_database) -> None:
+    session_factory = migrated_database
+    password_hash = PasswordManager().hash("Password1")
+
+    async def create(username: str):
+        async with session_factory() as session:
+            return await SqlAlchemyAuthRepository(session).create_user(
+                NewUserData(
+                    username=username,
+                    email="shared@example.com",
+                    password_hash=password_hash,
+                    role=Role.EXTERNAL_PARTNER,
+                )
+            )
+
+    results = await asyncio.gather(
+        create("first-user"), create("second-user"), return_exceptions=True
+    )
+
+    assert sum(isinstance(result, User) for result in results) == 1
+    assert sum(isinstance(result, IdentityConflictError) for result in results) == 1
+    async with session_factory() as session:
+        count = await session.scalar(
+            select(func.count()).select_from(User).where(User.email == "shared@example.com")
+        )
+    assert count == 1
+
+
+async def test_password_change_revokes_all_postgresql_sessions(migrated_database) -> None:
+    session_factory = migrated_database
+    user_id = uuid4()
+    family_id = uuid4()
+    async with session_factory() as session:
+        repository = SqlAlchemyAuthRepository(session)
+        session.add(
+            User(
+                id=user_id,
+                username="password-user",
+                email="password-user@example.com",
+                password_hash="old-hash",
+                role=Role.RESEARCHER.value,
+                is_active=True,
+            )
+        )
+        await session.commit()
+        await repository.create_refresh_session(refresh_data(user_id, family_id, "d" * 64))
+        await repository.create_refresh_session(refresh_data(user_id, family_id, "e" * 64))
+        changed = await repository.change_password(user_id, "new-hash")
+
+    assert changed is not None
+    assert changed.password_hash == "new-hash"
+    async with session_factory() as session:
+        sessions = list(
+            await session.scalars(select(RefreshSession).where(RefreshSession.user_id == user_id))
+        )
+    assert len(sessions) == 2
+    assert all(session.revoked_at is not None for session in sessions)

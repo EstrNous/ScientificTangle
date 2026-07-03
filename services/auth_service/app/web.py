@@ -4,9 +4,9 @@ import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Annotated, Any, cast
-from uuid import uuid4
+from uuid import UUID, uuid4
 
-from fastapi import APIRouter, Depends, FastAPI, Request, Response, status
+from fastapi import APIRouter, Depends, FastAPI, Query, Request, Response, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, PlainTextResponse
 from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, Counter, generate_latest
@@ -14,31 +14,45 @@ from sqlalchemy import text
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import RequestResponseEndpoint
 
-from app.audit import AuthAuditSink, NullAuthAuditSink
+from app.audit import AuthAuditSink, LoggingAuthAuditSink
 from app.config import Settings
 from app.database import create_database
 from app.dependencies import (
     get_auth_service,
     get_current_user,
     get_request_context,
+    require_roles,
 )
-from app.models import User
-from app.repository import AuthRepository
+from app.models import Role, User
+from app.repository import AuthRepository, IdentityConflictError
 from app.schemas import (
+    AdminUserUpdateRequest,
     ErrorDetails,
     ErrorResponse,
     HealthResponse,
     LoginRequest,
+    PasswordChangeRequest,
+    PasswordConfirmationRequest,
+    ProfileUpdateRequest,
+    RegisterRequest,
     TokenResponse,
+    UserListResponse,
     UserResponse,
 )
 from app.security import KeyStore, PasswordManager, TokenManager
-from app.service import AuthenticationError, AuthService, RequestContext, TokenPairResult
+from app.service import (
+    AuthenticationError,
+    AuthService,
+    RequestContext,
+    TokenPairResult,
+    UserNotFoundError,
+)
 
 REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
 AuthServiceDependency = Annotated[AuthService, Depends(get_auth_service)]
 RequestContextDependency = Annotated[RequestContext, Depends(get_request_context)]
 CurrentUserDependency = Annotated[User, Depends(get_current_user)]
+AdminUserDependency = Annotated[User, Depends(require_roles(Role.ADMIN))]
 
 
 class UnauthorizedError(Exception):
@@ -46,6 +60,14 @@ class UnauthorizedError(Exception):
 
 
 class ForbiddenError(Exception):
+    pass
+
+
+class ConflictError(Exception):
+    pass
+
+
+class NotFoundError(Exception):
     pass
 
 
@@ -76,12 +98,14 @@ def create_app(
         responses={
             401: {"model": ErrorResponse},
             403: {"model": ErrorResponse},
+            404: {"model": ErrorResponse},
+            409: {"model": ErrorResponse},
             422: {"model": ErrorResponse},
         },
     )
     app.state.settings = resolved_settings
     app.state.repository = repository
-    app.state.audit_sink = audit_sink or NullAuthAuditSink()
+    app.state.audit_sink = audit_sink or LoggingAuthAuditSink()
     app.state.key_store = key_store
     app.state.password_manager = password_manager
     app.state.token_manager = token_manager
@@ -123,6 +147,14 @@ def register_error_handlers(app: FastAPI) -> None:
     async def forbidden_handler(request: Request, error: ForbiddenError) -> JSONResponse:
         return error_response(request, "FORBIDDEN", "Access is denied", 403)
 
+    @app.exception_handler(ConflictError)
+    async def conflict_handler(request: Request, error: ConflictError) -> JSONResponse:
+        return error_response(request, "IDENTITY_ALREADY_EXISTS", "Identity already exists", 409)
+
+    @app.exception_handler(NotFoundError)
+    async def not_found_handler(request: Request, error: NotFoundError) -> JSONResponse:
+        return error_response(request, "USER_NOT_FOUND", "User was not found", 404)
+
     @app.exception_handler(RequestValidationError)
     async def validation_handler(request: Request, error: RequestValidationError) -> JSONResponse:
         return error_response(request, "VALIDATION_ERROR", "Request validation failed", 422)
@@ -139,6 +171,26 @@ def register_error_handlers(app: FastAPI) -> None:
 def build_router() -> APIRouter:
     router = APIRouter()
 
+    @router.post(
+        "/api/auth/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED
+    )
+    async def register(
+        payload: RegisterRequest,
+        request: Request,
+        response: Response,
+        service: AuthServiceDependency,
+        context: RequestContextDependency,
+    ) -> TokenResponse:
+        validate_origin(request)
+        try:
+            result = await service.register(
+                payload.username, str(payload.email), payload.password, context
+            )
+        except IdentityConflictError as error:
+            raise ConflictError from error
+        set_refresh_cookie(response, request.app.state.settings, result)
+        return token_response(result)
+
     @router.post("/api/auth/login", response_model=TokenResponse)
     async def login(
         payload: LoginRequest,
@@ -147,8 +199,9 @@ def build_router() -> APIRouter:
         service: AuthServiceDependency,
         context: RequestContextDependency,
     ) -> TokenResponse:
+        validate_origin(request)
         try:
-            result = await service.login(payload.username, payload.password, context)
+            result = await service.login(payload.identifier, payload.password, context)
         except AuthenticationError as error:
             raise UnauthorizedError from error
         set_refresh_cookie(response, request.app.state.settings, result)
@@ -191,6 +244,109 @@ def build_router() -> APIRouter:
     @router.get("/api/auth/me", response_model=UserResponse)
     async def me(user: CurrentUserDependency) -> UserResponse:
         return UserResponse.model_validate(user)
+
+    @router.patch("/api/auth/me", response_model=UserResponse)
+    async def update_me(
+        payload: ProfileUpdateRequest,
+        request: Request,
+        user: CurrentUserDependency,
+        service: AuthServiceDependency,
+        context: RequestContextDependency,
+    ) -> UserResponse:
+        validate_origin(request)
+        try:
+            updated = await service.update_profile(
+                user,
+                payload.current_password,
+                payload.username,
+                str(payload.email) if payload.email is not None else None,
+                context,
+            )
+        except AuthenticationError as error:
+            raise UnauthorizedError from error
+        except IdentityConflictError as error:
+            raise ConflictError from error
+        return UserResponse.model_validate(updated)
+
+    @router.post("/api/auth/change-password", response_model=TokenResponse)
+    async def change_password(
+        payload: PasswordChangeRequest,
+        request: Request,
+        response: Response,
+        user: CurrentUserDependency,
+        service: AuthServiceDependency,
+        context: RequestContextDependency,
+    ) -> TokenResponse:
+        validate_origin(request)
+        try:
+            result = await service.change_password(
+                user, payload.current_password, payload.new_password, context
+            )
+        except AuthenticationError as error:
+            raise UnauthorizedError from error
+        set_refresh_cookie(response, request.app.state.settings, result)
+        return token_response(result)
+
+    @router.post("/api/auth/logout-all", status_code=status.HTTP_204_NO_CONTENT)
+    async def logout_all(
+        request: Request,
+        response: Response,
+        user: CurrentUserDependency,
+        service: AuthServiceDependency,
+        context: RequestContextDependency,
+    ) -> None:
+        validate_origin(request)
+        await service.logout_all(user, context)
+        clear_refresh_cookie(response, request.app.state.settings)
+
+    @router.delete("/api/auth/me", status_code=status.HTTP_204_NO_CONTENT)
+    async def deactivate_me(
+        payload: PasswordConfirmationRequest,
+        request: Request,
+        response: Response,
+        user: CurrentUserDependency,
+        service: AuthServiceDependency,
+        context: RequestContextDependency,
+    ) -> None:
+        validate_origin(request)
+        try:
+            await service.deactivate(user, payload.current_password, context)
+        except AuthenticationError as error:
+            raise UnauthorizedError from error
+        clear_refresh_cookie(response, request.app.state.settings)
+
+    @router.get("/api/auth/users", response_model=UserListResponse)
+    async def list_users(
+        admin: AdminUserDependency,
+        service: AuthServiceDependency,
+        offset: Annotated[int, Query(ge=0)] = 0,
+        limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    ) -> UserListResponse:
+        users, total = await service.list_users(offset, limit)
+        return UserListResponse(
+            items=[UserResponse.model_validate(user) for user in users],
+            total=total,
+            offset=offset,
+            limit=limit,
+        )
+
+    @router.patch("/api/auth/users/{user_id}", response_model=UserResponse)
+    async def update_user(
+        user_id: UUID,
+        payload: AdminUserUpdateRequest,
+        request: Request,
+        admin: AdminUserDependency,
+        service: AuthServiceDependency,
+        context: RequestContextDependency,
+    ) -> UserResponse:
+        validate_origin(request)
+        try:
+            updated = await service.update_user(
+                user_id, payload.role, payload.is_active, admin, context
+            )
+        except UserNotFoundError as error:
+            raise NotFoundError from error
+        return UserResponse.model_validate(updated)
 
     @router.get("/.well-known/jwks.json")
     async def jwks(request: Request) -> dict[str, list[dict[str, Any]]]:

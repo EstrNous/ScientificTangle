@@ -25,7 +25,7 @@
 - `docs/agent_prompts/new_chat.md` — промпт для переноса работы в новый чат.
 - `docs/agent_prompts/quality_gate.md` — финальная проверка качества перед завершением задачи.
 - `docs/agent_context/project_structure.md` — этот файл, карта структуры проекта для агентов.
-- `services/auth_service/` — независимый FastAPI-сервис JWT-аутентификации, где исполняемый код находится в `app/`, Alembic-артефакты и миграции — в `storage/`, а в корне сервиса лежат Dockerfile, `pyproject.toml`, `alembic.ini`, тесты и документация.
+- `services/auth_service/` — независимый FastAPI-сервис полного жизненного цикла учётной записи: регистрация, профили, пароли, JWT-аутентификация, refresh-сессии, деактивация и базовые роли; исполняемый код находится в `app/`, Alembic-артефакты и миграции — в `storage/`, а в корне сервиса лежат Dockerfile, `pyproject.toml`, `alembic.ini`, тесты и документация.
 - `services/auth_service/SERVICE_OVERVIEW.md` — краткое англоязычное объяснение назначения сервиса, его данных и всех endpoint-ов для быстрого онбординга в `auth_service`.
 
 ## Как поддерживать файл
