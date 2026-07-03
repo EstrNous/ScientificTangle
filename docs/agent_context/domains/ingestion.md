@@ -5,8 +5,11 @@
 ## Ключевые файлы
 
 - `services/ingestion/app/` — upload, parsing, classification, metadata
-- `shared/contracts/` — NormalizedDocument, SourceSpan, TableBlock
+- `services/ingestion/app/parsers/` — реестр адаптеров PDF, DOCX, PPTX, DOC и ZIP
+- `shared/contracts/` — NormalizedDocument, SourceSpan, TableBlock и DTO нормализации сохранённых источников
 
 ## Pipeline
 
-Файл/ZIP → task → storage → NormalizedDocument → SourceSpan → downstream (knowledge, model).
+Файл/ZIP → task → MinIO → нормализация → NormalizedDocument → SourceSpan → Knowledge → Retrieval.
+
+Legacy DOC конвертируется в DOCX через LibreOffice headless. Небезопасные и превышающие лимиты ZIP отклоняются. Ошибка отдельного файла фиксируется как warning; отсутствие нормализованных документов завершает задачу ошибкой.

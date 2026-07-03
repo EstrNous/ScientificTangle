@@ -4,6 +4,7 @@ import ingestion from './ingestion.json';
 import strategic from './strategic.json';
 import lab from './lab.json';
 import audit from './audit.json';
+import admin from './admin.json';
 import notifications from './notifications.json';
 
 export const mockData = {
@@ -13,6 +14,7 @@ export const mockData = {
   strategic,
   lab,
   audit,
+  admin,
   notifications,
 };
 
@@ -48,6 +50,9 @@ export async function mockFetch(resource, options = {}) {
   }
   if (resource === 'audit/events') {
     return audit.events;
+  }
+  if (resource === 'admin') {
+    return admin;
   }
   if (resource === 'notifications') {
     return notifications.items;

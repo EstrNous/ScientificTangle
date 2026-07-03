@@ -1,4 +1,9 @@
 from .service import IngestionService, UploadStorageError
 from .storage import SourceStorage
 
-__all__ = ["IngestionService", "SourceStorage", "UploadStorageError"]
+__all__ = [
+    "IngestionService",
+    "SourceNormalizationError",
+    "SourceStorage",
+    "UploadStorageError",
+]

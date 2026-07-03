@@ -1,12 +1,23 @@
+import { useTranslation } from 'react-i18next';
+import SourceDocumentPanel from '../shared/SourceDocumentPanel.jsx';
+
 export default function SourceViewer({ span }) {
+  const { t } = useTranslation();
+
   if (!span) {
-    return <p className="text-sm text-slate-400">Выберите источник в таблице доказательств</p>;
+    return (
+      <div className="nn-card flex h-full min-h-0 items-center justify-center p-4 text-sm text-nn-gray dark:text-slate-400">
+        {t('admin.sourceEmpty')}
+      </div>
+    );
   }
 
   return (
-    <div className="text-sm border border-slate-800 rounded p-3">
-      <p className="font-medium">{span.title}</p>
-      <p className="text-slate-400 text-xs mt-2">Стр. {span.page} · {span.raw_text}</p>
+    <div className="nn-card flex h-full min-h-0 flex-col overflow-auto p-4">
+      <p className="mb-3 shrink-0 text-xs font-semibold uppercase tracking-wide text-nn-gray dark:text-slate-400">
+        {t('admin.sourceTitle')}
+      </p>
+      <SourceDocumentPanel source={span} compact />
     </div>
   );
 }

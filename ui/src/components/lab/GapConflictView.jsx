@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import SourceLink from '../shared/SourceLink.jsx';
 
 const RISK_STYLES = {
   high: 'bg-gray-100 text-gray-800 dark:bg-slate-800 dark:text-slate-200',
@@ -6,17 +7,21 @@ const RISK_STYLES = {
   low: 'bg-nn-blue-light text-nn-blue dark:bg-slate-800 dark:text-sky-300',
 };
 
-export default function GapConflictView({ contradictions }) {
+export default function GapConflictView({ contradictions, fill = false }) {
   const { t } = useTranslation();
 
   if (!contradictions?.length) return null;
 
   return (
-    <div className="nn-card flex flex-col gap-3 p-4">
-      <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
+    <div
+      className={`nn-card flex flex-col gap-3 p-4 ${fill ? 'h-full min-h-0 overflow-hidden' : ''}`}
+    >
+      <p className="shrink-0 text-sm font-semibold text-gray-900 dark:text-slate-100">
         {t('lab.conflictsTitle')}
       </p>
-      <ul className="space-y-3">
+      <ul
+        className={`space-y-3 ${fill ? 'scrollbar-thin scrollbar-thumb-nn-border dark:scrollbar-thumb-slate-600 min-h-0 flex-1 overflow-y-auto pr-1' : ''}`}
+      >
         {contradictions.map((item) => (
           <li
             key={item.id}
@@ -37,12 +42,16 @@ export default function GapConflictView({ contradictions }) {
               <div className="rounded-lg border border-nn-border bg-nn-gray-light p-2 dark:border-slate-600 dark:bg-slate-800">
                 <p className="font-medium text-gray-900 dark:text-slate-100">{item.claim_a}</p>
                 <p className="mt-1 text-nn-gray dark:text-slate-400">{item.condition_a}</p>
-                <p className="mt-1 text-[11px] text-nn-blue">{item.source_a}</p>
+                <p className="mt-1 text-[11px]">
+                  <SourceLink sourceRef={item.source_a} />
+                </p>
               </div>
               <div className="rounded-lg border border-nn-border bg-nn-gray-light p-2 dark:border-slate-600 dark:bg-slate-800">
                 <p className="font-medium text-gray-900 dark:text-slate-100">{item.claim_b}</p>
                 <p className="mt-1 text-nn-gray dark:text-slate-400">{item.condition_b}</p>
-                <p className="mt-1 text-[11px] text-nn-blue">{item.source_b}</p>
+                <p className="mt-1 text-[11px]">
+                  <SourceLink sourceRef={item.source_b} />
+                </p>
               </div>
             </div>
 

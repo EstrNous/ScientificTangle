@@ -11,3 +11,7 @@
 ## Принципы
 
 Claim-based знание; не абсолютная истина без provenance.
+
+## Текущий ingestion boundary
+
+Structured extraction выполняется через Model Service. Запись в Neo4j пока представлена типизированным `StorageWriteResult` с `mode=mock` и warning `neo4j_adapter_pending`; mock не сохраняет факты.

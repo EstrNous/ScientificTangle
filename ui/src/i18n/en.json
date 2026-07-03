@@ -24,7 +24,21 @@
     "searchPlaceholder": "Search",
     "team": "Team",
     "roleSwitcher": "Role",
-    "profile": "Profile"
+    "profile": "Profile",
+    "downloadPdf": "Download PDF",
+    "downloadingPdf": "PDF…",
+    "exportedAt": "Exported: {{date}}"
+  },
+  "source": {
+    "title": "Source document",
+    "download": "Download PDF",
+    "downloading": "PDF…",
+    "page": "Page {{page}}",
+    "totalPages": "{{count}} pages total",
+    "prevPage": "Previous",
+    "nextPage": "Next",
+    "close": "Close",
+    "pageEmpty": "Page text is not available"
   },
   "chat": {
     "history": "History",
@@ -66,9 +80,20 @@
     "edit": "Edit",
     "empty": "Graph is empty — upload documents first",
     "emptyFiltered": "No nodes match the selected types and query",
+    "expandPanel": "Expand to full panel",
+    "collapsePanel": "Collapse",
+    "verificationEmpty": "No verification candidates",
     "nodeTypeFilters": "Node types",
     "selectAllTypes": "All types",
     "resetTypes": "Reset",
+    "tableView": "Table",
+    "graphView": "Graph",
+    "combinationsTitle": "Node combinations",
+    "combinationsEmpty": "No combinations for selected node types",
+    "combinationsNoTypes": "Select at least one node type for the table",
+    "combinationsEditHint": "Edit cells and group names directly",
+    "combinationsAddRow": "Add row",
+    "combinationsDeleteRow": "Delete row",
     "statsFiltered": "{{nodes}} of {{total}} nodes · {{links}} links",
     "nodeTypes": {
       "Material": "Materials",
@@ -103,9 +128,16 @@
     }
   },
   "strategic": {
+    "nav": {
+      "coverage": "Coverage",
+      "quality": "Quality"
+    },
     "managerTitle": "Knowledge base coverage",
     "updatedAt": "Updated {{date}}",
     "coverageTitle": "Coverage by domain",
+    "coverageList": "Direction breakdown",
+    "expandDetails": "Expand breakdown",
+    "collapseDetails": "Collapse breakdown",
     "coverageValue": "Coverage {{value}}%",
     "documentsCount": "{{count}} documents",
     "lowCoverage": "Knowledge gaps",
@@ -124,11 +156,14 @@
     "metrics": {
       "documents": "Documents",
       "claims": "Claims",
-      "verified_claims": "Verified",
-      "candidates": "Candidates",
-      "gaps": "Gaps",
-      "conflicts": "Conflicts"
+      "verified_claims": "Confirmed by sources",
+      "candidates": "Pending confirmation",
+      "gaps": "Knowledge gaps",
+      "conflicts": "Conflicts between sources"
     },
+    "direction": "Direction",
+    "pdfMetric": "Metric",
+    "pdfValue": "Value",
     "evalMetrics": {
       "citation_coverage": "Citation coverage",
       "numeric_correctness": "Numeric correctness",
@@ -138,10 +173,148 @@
       "recall_at_5": "Recall@5"
     }
   },
+  "admin": {
+    "nav": {
+      "management": "Management",
+      "stats": "Statistics",
+      "audit": "Audit log"
+    },
+    "stats": {
+      "summaryTitle": "Summary"
+    },
+    "summary": {
+      "users": "Users",
+      "audit24h": "Events (24h)",
+      "restricted": "Restricted docs",
+      "denied24h": "Access denied"
+    },
+    "usersTitle": "Users and roles",
+    "usersHint": "Status shows whether the user can sign in. Click the status badge to block or unblock access.",
+    "userName": "Name",
+    "userEmail": "Email",
+    "userRole": "Role",
+    "userStatus": "System access",
+    "userStatusHint": "Whether the user is allowed to sign in",
+    "statusActive": "Sign-in allowed",
+    "statusInactive": "Sign-in blocked",
+    "statusActiveHint": "Click to block sign-in",
+    "statusInactiveHint": "Click to allow sign-in",
+    "userActions": "Actions",
+    "deleteUser": "Delete user",
+    "confirmDeleteUser": "Delete user «{{name}}»?",
+    "usersEmpty": "No users",
+    "expandPanel": "Expand to full page",
+    "collapsePanel": "Collapse",
+    "accessTitle": "Document access policies",
+    "accessHint": "Edit access level, roles, and export directly in the table. Click a role to allow or deny document access.",
+    "roleAddHint": "Allow access for role «{{role}}»",
+    "roleRemoveHint": "Deny access for role «{{role}}»",
+    "exportEnableHint": "Allow document export",
+    "exportDisableHint": "Deny document export",
+    "document": "Document",
+    "accessLevel": "Access level",
+    "allowedRoles": "Roles",
+    "export": "Export",
+    "exportYes": "allowed",
+    "exportNo": "denied",
+    "levels": {
+      "public": "public",
+      "internal": "internal",
+      "confidential": "confidential",
+      "restricted": "restricted"
+    },
+    "levelDescriptions": {
+      "public": "Available to all authorized roles, including external partners",
+      "internal": "Company employees only",
+      "confidential": "Limited to leadership and administrators",
+      "restricted": "Maximum protection, administrators only"
+    },
+    "auditTitle": "Audit log",
+    "auditTime": "Time",
+    "auditUser": "User",
+    "auditAction": "Action",
+    "auditObject": "Object",
+    "filterAll": "All actions",
+    "actions": {
+      "query_created": "query",
+      "source_viewed": "source view",
+      "document_exported": "export",
+      "access_denied": "access denied",
+      "ingestion_upload": "upload",
+      "role_changed": "role change"
+    },
+    "sourceTitle": "Source fragment",
+    "sourceEmpty": "Select an audit event linked to a source",
+    "sourceMeta": "Page {{page}} · {{section}}",
+    "ops": {
+      "title": "Operational metrics",
+      "updatedAt": "Updated {{date}}",
+      "latencyP50": "Latency p50",
+      "latencyP95": "Latency p95",
+      "errors24h": "Errors (24h)",
+      "rpsTotal": "Total RPS",
+      "servicesTitle": "Per-service metrics",
+      "service": "Service",
+      "rps": "RPS",
+      "errors": "Errors",
+      "status": "Health",
+      "statusHint": "Microservice health based on the last 24 hours. Hover a badge for details.",
+      "statuses": {
+        "ok": "Healthy",
+        "degraded": "Degraded",
+        "down": "Unavailable"
+      },
+      "statusDescriptions": {
+        "ok": "latency and errors within normal range",
+        "degraded": "elevated latency or occasional errors",
+        "down": "service not responding or critical error rate"
+      },
+      "serviceNames": {
+        "gateway": "Gateway",
+        "auth_audit": "Auth / Audit",
+        "orchestrator": "Orchestrator",
+        "ingestion": "Ingestion",
+        "knowledge": "Knowledge",
+        "retrieval": "Retrieval",
+        "model": "Model",
+        "export": "Export",
+        "notification": "Notification"
+      }
+    }
+  },
   "lab": {
-    "coverageTitle": "Material × process matrix",
-    "experimentsCount": "{{count}} experiments",
-    "cellTooltip": "{{material}} × {{process}}: {{count}} experiments",
+    "nav": {
+      "matrix": "Link matrix",
+      "insights": "Gaps and contradictions"
+    },
+    "nodeTypes": {
+      "Material": "Materials",
+      "Process": "Processes",
+      "Experiment": "Experiments",
+      "Lab": "Laboratories",
+      "Regime": "Regimes",
+      "Author": "Authors",
+      "Document": "Documents"
+    },
+    "matrixTitle": "Matrix «{{row}} × {{col}}»",
+    "expandMatrix": "Expand matrix",
+    "collapseMatrix": "Collapse matrix",
+    "matrixConfig": {
+      "rowAxis": "Rows (node type)",
+      "colAxis": "Columns (node type)",
+      "rowFilter": "Row: {{type}}",
+      "colFilter": "Column: {{type}}",
+      "display": "Cell values",
+      "allRows": "All rows",
+      "allCols": "All columns",
+      "displayHover": "On hover",
+      "displayAlways": "Always",
+      "reset": "Reset",
+      "fullSummary": "{{rowType}} × {{colType}}: {{rows}} × {{cols}}",
+      "filteredSummary": "Filter: {{rowType}} × {{colType}}, {{rows}} × {{cols}}"
+    },
+    "experimentsCount": "{{count}} links",
+    "cellTooltip": "{{row}} × {{col}}: {{count}} links",
     "legend": {
       "none": "no data",
       "low": "low",
@@ -150,14 +323,15 @@
     },
     "gapsTitle": "Knowledge gaps",
     "conflictsTitle": "Data contradictions",
+    "process": "Process",
     "relatedCases": "Related cases",
     "experts": "Experts and labs",
     "conflictNote": "Experiment conditions differ — not a direct conflict without comparison",
     "summary": {
-      "gaps": "Gaps",
+      "gaps": "Topics without coverage",
       "conflicts": "Conflicts",
-      "sparse": "Empty cells",
-      "experiments": "Matrix experiments"
+      "sparse": "Cells without links",
+      "links": "Links in matrix"
     },
     "risk": {
       "high": "high",

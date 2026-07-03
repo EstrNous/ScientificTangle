@@ -7,3 +7,4 @@ export { default as IngestionDashboard } from './IngestionDashboard.jsx';
 export { default as GraphSearchPanel } from './GraphSearchPanel.jsx';
 export { default as GraphSearchResults } from './GraphSearchResults.jsx';
 export { default as GraphNodeTypeFilters } from './GraphNodeTypeFilters.jsx';
+export { default as GraphCombinationsTable } from './GraphCombinationsTable.jsx';

@@ -33,4 +33,5 @@ app = FastAPI(
 setup_metrics(app, settings.service_name)
 app.include_router(build_metrics_router())
 app.include_router(health_router)
+app.include_router(indexing_router)
 app.include_router(query_router)

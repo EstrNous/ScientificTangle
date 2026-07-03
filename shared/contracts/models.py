@@ -105,6 +105,45 @@ class NormalizedDocument(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class NormalizeStoredSourcesRequest(BaseModel):
+    sources: list[StoredSource] = Field(min_length=1)
+    access_policy: AccessPolicy = Field(default_factory=AccessPolicy)
+
+
+class NormalizeStoredSourcesResponse(BaseModel):
+    documents: list[NormalizedDocument] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class StorageWriteResult(BaseModel):
+    backend: Literal["neo4j", "qdrant"]
+    mode: Literal["mock"] = "mock"
+    document_ids: list[str] = Field(default_factory=list)
+    records_count: int = Field(default=0, ge=0)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class KnowledgeIngestionRequest(BaseModel):
+    document: NormalizedDocument
+
+
+class KnowledgeIngestionResponse(BaseModel):
+    document_id: str
+    extraction: dict = Field(default_factory=dict)
+    graph_write: StorageWriteResult
+    warnings: list[str] = Field(default_factory=list)
+
+
+class RetrievalIndexRequest(BaseModel):
+    documents: list[NormalizedDocument] = Field(min_length=1)
+    knowledge_results: list[KnowledgeIngestionResponse] = Field(default_factory=list)
+
+
+class RetrievalIndexResponse(BaseModel):
+    vector_write: StorageWriteResult
+    warnings: list[str] = Field(default_factory=list)
+
+
 class Claim(BaseModel):
     id: str = Field(default_factory=lambda: uuid.uuid4().hex)
     statement: str

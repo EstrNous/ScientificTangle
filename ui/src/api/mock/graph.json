@@ -87,5 +87,62 @@
   "candidates": [
     { "id": "c1", "name": "Скорость коррозии 0.12 мм/год", "type": "Result", "confidence": 0.68 },
     { "id": "c2", "name": "Циркуляционный насос CF-42", "type": "Regime", "confidence": 0.61 }
+  ],
+  "nodeCombinations": [
+    {
+      "group": "Нагревание",
+      "rows": [
+        {
+          "Regime": "T = 920 °C, 2 ч",
+          "Property": "Прочность на разрыв",
+          "Result": "σ = 1100 МПа",
+          "Lab": "Лаб. физико-химии",
+          "Author": "Иванов А.С.",
+          "Document": "nickel_report.pdf"
+        },
+        {
+          "Regime": "P = 150 МПа",
+          "Property": "Твёрдость HB",
+          "Result": "HB = 36",
+          "Lab": "Лаб. физико-химии",
+          "Author": "Иванов А.С.",
+          "Document": "nickel_report.pdf"
+        }
+      ]
+    },
+    {
+      "group": "Электроэкстракция",
+      "rows": [
+        {
+          "Regime": "Поток католита 3 м/ч",
+          "Property": "Коррозионная стойкость",
+          "Result": "Скорость коррозии 0.12 мм/год",
+          "Lab": "",
+          "Author": "Smith J.",
+          "Document": "J. Hydrometallurgy, 2024"
+        },
+        {
+          "Regime": "Поток католита 3 м/ч",
+          "Property": "Коррозионная стойкость",
+          "Result": "Скорость коррозии 0.12 мм/год",
+          "Lab": "Гидрометаллургическая лаборатория",
+          "Author": "Smith J.",
+          "Document": "J. Hydrometallurgy, 2024"
+        }
+      ]
+    },
+    {
+      "group": "Материалы",
+      "rows": [
+        {
+          "Regime": "",
+          "Property": "",
+          "Result": "",
+          "Lab": "",
+          "Author": "",
+          "Document": "water_desalination.docx"
+        }
+      ]
+    }
   ]
 }

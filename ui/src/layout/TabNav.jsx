@@ -15,7 +15,7 @@ export default function TabNav() {
   const { canAccess } = useRoleAccess();
 
   return (
-    <nav className="flex shrink-0 gap-8 overflow-x-auto border-b border-nn-border bg-white px-6 dark:border-slate-700 dark:bg-slate-900">
+    <nav className="scrollbar-none flex shrink-0 gap-8 overflow-x-auto overflow-y-hidden border-b border-nn-border bg-white px-6 dark:border-slate-700 dark:bg-slate-900">
       {tabs
         .filter((tab) => canAccess(tab.key))
         .map((tab) => (

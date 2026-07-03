@@ -46,7 +46,7 @@
 ### Общий код (`shared/`)
 
 - `shared/pyproject.toml` — пакет `scientific-tangle-shared`, подключается как path dependency из каждого сервиса.
-- `shared/contracts/` — Pydantic-модели DTO, включая NormalizedDocument, SourceSpan, QueryIR, EvidenceBundle, AnswerPayload, UserRole, StoredSource, IngestionReport и IngestionTaskPayload.
+- `shared/contracts/` — Pydantic-модели DTO, включая NormalizedDocument, SourceSpan, QueryIR, EvidenceBundle, AnswerPayload, UserRole, ingestion task, нормализацию сохранённых источников и типизированные mock-результаты Neo4j/Qdrant.
 - `shared/utils/` — утилиты (generate_request_id).
 - `shared/logging/` — единая конфигурация structlog (JSON, контекст сервиса).
 - `shared/config/` — базовый класс ServiceSettings с подключениями ко всем хранилищам.
@@ -105,6 +105,7 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 ### Инфраструктура (`infra/`)
 
 - `infra/postgres/` — DB-per-service слои (auth_audit_db, orchestrator_db, chat_ui_db, export_db, notification_db); миграции через Alembic в `services/<name>/storage/` или `infra/postgres/<db>/storage/`.
+
 - `infra/orchestrator_db/` — модели и миграции Orchestrator (база `orchestrator_db`): IngestionTask, QueryRun, ExportJob. SQLAlchemy 2.0 async, Alembic.
 - `infra/chat_ui_db/` — модели и миграции Gateway/BFF (база `chat_ui_db`): ChatSession, ChatMessage, AdminSetting, ServiceState. SQLAlchemy 2.0 async, Alembic.
 - `infra/notification_db/` — модели и миграции Notification (база `notification_db`): UserInterest, Notification. SQLAlchemy 2.0 async, Alembic.
@@ -169,8 +170,9 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 
 ### ML integration slice
 
-- `services/ingestion/app/api/documents.py` — internal text/table fallback normalization endpoint, возвращает `NormalizedDocument` и `SourceSpan`.
-- `services/knowledge/app/api/extraction.py` — internal handoff `NormalizedDocument` → model structured extraction с adapter boundary для будущей записи в Neo4j.
+- `services/ingestion/app/api/documents.py` — internal text/table fallback normalization endpoint; task pipeline дополнительно нормализует сохранённые PDF, DOCX, PPTX, DOC и ZIP через реестр parser-адаптеров.
+- `services/knowledge/app/api/extraction.py` — internal handoff `NormalizedDocument` → model structured extraction с явным mock boundary для будущей записи в Neo4j.
+- `services/retrieval/app/api/indexing.py` — internal mock boundary индексации документов в Qdrant без сохранения данных.
 - `services/retrieval/app/api/query.py` — internal Query IR + evidence collection + model rerank поверх переданных `NormalizedDocument`, с access-aware фильтрацией.
 - `services/orchestrator/app/api/query.py` и `services/gateway/app/api/query.py` — тонкий query run/proxy path для eval-compatible ответа через `EvidenceBundle` и answer synthesis.
 
@@ -204,7 +206,7 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 - `repository.py` — `IngestionTaskRepository` (create/get/set_report/mark_failed).
 - `database.py` — `create_database()`, `get_session()`.
 - `config.py` — `OrchestratorDbSettings` (env prefix `ORCHESTRATOR_`).
-- Alembic: `services/orchestrator/alembic.ini`, миграции в `services/orchestrator/storage/versions/` (`0001` — extend ingestion_tasks, `0002` — query_runs/export_jobs).
+- Alembic: `services/orchestrator/alembic.ini`, миграции в `services/orchestrator/storage/versions/` (`0001` — ingestion_tasks, `0002` — query_runs/export_jobs, `0003` — совместимость query_runs с прежним init SQL).
 
 ### infra/postgres/chat_ui_db/
 
@@ -238,7 +240,7 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 
 ### services/ingestion/
 
-Принимает аутентифицированные исходные файлы, безопасно формирует объектные ключи, вычисляет SHA-256 и сохраняет данные в бакет MinIO `source-files`. При частичном сбое удаляет уже записанные объекты.
+Принимает аутентифицированные исходные файлы, безопасно формирует объектные ключи, вычисляет SHA-256 и сохраняет данные в бакет MinIO `source-files`. Нормализует PDF, DOCX, PPTX, DOC и ZIP в `NormalizedDocument`, `SourceSpan` и `TableBlock`; для DOC использует LibreOffice headless. При частичном сбое хранения удаляет уже записанные объекты.
 
 ## Как поддерживать файл
 
