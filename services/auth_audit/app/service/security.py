@@ -13,7 +13,7 @@ from jwt.algorithms import RSAAlgorithm
 from pwdlib import PasswordHash
 from pydantic import BaseModel, ConfigDict
 
-from app.core.config import Settings
+from ..core.config import Settings
 from infra.postgres.auth_audit_db import Role
 
 

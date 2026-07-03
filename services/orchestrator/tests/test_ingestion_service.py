@@ -162,7 +162,10 @@ def test_create_task_runs_complete_ingestion_pipeline() -> None:
 
     async def run() -> None:
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            result = await service(repository, client).create_task(
+            service = OrchestratorService(
+                repository, client, "http://ingestion", "http://retrieval", "http://model"
+            )
+            result = await service.create_task(
                 principal(),
                 [UploadFile(file=BytesIO(b"data"), filename="file.docx")],
                 "Bearer token",
@@ -200,6 +203,9 @@ def test_storage_failure_marks_task_failed() -> None:
 
     async def run() -> None:
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            service = OrchestratorService(
+                repository, client, "http://ingestion", "http://retrieval", "http://model"
+            )
             with pytest.raises(OrchestratorServiceError):
                 await service(repository, client).create_task(
                     principal(),
@@ -253,9 +259,12 @@ def test_task_is_visible_only_to_owner_or_admin() -> None:
 
     async def run() -> None:
         async with httpx.AsyncClient() as client:
-            orchestrator = service(repository, client)
-            assert (await orchestrator.get_task(task.id, owner)).id == task.id
-            assert (await orchestrator.get_task(task.id, principal(UserRole.ADMIN))).id == task.id
+            service = OrchestratorService(
+                repository, client, "http://ingestion", "http://retrieval", "http://model"
+            )
+            assert (await service.get_task(task.id, owner)).id == task.id
+            admin = principal(UserRole.ADMIN)
+            assert (await service.get_task(task.id, admin)).id == task.id
             with pytest.raises(OrchestratorServiceError) as error:
                 await orchestrator.get_task(task.id, principal())
             assert error.value.status_code == 404

@@ -2,13 +2,8 @@ from uuid import UUID
 
 from fastapi import UploadFile
 
-from ..parsers import ParserRegistry, SourceContent
 from .storage import InvalidUploadError, SourceStorage, StorageOperationError
-from shared.contracts import (
-    IngestionReport,
-    NormalizeStoredSourcesRequest,
-    NormalizeStoredSourcesResponse,
-)
+from shared.contracts import IngestionReport
 
 
 class UploadStorageError(Exception):

@@ -4,12 +4,12 @@ import structlog
 import httpx
 from fastapi import FastAPI
 
-from app.api.documents import router as documents_router
-from app.api.health import router as health_router
-from app.api.query import router as query_router
-from app.core.config import settings
-from app.core.logging import setup_logging
-from app.service.service import GatewayService
+from .api.documents import router as documents_router
+from .api.health import router as health_router
+from .api.query import router as query_router
+from .core.config import settings
+from .core.logging import setup_logging
+from .service.service import GatewayService
 from shared.metrics import build_metrics_router, setup_metrics
 from shared.security import JWKSValidator
 from shared.web import install_error_handlers, request_id_middleware

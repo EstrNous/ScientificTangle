@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [feat/*, dev]
+  pull_request:
+    branches: [dev]
+
+jobs:
+  lint-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Install ruff
+        run: uv tool install ruff
+      - name: Ruff check
+        run: ruff check shared services scripts tests
+
+  test-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          pip install pytest pytest-asyncio httpx pydantic pydantic-settings structlog fastapi uvicorn PyJWT cryptography prometheus-client sqlalchemy asyncpg
+          pip install -e shared
+          for svc in auth_audit gateway orchestrator ingestion knowledge retrieval model export notification; do
+            pip install -e "services/$svc" 2>/dev/null || pip install -r "services/$svc/pyproject.toml" 2>/dev/null || true
+          done
+          for svc in auth_audit gateway orchestrator ingestion knowledge retrieval model export notification shared; do
+            if [ -f "services/$svc/pyproject.toml" ] || [ -f "shared/pyproject.toml" ]; then
+              dir=$([ "$svc" = "shared" ] && echo shared || echo "services/$svc")
+              pip install -e "$dir" || (cd "$dir" && pip install .)
+            fi
+          done
+      - name: Pytest
+        run: python scripts/run_tests.py
+
+  test-ui:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - run: npm test

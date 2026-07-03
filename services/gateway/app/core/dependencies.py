@@ -1,6 +1,6 @@
 from fastapi import Request
 
-from app.service.service import GatewayService
+from ..service.service import GatewayService
 
 
 def get_gateway_service(request: Request) -> GatewayService:
