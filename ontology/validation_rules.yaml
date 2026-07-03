@@ -1,0 +1,38 @@
+validation:
+  version: "0.1.0"
+
+rules:
+  - id: material_has_name
+    entity: Material
+    check: material.name is not empty
+    severity: error
+
+  - id: measurement_has_unit
+    entity: Measurement
+    check: measurement.unit is not empty
+    severity: error
+
+  - id: quantity_within_physical_range
+    entity: Quantity
+    check: value is within physically plausible range for unit
+    severity: warning
+
+  - id: source_has_span
+    entity: Claim
+    check: claim.source_span_ids is not empty
+    severity: error
+
+  - id: confidence_in_range
+    entity: Claim
+    check: 0.0 <= confidence <= 1.0
+    severity: error
+
+  - id: geo_has_location
+    entity: GeoContext
+    check: location_name is not empty
+    severity: error
+
+  - id: document_has_title
+    entity: NormalizedDocument
+    check: title is not empty
+    severity: error

@@ -1,0 +1,52 @@
+domain_pack:
+  name: mining-metallurgy
+  version: "0.1.0"
+  description: Доменный профиль для горнодобывающей и металлургической отрасли
+
+material_classes:
+  - sulfide_ores:
+      examples: [пентландит, халькопирит, пирротин, миллерит]
+  - oxide_ores:
+      examples: [лимонит, гематит, магнетит, пиролюзит]
+  - precious_metals:
+      examples: [золото, серебро, платина, палладий]
+  - ferroalloys:
+      examples: [ферросилиций, ферромарганец, феррохром]
+  - base_metals:
+      examples: [медь, никель, кобальт, цинк]
+
+equipment_types:
+  - crushing: [щековая дробилка, конусная дробилка, молотковая дробилка]
+  - grinding: [шаровая мельница, стержневая мельница, САГ-мельница]
+  - flotation: [флотационная машина, колонная флотация]
+  - smelting: [электропечь, дуговая печь, ПВЖ, конвертер]
+  - refining: [электролизная ванна, вакуумная печь, дистиллятор]
+
+process_types:
+  - comminution: [дробление, измельчение, классификация]
+  - beneficiation: [флотация, гравитация, магнитная сепарация]
+  - pyrometallurgy: [обжиг, плавка, конвертирование]
+  - hydrometallurgy: [выщелачивание, экстракция, осаждение]
+  - refining: [электролиз, дистилляция, рафинирование]
+
+measurement_standards:
+  - GOST:
+      description: ГОСТ стандарты для измерений
+  - ISO:
+      description: Международные стандарты ISO
+  - ASTM:
+      description: Стандарты ASTM для испытаний материалов
+
+target_properties:
+  - nickel_recovery:
+      unit: "%"
+      typical_range: [85, 98]
+  - copper_grade:
+      unit: "%"
+      typical_range: [0.1, 5.0]
+  - pge_content:
+      unit: "g/t"
+      typical_range: [0.5, 15.0]
+  - sulfur_content:
+      unit: "%"
+      typical_range: [0.01, 5.0]
