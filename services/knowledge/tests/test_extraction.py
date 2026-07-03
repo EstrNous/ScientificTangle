@@ -40,8 +40,8 @@ def test_extract_document_returns_adapter_pending(client: TestClient) -> None:
     response = client.post("/v1/documents/extract", json={"document": document.model_dump(mode="json")})
     assert response.status_code == 200
     payload = response.json()
-    assert payload["graph_write"]["mode"] == "adapter_pending"
-    assert payload["graph_write"]["confirmed_count"] == 1
+    assert payload["graph_write"]["mode"] == "mock"
+    assert payload["graph_write"]["records_count"] == 1
 
 
 def test_health_smoke(client: TestClient) -> None:

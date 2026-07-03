@@ -12,8 +12,8 @@ from infra.postgres.auth_audit_db import (
 )
 from ..core.dependencies import get_auth_service, get_request_context, require_roles
 from ..service.service import AuthService, RequestContext, UserNotFoundError
+from shared.web import ServiceError
 from .auth import validate_origin
-from .errors import NotFoundError
 
 router = APIRouter()
 
@@ -53,5 +53,5 @@ async def update_user(
             user_id, payload.role, payload.is_active, admin, context
         )
     except UserNotFoundError as error:
-        raise NotFoundError from error
+        raise ServiceError(404, "user_not_found", "User was not found") from error
     return UserResponse.model_validate(updated)

@@ -4,8 +4,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, UploadFile, status
 
 from ..core.dependencies import get_ingestion_service
-from ..service.service import IngestionService, UploadStorageError
-from shared.contracts import IngestionReport
+from ..service.service import IngestionService, SourceNormalizationError, UploadStorageError
+from shared.contracts import IngestionReport, NormalizeStoredSourcesRequest, NormalizeStoredSourcesResponse
 
 from shared.security import AuthenticatedPrincipal
 from shared.web import ServiceError, require_principal

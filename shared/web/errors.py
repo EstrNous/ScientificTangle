@@ -27,9 +27,18 @@ def _request_id(request: Request) -> str:
     return getattr(request.state, "request_id", generate_request_id())
 
 
-def _response(request: Request, status_code: int, code: str, message: str) -> JSONResponse:
+def _response(
+    request: Request,
+    status_code: int,
+    code: str,
+    message: str,
+    headers: dict[str, str] | None = None,
+) -> JSONResponse:
     payload = ApiError(code=code, message=message, request_id=_request_id(request))
-    return JSONResponse(status_code=status_code, content=payload.model_dump(mode="json"))
+    response_headers = dict(headers or {})
+    if status_code == 401:
+        response_headers.setdefault("WWW-Authenticate", "Bearer")
+    return JSONResponse(status_code=status_code, content=payload.model_dump(mode="json"), headers=response_headers)
 
 
 async def _service_error(request: Request, error: ServiceError) -> JSONResponse:

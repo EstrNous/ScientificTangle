@@ -29,9 +29,11 @@ async def seed_demo(retrieval_url: str, seed_path: str, reset: bool, fail_on_deg
         )
         index_response.raise_for_status()
         result = index_response.json()
+        indexed_count = result.get("vector_write", {}).get("records_count", 0)
         warnings = " ".join(str(item).lower() for item in result.get("warnings", []))
         if fail_on_degraded and ("fallback" in warnings or "degraded" in warnings):
             raise SystemExit(json.dumps(result, ensure_ascii=False, indent=2))
+        result["indexed_points_count"] = indexed_count
         return result
 
 

@@ -203,6 +203,15 @@ class AnswerPayload(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class QueryRunResponse(BaseModel):
+    query_run_id: str
+    query_ir: QueryIR
+    evidence_bundle: EvidenceBundle
+    answer: AnswerPayload
+    unsupported_warnings: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
 class GraphNode(BaseModel):
     id: str
     label: str

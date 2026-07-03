@@ -127,9 +127,10 @@ def test_zip_parser_normalizes_entries_and_rejects_unsafe_paths() -> None:
         AccessPolicy(),
     )
 
-    assert len(documents) == 1
-    assert documents[0].metadata["archive_entry"] == "reports/report.docx"
-    assert warnings == ["unsupported_source_format:notes.txt"]
+    assert len(documents) == 2
+    archive_entries = {doc.metadata.get("archive_entry") for doc in documents}
+    assert archive_entries == {"reports/report.docx", "notes.txt"}
+    assert warnings == []
 
     unsafe_buffer = BytesIO()
     with zipfile.ZipFile(unsafe_buffer, "w") as archive:

@@ -1,19 +1,24 @@
 import asyncio
-from uuid import uuid4
+from datetime import UTC, datetime
+from uuid import UUID, uuid4
 
 import httpx
 import pytest
 
 from app.service.service import OrchestratorService
+from infra.postgres.orchestrator_db import QueryRun
 from shared.contracts import NormalizedDocument, SourceSpan, UserRole
 from shared.security import AuthenticatedPrincipal
 
 
 class FakeRepository:
-    async def create(self, user_id):
+    def __init__(self) -> None:
+        self.query_run: QueryRun | None = None
+
+    async def create(self, user_id: UUID):
         raise NotImplementedError
 
-    async def get(self, task_id):
+    async def get(self, task_id: UUID):
         return None
 
     async def set_report(self, task, report):
@@ -21,6 +26,39 @@ class FakeRepository:
 
     async def mark_failed(self, task, message):
         return task
+
+    async def create_query_run(self, user_id: UUID, raw_query: str) -> QueryRun:
+        now = datetime.now(UTC)
+        self.query_run = QueryRun(
+            id=uuid4(),
+            user_id=user_id,
+            raw_query=raw_query,
+            status="processing",
+            created_at=now,
+            updated_at=now,
+        )
+        return self.query_run
+
+    async def complete_query_run(
+        self,
+        run: QueryRun,
+        query_ir: dict,
+        retrieval_trace: dict,
+        answer_payload: dict,
+        latency_ms: int,
+    ) -> QueryRun:
+        return run
+
+    async def record_audit_event(
+        self,
+        user_id: UUID | None,
+        action: str,
+        resource_type: str,
+        resource_id: str,
+        details: dict,
+        request_id: str,
+    ) -> None:
+        return None
 
 
 def principal() -> AuthenticatedPrincipal:
@@ -92,6 +130,7 @@ def test_run_query_pipeline_calls_downstream_services() -> None:
                 repository=FakeRepository(),
                 client=client,
                 ingestion_url="http://ingestion",
+                knowledge_url="http://knowledge",
                 retrieval_url="http://retrieval",
                 model_url="http://model",
             )
