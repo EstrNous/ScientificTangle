@@ -51,7 +51,7 @@ test:
 	python -m pytest tests/integration/test_eval_runner.py
 
 test-neo4j-integration:
-	RUN_NEO4J_INTEGRATION=1 python -m pytest tests/integration/test_neo4j_smoke.py -v -c tests/integration/pytest.ini
+	cd tests/integration && RUN_NEO4J_INTEGRATION=1 python -m pytest test_neo4j_smoke.py -v
 
 test-yandex-live:
 	python scripts/yandex_live_smoke.py
