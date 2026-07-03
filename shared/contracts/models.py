@@ -124,7 +124,7 @@ class NormalizeStoredSourcesResponse(BaseModel):
 
 class StorageWriteResult(BaseModel):
     backend: Literal["neo4j", "qdrant"]
-    mode: Literal["mock"] = "mock"
+    mode: Literal["mock", "live"] = "mock"
     document_ids: list[str] = Field(default_factory=list)
     records_count: int = Field(default=0, ge=0)
     warnings: list[str] = Field(default_factory=list)
