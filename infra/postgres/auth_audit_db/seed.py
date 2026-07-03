@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from sqlalchemy.dialects.postgresql import insert
 
 from app.core.config import Settings
-from app.db.database import create_database
-from app.db.models import Role, User
+from .database import create_database
+from .models import Role, User
 from app.service.security import PasswordManager
 
 

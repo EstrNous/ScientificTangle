@@ -5,7 +5,7 @@ import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from app.db.models import Role
+from infra.postgres.auth_audit_db import Role
 from app.service.security import (
     InvalidAccessTokenError,
     KeyStore,

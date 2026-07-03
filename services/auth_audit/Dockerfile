@@ -22,6 +22,8 @@ WORKDIR /app/services/auth_audit
 
 COPY --from=deps /app/services/auth_audit/.venv ./.venv
 COPY --from=deps /app/shared /app/shared
+COPY infra/__init__.py /app/infra/__init__.py
+COPY infra/postgres /app/infra/postgres
 COPY services/auth_audit/alembic.ini ./alembic.ini
 COPY services/auth_audit/storage ./storage
 COPY services/auth_audit/app ./app

@@ -3,12 +3,13 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
 from app.core.audit import AuthAuditEvent, AuthAuditSink
-from app.db.models import Role, User
-from app.db.repository import (
+from infra.postgres.auth_audit_db import (
     AuthRepository,
     NewUserData,
     RefreshSessionData,
+    Role,
     RotationStatus,
+    User,
 )
 from app.service.security import (
     InvalidAccessTokenError,

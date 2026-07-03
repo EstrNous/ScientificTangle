@@ -9,9 +9,9 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import func, select
 
-from app.db.database import create_database
-from app.db.models import RefreshSession, Role, User
-from app.db.repository import (
+from infra.postgres.auth_audit_db import create_database
+from infra.postgres.auth_audit_db import RefreshSession, Role, User
+from infra.postgres.auth_audit_db import (
     IdentityConflictError,
     NewUserData,
     RefreshSessionData,

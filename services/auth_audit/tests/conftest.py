@@ -20,8 +20,8 @@ for import_root in (SERVICE_DIR, REPOSITORY_ROOT):
 
 from app.api.web import create_app
 from app.core.config import Settings
-from app.db.models import Role, User
-from app.db.repository import (
+from infra.postgres.auth_audit_db import Role, User
+from infra.postgres.auth_audit_db import (
     AuthRepository,
     IdentityConflictError,
     NewUserData,
