@@ -2,15 +2,15 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
-from app.audit import AuthAuditEvent, AuthAuditSink
-from app.models import Role, User
-from app.repository import (
+from app.core.audit import AuthAuditEvent, AuthAuditSink
+from app.db.models import Role, User
+from app.db.repository import (
     AuthRepository,
     NewUserData,
     RefreshSessionData,
     RotationStatus,
 )
-from app.security import (
+from app.service.security import (
     InvalidAccessTokenError,
     PasswordManager,
     TokenManager,

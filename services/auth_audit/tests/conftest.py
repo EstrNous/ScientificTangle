@@ -1,6 +1,8 @@
 import asyncio
+import sys
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
@@ -9,9 +11,17 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from httpx import ASGITransport, AsyncClient
 from pydantic import SecretStr
 
-from app.config import Settings
-from app.models import Role, User
-from app.repository import (
+SERVICE_DIR = Path(__file__).resolve().parents[1]
+REPOSITORY_ROOT = SERVICE_DIR.parents[1]
+for import_root in (SERVICE_DIR, REPOSITORY_ROOT):
+    import_root_text = str(import_root)
+    if import_root_text not in sys.path:
+        sys.path.insert(0, import_root_text)
+
+from app.api.web import create_app
+from app.core.config import Settings
+from app.db.models import Role, User
+from app.db.repository import (
     AuthRepository,
     IdentityConflictError,
     NewUserData,
@@ -19,8 +29,7 @@ from app.repository import (
     RotationResult,
     RotationStatus,
 )
-from app.security import PasswordManager
-from app.web import create_app
+from app.service.security import PasswordManager
 
 
 @dataclass(slots=True)

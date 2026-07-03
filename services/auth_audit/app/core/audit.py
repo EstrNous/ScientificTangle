@@ -29,7 +29,7 @@ class NullAuthAuditSink:
 
 class LoggingAuthAuditSink:
     def __init__(self) -> None:
-        self._logger = logging.getLogger("auth_service.audit")
+        self._logger = logging.getLogger("auth_audit.audit")
 
     async def record(self, event: AuthAuditEvent) -> None:
         self._logger.info(json.dumps(asdict(event), default=str, separators=(",", ":")))

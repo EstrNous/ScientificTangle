@@ -14,18 +14,18 @@ from sqlalchemy import text
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import RequestResponseEndpoint
 
-from app.audit import AuthAuditSink, LoggingAuthAuditSink
-from app.config import Settings
-from app.database import create_database
-from app.dependencies import (
+from ..core.audit import AuthAuditSink, LoggingAuthAuditSink
+from ..core.config import Settings
+from ..db.database import create_database
+from ..core.dependencies import (
     get_auth_service,
     get_current_user,
     get_request_context,
     require_roles,
 )
-from app.models import Role, User
-from app.repository import AuthRepository, IdentityConflictError
-from app.schemas import (
+from ..db.models import Role, User
+from ..db.repository import AuthRepository, IdentityConflictError
+from ..db.schemas import (
     AdminUserUpdateRequest,
     ErrorDetails,
     ErrorResponse,
@@ -39,8 +39,8 @@ from app.schemas import (
     UserListResponse,
     UserResponse,
 )
-from app.security import KeyStore, PasswordManager, TokenManager
-from app.service import (
+from ..service.security import KeyStore, PasswordManager, TokenManager
+from ..service.service import (
     AuthenticationError,
     AuthService,
     RequestContext,
@@ -92,7 +92,7 @@ def create_app(
             await app.state.engine.dispose()
 
     app = FastAPI(
-        title="ScientificTangle Auth Service",
+        title="ScientificTangle Auth Audit",
         version="0.1.0",
         lifespan=lifespan,
         responses={

@@ -6,10 +6,10 @@ from conftest import FakeAuthRepository
 from fastapi import Depends
 from httpx import ASGITransport, AsyncClient
 
-from app.dependencies import require_roles
-from app.models import Role, User
-from app.security import hash_refresh_token
-from app.web import create_app
+from app.api.web import create_app
+from app.core.dependencies import require_roles
+from app.db.models import Role, User
+from app.service.security import hash_refresh_token
 
 AdminUserDependency = Annotated[User, Depends(require_roles(Role.ADMIN))]
 

@@ -2,7 +2,7 @@
 
 ## 1. Purpose of the service
 
-`auth_service` is the authentication service for ScientificTangle.
+`auth_audit` is the authentication service for ScientificTangle.
 
 Its main purpose is to:
 
@@ -205,6 +205,6 @@ What it does:
 
 ## Summary
 
-`auth_service` is the identity entry point of the project.
+`auth_audit` is the identity entry point of the project.
 
 It owns the complete practical identity lifecycle: registration, user storage, authentication, profile and password maintenance, refresh sessions, soft deactivation, and coarse role administration. Domain services remain responsible for resource-specific authorization.

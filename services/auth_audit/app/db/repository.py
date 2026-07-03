@@ -8,7 +8,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import RefreshSession, Role, User
+from .models import RefreshSession, Role, User
 
 
 class IdentityConflictError(Exception):
