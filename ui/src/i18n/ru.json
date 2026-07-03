@@ -138,6 +138,80 @@
       "recall_at_5": "Recall@5"
     }
   },
+  "admin": {
+    "summary": {
+      "users": "Пользователи",
+      "audit24h": "События за 24 ч",
+      "restricted": "Закрытые документы",
+      "denied24h": "Отказы доступа"
+    },
+    "usersTitle": "Пользователи и роли",
+    "userName": "Имя",
+    "userEmail": "Email",
+    "userRole": "Роль",
+    "userStatus": "Статус",
+    "statusActive": "активен",
+    "statusInactive": "отключён",
+    "accessTitle": "Политики доступа к документам",
+    "document": "Документ",
+    "accessLevel": "Уровень",
+    "allowedRoles": "Роли",
+    "export": "Экспорт",
+    "exportYes": "разрешён",
+    "exportNo": "запрещён",
+    "levels": {
+      "public": "публичный",
+      "internal": "внутренний",
+      "confidential": "конфиденциальный",
+      "restricted": "ограниченный"
+    },
+    "auditTitle": "Журнал аудита",
+    "auditTime": "Время",
+    "auditUser": "Пользователь",
+    "auditAction": "Действие",
+    "auditObject": "Объект",
+    "filterAll": "Все действия",
+    "actions": {
+      "query_created": "запрос",
+      "source_viewed": "просмотр источника",
+      "document_exported": "экспорт",
+      "access_denied": "отказ доступа",
+      "ingestion_upload": "загрузка",
+      "role_changed": "смена роли"
+    },
+    "sourceTitle": "Фрагмент источника",
+    "sourceEmpty": "Выберите событие с источником в журнале аудита",
+    "sourceMeta": "Стр. {{page}} · {{section}}",
+    "ops": {
+      "title": "Операционные метрики",
+      "updatedAt": "Обновлено {{date}}",
+      "latencyP50": "Отклик p50",
+      "latencyP95": "Отклик p95",
+      "errors24h": "Ошибки за 24 ч",
+      "rpsTotal": "RPS всего",
+      "servicesTitle": "Метрики по сервисам",
+      "service": "Сервис",
+      "rps": "RPS",
+      "errors": "Ошибки",
+      "status": "Статус",
+      "statuses": {
+        "ok": "норма",
+        "degraded": "деградация",
+        "down": "недоступен"
+      },
+      "serviceNames": {
+        "gateway": "Gateway",
+        "auth_audit": "Auth / Audit",
+        "orchestrator": "Orchestrator",
+        "ingestion": "Ingestion",
+        "knowledge": "Knowledge",
+        "retrieval": "Retrieval",
+        "model": "Model",
+        "export": "Export",
+        "notification": "Notification"
+      }
+    }
+  },
   "lab": {
     "coverageTitle": "Матрица «материал × процесс»",
     "experimentsCount": "{{count}} экспериментов",

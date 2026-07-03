@@ -138,6 +138,80 @@
       "recall_at_5": "Recall@5"
     }
   },
+  "admin": {
+    "summary": {
+      "users": "Users",
+      "audit24h": "Events (24h)",
+      "restricted": "Restricted docs",
+      "denied24h": "Access denied"
+    },
+    "usersTitle": "Users and roles",
+    "userName": "Name",
+    "userEmail": "Email",
+    "userRole": "Role",
+    "userStatus": "Status",
+    "statusActive": "active",
+    "statusInactive": "disabled",
+    "accessTitle": "Document access policies",
+    "document": "Document",
+    "accessLevel": "Level",
+    "allowedRoles": "Roles",
+    "export": "Export",
+    "exportYes": "allowed",
+    "exportNo": "denied",
+    "levels": {
+      "public": "public",
+      "internal": "internal",
+      "confidential": "confidential",
+      "restricted": "restricted"
+    },
+    "auditTitle": "Audit log",
+    "auditTime": "Time",
+    "auditUser": "User",
+    "auditAction": "Action",
+    "auditObject": "Object",
+    "filterAll": "All actions",
+    "actions": {
+      "query_created": "query",
+      "source_viewed": "source view",
+      "document_exported": "export",
+      "access_denied": "access denied",
+      "ingestion_upload": "upload",
+      "role_changed": "role change"
+    },
+    "sourceTitle": "Source fragment",
+    "sourceEmpty": "Select an audit event linked to a source",
+    "sourceMeta": "Page {{page}} · {{section}}",
+    "ops": {
+      "title": "Operational metrics",
+      "updatedAt": "Updated {{date}}",
+      "latencyP50": "Latency p50",
+      "latencyP95": "Latency p95",
+      "errors24h": "Errors (24h)",
+      "rpsTotal": "Total RPS",
+      "servicesTitle": "Per-service metrics",
+      "service": "Service",
+      "rps": "RPS",
+      "errors": "Errors",
+      "status": "Status",
+      "statuses": {
+        "ok": "ok",
+        "degraded": "degraded",
+        "down": "down"
+      },
+      "serviceNames": {
+        "gateway": "Gateway",
+        "auth_audit": "Auth / Audit",
+        "orchestrator": "Orchestrator",
+        "ingestion": "Ingestion",
+        "knowledge": "Knowledge",
+        "retrieval": "Retrieval",
+        "model": "Model",
+        "export": "Export",
+        "notification": "Notification"
+      }
+    }
+  },
   "lab": {
     "coverageTitle": "Material × process matrix",
     "experimentsCount": "{{count}} experiments",
