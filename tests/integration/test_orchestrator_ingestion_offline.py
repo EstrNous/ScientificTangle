@@ -1,6 +1,9 @@
 import asyncio
+import importlib
+import sys
 from datetime import UTC, datetime
 from io import BytesIO
+from pathlib import Path
 from uuid import UUID, uuid4
 
 import httpx
@@ -93,6 +96,11 @@ def report_payload() -> dict:
 
 
 def test_orchestrator_ingestion_pipeline_offline() -> None:
+    orchestrator_root = Path(__file__).resolve().parents[2] / "services" / "orchestrator"
+    sys.path.insert(0, str(orchestrator_root))
+    for module_name in [name for name in sys.modules if name == "app" or name.startswith("app.")]:
+        sys.modules.pop(module_name, None)
+    importlib.invalidate_caches()
     from app.service.service import OrchestratorService
 
     repository = FakeRepository()
@@ -127,12 +135,12 @@ def test_orchestrator_ingestion_pipeline_offline() -> None:
                     "extraction": {"confirmed": [], "candidates": []},
                     "graph_write": {
                         "backend": "neo4j",
-                        "mode": "mock",
+                        "mode": "live",
                         "document_ids": ["document-1"],
                         "records_count": 0,
-                        "warnings": ["neo4j_adapter_pending"],
+                        "warnings": [],
                     },
-                    "warnings": ["neo4j_adapter_pending"],
+                    "warnings": [],
                 },
             )
         return httpx.Response(
@@ -140,12 +148,12 @@ def test_orchestrator_ingestion_pipeline_offline() -> None:
             json={
                 "vector_write": {
                     "backend": "qdrant",
-                    "mode": "mock",
+                    "mode": "live",
                     "document_ids": ["document-1"],
                     "records_count": 1,
-                    "warnings": ["qdrant_adapter_pending"],
+                    "warnings": [],
                 },
-                "warnings": ["qdrant_adapter_pending"],
+                "warnings": [],
             },
         )
 

@@ -329,7 +329,7 @@ def test_task_is_visible_only_to_owner_or_admin() -> None:
             admin = principal(UserRole.ADMIN)
             assert (await orchestrator.get_task(task.id, admin)).id == task.id
             with pytest.raises(OrchestratorServiceError) as error:
-                await service.get_task(task.id, principal())
+                await orchestrator.get_task(task.id, principal())
             assert error.value.status_code == 404
 
     asyncio.run(run())
