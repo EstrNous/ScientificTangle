@@ -1,7 +1,7 @@
 import { resolveSourceRef } from '../../api/mock/sourceCatalog.js';
 import { useSourceDocument } from '../../context/SourceDocumentContext.jsx';
 
-export default function SourceLink({ sourceRef, source, children, className = '' }) {
+export default function SourceLink({ sourceRef, source, children, className = '', onOpen }) {
   const { openSource } = useSourceDocument();
   const label = children ?? sourceRef ?? source?.title;
   const resolved =
@@ -16,7 +16,10 @@ export default function SourceLink({ sourceRef, source, children, className = ''
   return (
     <button
       type="button"
-      onClick={() => openSource(resolved)}
+      onClick={() => {
+        openSource(resolved);
+        onOpen?.();
+      }}
       className={`text-left text-nn-blue hover:underline dark:text-sky-400 ${className}`}
     >
       {label}

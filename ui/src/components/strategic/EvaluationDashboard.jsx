@@ -1,11 +1,14 @@
 import { forwardRef, useImperativeHandle, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { getQuestionSources } from '../../api/mock/sourceBindings.js';
+import { useSourceRefsPopover } from '../../hooks/useSourceRefsPopover.js';
 import { captureElementImage, waitForPaint } from '../../utils/captureElement.js';
+import SourceRefsPopover from '../shared/SourceRefsPopover.jsx';
 
-function MetricBar({ label, value, compact }) {
+function MetricBar({ label, value, compact, onClick }) {
   const pct = Math.round((value ?? 0) * 100);
-  return (
-    <div>
+  const content = (
+    <>
       <div
         className={`mb-0.5 flex justify-between text-nn-gray dark:text-slate-400 ${compact ? 'text-[10px]' : 'text-[11px]'}`}
       >
@@ -15,7 +18,19 @@ function MetricBar({ label, value, compact }) {
       <div className={`overflow-hidden rounded-full bg-nn-gray-light dark:bg-slate-800 ${compact ? 'h-1' : 'h-1.5'}`}>
         <div className="h-full rounded-full bg-nn-blue" style={{ width: `${pct}%` }} />
       </div>
-    </div>
+    </>
+  );
+
+  if (!onClick) return <div>{content}</div>;
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full rounded-md px-1 py-0.5 text-left transition-colors hover:bg-nn-blue-light/50 dark:hover:bg-slate-800/60"
+    >
+      {content}
+    </button>
   );
 }
 
@@ -41,6 +56,7 @@ const EvaluationDashboard = forwardRef(function EvaluationDashboard({ data, fill
   const { t } = useTranslation();
   const captureRef = useRef(null);
   const scrollRef = useRef(null);
+  const { popover, openPopover, closePopover } = useSourceRefsPopover();
 
   useImperativeHandle(ref, () => ({
     async getExportImage() {
@@ -80,6 +96,25 @@ const EvaluationDashboard = forwardRef(function EvaluationDashboard({ data, fill
   if (!data?.questions?.length) return null;
 
   const summary = data.summary ?? {};
+
+  const openQuestionSources = (event, question) => {
+    openPopover(event, {
+      title: question.text,
+      subtitle: t('strategic.sourcesLine', {
+        actual: question.actual_sources,
+        expected: question.expected_sources,
+      }),
+      sources: getQuestionSources(question.id, question.actual_sources),
+    });
+  };
+
+  const openMetricSources = (event, question, metricKey, value) => {
+    openPopover(event, {
+      title: question.text,
+      subtitle: t(`strategic.evalMetrics.${metricKey}`),
+      sources: getQuestionSources(question.id, Math.max(1, Math.round((value ?? 0) * 4))),
+    });
+  };
 
   return (
     <div
@@ -147,11 +182,13 @@ const EvaluationDashboard = forwardRef(function EvaluationDashboard({ data, fill
                 className={`rounded-xl border border-nn-border bg-white dark:border-slate-700 dark:bg-slate-900 ${fill ? 'p-2.5' : 'p-4'}`}
               >
                 <div className={`flex items-start justify-between gap-2 ${fill ? 'mb-2' : 'mb-3'}`}>
-                  <p
-                    className={`font-medium text-gray-900 dark:text-slate-100 ${fill ? 'text-xs leading-snug' : 'text-sm'}`}
+                  <button
+                    type="button"
+                    onClick={(event) => openQuestionSources(event, question)}
+                    className={`text-left font-medium text-gray-900 transition-colors hover:text-nn-blue dark:text-slate-100 dark:hover:text-sky-400 ${fill ? 'text-xs leading-snug' : 'text-sm'}`}
                   >
                     {question.text}
-                  </p>
+                  </button>
                   <span
                     className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${statusClass}`}
                   >
@@ -162,12 +199,16 @@ const EvaluationDashboard = forwardRef(function EvaluationDashboard({ data, fill
                 <div
                   className={`grid grid-cols-2 gap-x-2 gap-y-1 text-nn-gray dark:text-slate-400 ${fill ? 'mb-2 text-[10px]' : 'mb-3 text-xs'}`}
                 >
-                  <p>
+                  <button
+                    type="button"
+                    onClick={(event) => openQuestionSources(event, question)}
+                    className="rounded-md px-1 py-0.5 text-left transition-colors hover:bg-nn-blue-light/50 dark:hover:bg-slate-800/60"
+                  >
                     {t('strategic.sources')}:{' '}
                     <span className="font-medium text-gray-900 dark:text-slate-100">
                       {question.actual_sources}/{question.expected_sources}
                     </span>
-                  </p>
+                  </button>
                   <p>
                     {t('strategic.missingEvidence')}:{' '}
                     <span className="font-medium text-gray-900 dark:text-slate-100">
@@ -193,11 +234,17 @@ const EvaluationDashboard = forwardRef(function EvaluationDashboard({ data, fill
                     label={t('strategic.evalMetrics.citation_coverage')}
                     value={question.citation_coverage}
                     compact={fill}
+                    onClick={(event) =>
+                      openMetricSources(event, question, 'citation_coverage', question.citation_coverage)
+                    }
                   />
                   <MetricBar
                     label={t('strategic.evalMetrics.numeric_correctness')}
                     value={question.numeric_correctness}
                     compact={fill}
+                    onClick={(event) =>
+                      openMetricSources(event, question, 'numeric_correctness', question.numeric_correctness)
+                    }
                   />
                 </div>
               </article>
@@ -205,6 +252,7 @@ const EvaluationDashboard = forwardRef(function EvaluationDashboard({ data, fill
           })}
         </div>
       </div>
+      <SourceRefsPopover state={popover} onClose={closePopover} />
     </div>
   );
 });

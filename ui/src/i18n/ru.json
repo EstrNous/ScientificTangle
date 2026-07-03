@@ -34,11 +34,16 @@
     "download": "Скачать PDF",
     "downloading": "PDF…",
     "page": "Стр. {{page}}",
+    "pageLabel": "Страница {{page}}",
+    "pageCount": "{{count}} стр.",
     "totalPages": "всего {{count}} стр.",
+    "citedFragment": "Цитируемый фрагмент",
     "prevPage": "Назад",
     "nextPage": "Вперёд",
     "close": "Закрыть",
-    "pageEmpty": "Текст страницы недоступен"
+    "pageEmpty": "Текст страницы недоступен",
+    "refsTitle": "Документы-источники",
+    "refsCount": "{{count}} документов"
   },
   "chat": {
     "history": "История",
@@ -48,8 +53,11 @@
     "downloadPdf": "Скачать PDF",
     "downloadingPdf": "PDF…",
     "deleteSession": "Удалить запрос",
+    "backendError": "Ошибка связи с сервером: {{message}}",
     "scrollHint": "↕ прокрутка списка",
     "retrievalTitle": "Поиск и обработка",
+    "evidenceRow": "Строка {{index}}: {{label}}",
+    "evidenceCellHint": "Показать документы-источники строки",
     "retrieval": {
       "analyze": "Анализирую запрос и выделяю ключевые сущности",
       "synonyms": "Расширяю синонимы: {{terms}}",
@@ -94,6 +102,7 @@
     "combinationsEditHint": "Ячейки и названия групп редактируются напрямую",
     "combinationsAddRow": "Добавить строку",
     "combinationsDeleteRow": "Удалить строку",
+    "combinationsCellHint": "Показать документы-источники строки",
     "statsFiltered": "{{nodes}} из {{total}} узлов · {{links}} связей",
     "nodeTypes": {
       "Material": "Материалы",
@@ -140,6 +149,9 @@
     "collapseDetails": "Свернуть детализацию",
     "coverageValue": "Покрытие {{value}}%",
     "documentsCount": "{{count}} документов",
+    "barClickHint": "Клик по столбцу — список документов",
+    "metricValue": "Значение: {{value}}",
+    "sourcesLine": "Источники: {{actual}} из {{expected}}",
     "lowCoverage": "Пробелы в знаниях",
     "highConflict": "Зоны конфликтов",
     "alertHint": "Требуют приоритетной загрузки источников или экспертной проверки",
@@ -315,6 +327,7 @@
     },
     "experimentsCount": "{{count}} связей",
     "cellTooltip": "{{row}} × {{col}}: {{count}} связей",
+    "cellClickHint": "Клик по ячейке — список документов",
     "legend": {
       "none": "нет данных",
       "low": "мало",

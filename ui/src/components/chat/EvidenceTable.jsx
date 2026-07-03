@@ -1,12 +1,28 @@
+import { useTranslation } from 'react-i18next';
+import { getEvidenceRowSources } from '../../api/mock/sourceBindings.js';
+import { useSourceRefsPopover } from '../../hooks/useSourceRefsPopover.js';
+import { isSourceColumnName } from '../../utils/sourceColumn.js';
 import CopyButton from '../shared/CopyButton.jsx';
 import SourceLink from '../shared/SourceLink.jsx';
-import { isSourceColumnName } from '../../utils/sourceColumn.js';
+import SourceRefsPopover from '../shared/SourceRefsPopover.jsx';
 
 export default function EvidenceTable({ table }) {
+  const { t } = useTranslation();
+  const { popover, openPopover, closePopover } = useSourceRefsPopover();
   const text = [table.columns.join('\t'), ...table.rows.map((r) => r.join('\t'))].join('\n');
   const sourceColumnIndexes = table.columns
     .map((column, index) => (isSourceColumnName(column) ? index : -1))
     .filter((index) => index >= 0);
+
+  const openRowSources = (event, row, rowIndex) => {
+    const sources = getEvidenceRowSources(row, table.columns);
+    const label = row.find((cell, index) => !sourceColumnIndexes.includes(index) && cell) ?? row[0];
+    openPopover(event, {
+      title: t('source.refsTitle'),
+      subtitle: t('chat.evidenceRow', { index: rowIndex + 1, label }),
+      sources,
+    });
+  };
 
   return (
     <div className="overflow-auto">
@@ -34,7 +50,14 @@ export default function EvidenceTable({ table }) {
                   {sourceColumnIndexes.includes(j) ? (
                     <SourceLink sourceRef={cell}>{cell}</SourceLink>
                   ) : (
-                    cell
+                    <button
+                      type="button"
+                      onClick={(event) => openRowSources(event, row, i)}
+                      className="w-full rounded px-1 py-0.5 text-left transition-colors hover:bg-nn-blue-light/60 dark:hover:bg-slate-800/60"
+                      title={t('chat.evidenceCellHint')}
+                    >
+                      {cell}
+                    </button>
                   )}
                 </td>
               ))}
@@ -42,6 +65,7 @@ export default function EvidenceTable({ table }) {
           ))}
         </tbody>
       </table>
+      <SourceRefsPopover state={popover} onClose={closePopover} />
     </div>
   );
 }

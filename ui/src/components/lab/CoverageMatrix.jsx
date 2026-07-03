@@ -1,8 +1,11 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { getMatrixCellSources } from '../../api/mock/sourceBindings.js';
+import { useSourceRefsPopover } from '../../hooks/useSourceRefsPopover.js';
 import { useThemeStore } from '../../stores/themeStore.js';
 import { captureElementImage, waitForPaint } from '../../utils/captureElement.js';
 import { CollapseIcon, ExpandIcon } from '../admin/AdminIcons.jsx';
+import SourceRefsPopover from '../shared/SourceRefsPopover.jsx';
 
 const MAX_SCALE = 12;
 
@@ -55,6 +58,7 @@ const CoverageMatrix = forwardRef(function CoverageMatrix(
   const theme = useThemeStore((s) => s.theme);
   const captureRef = useRef(null);
   const [exporting, setExporting] = useState(false);
+  const { popover, openPopover, closePopover } = useSourceRefsPopover();
   const isDark = exporting ? false : theme === 'dark';
   const valuesVisible = exporting || showValues;
 
@@ -72,6 +76,16 @@ const CoverageMatrix = forwardRef(function CoverageMatrix(
 
   const rowTypeLabel = axisLabel(t, view.rowType);
   const colTypeLabel = axisLabel(t, view.colType);
+
+  const handleCellClick = (event, row, col, value) => {
+    if (!value) return;
+    const sources = getMatrixCellSources(row, col, value, view.rowType, view.colType);
+    openPopover(event, {
+      title: t('source.refsTitle'),
+      subtitle: t('lab.cellTooltip', { row, col, count: value }),
+      sources,
+    });
+  };
 
   return (
     <div
@@ -114,6 +128,7 @@ const CoverageMatrix = forwardRef(function CoverageMatrix(
           )}
         </div>
       </div>
+      <p className="mb-2 shrink-0 text-[10px] text-nn-gray dark:text-slate-500">{t('lab.cellClickHint')}</p>
       <div className={`min-h-0 ${fill ? 'flex-1 overflow-auto' : 'overflow-x-auto'}`}>
         <table className="w-full min-w-[480px] border-separate border-spacing-1 text-xs">
           <thead>
@@ -138,20 +153,24 @@ const CoverageMatrix = forwardRef(function CoverageMatrix(
                 {view.matrix[rowIndex].map((value, colIndex) => {
                   const colors = cellColors(value, isDark);
                   const col = view.cols[colIndex];
+                  const clickable = value > 0;
                   return (
                     <td key={`${row}-${col}`} className="p-0.5">
-                      <div
-                        title={t('lab.cellTooltip', {
-                          row,
-                          col,
-                          count: value,
-                        })}
+                      <button
+                        type="button"
+                        disabled={!clickable}
+                        title={
+                          clickable
+                            ? t('lab.cellTooltip', { row, col, count: value })
+                            : t('lab.legend.none')
+                        }
+                        onClick={(event) => handleCellClick(event, row, col, value)}
                         style={{ backgroundColor: colors.bg }}
-                        className={`flex h-10 min-w-[2.5rem] items-center justify-center rounded-md ${
-                          valuesVisible
-                            ? ''
-                            : 'group cursor-default transition-all hover:scale-105 hover:shadow-md hover:ring-2 hover:ring-nn-blue/30'
-                        }`}
+                        className={`flex h-10 w-full min-w-[2.5rem] items-center justify-center rounded-md ${
+                          clickable
+                            ? 'cursor-pointer transition-all hover:scale-105 hover:shadow-md hover:ring-2 hover:ring-nn-blue/30'
+                            : 'cursor-default'
+                        } ${valuesVisible ? '' : 'group'}`}
                       >
                         <span
                           className={`text-sm font-bold tabular-nums ${
@@ -163,7 +182,7 @@ const CoverageMatrix = forwardRef(function CoverageMatrix(
                         >
                           {value}
                         </span>
-                      </div>
+                      </button>
                     </td>
                   );
                 })}
@@ -172,6 +191,7 @@ const CoverageMatrix = forwardRef(function CoverageMatrix(
           </tbody>
         </table>
       </div>
+      <SourceRefsPopover state={popover} onClose={closePopover} />
     </div>
   );
 });

@@ -12,12 +12,10 @@ import {
   VerificationInbox,
 } from '../components/graph/index.js';
 import { ALL_GRAPH_NODE_TYPES } from '../components/graph/graphNodeTypes.js';
-import {
-  filterGraphSearchResults,
-  filterEntitiesByNodeTypes,
-  filterSubgraphByNodeTypes,
-} from '../components/graph/graphFilterUtils.js';
-import { apiGet } from '../api/client.js';
+import { ensureAuth } from '../api/auth.js';
+import { fetchGraphData, fetchSearchCatalog } from '../api/graph.js';
+import { filterGraphSearchResults } from '../utils/graphSearch.js';
+import { filterEntitiesByNodeTypes, filterSubgraphByNodeTypes } from '../utils/graphFilters.js';
 
 const PANELS = {
   ENTITIES: 'entities',
@@ -25,9 +23,14 @@ const PANELS = {
   SEARCH: 'search',
 };
 
+function getApiErrorMessage(error, fallback) {
+  return error?.response?.data?.message ?? error?.message ?? fallback;
+}
+
 export default function GraphPage() {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [fullGraph, setFullGraph] = useState(null);
   const [entities, setEntities] = useState([]);
   const [candidates, setCandidates] = useState([]);
@@ -43,16 +46,33 @@ export default function GraphPage() {
   const [viewMode, setViewMode] = useState('graph');
 
   useEffect(() => {
-    Promise.all([apiGet('/graph'), apiGet('/lab/search')])
-      .then(([graphData, searchData]) => {
+    let cancelled = false;
+
+    async function load() {
+      setError(null);
+      try {
+        await ensureAuth();
+        const [graphData, searchData] = await Promise.all([fetchGraphData(), fetchSearchCatalog()]);
+        if (cancelled) return;
         setFullGraph(graphData.knowledgeGraph ?? graphData.subgraph);
         setEntities(graphData.entities ?? []);
         setCandidates(graphData.candidates ?? []);
         setCombinations(graphData.nodeCombinations ?? []);
         setSearchCatalog(searchData.items ?? []);
         setSelectedNodeId(graphData.entities?.[0]?.id ?? null);
-      })
-      .finally(() => setLoading(false));
+      } catch (loadError) {
+        if (!cancelled) {
+          setError(getApiErrorMessage(loadError, 'graph_load_failed'));
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const filteredSubgraph = useMemo(
@@ -154,6 +174,16 @@ export default function GraphPage() {
   const isPanelExpanded = (panel) => expandedPanel === panel;
 
   if (loading) return <Loader />;
+
+  if (error) {
+    return (
+      <PageShell>
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
+          {error}
+        </div>
+      </PageShell>
+    );
+  }
 
   return (
     <PageShell>
