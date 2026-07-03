@@ -18,6 +18,7 @@ class FakeRepository:
         self.task = task
         self.failed_message: str | None = None
         self.transitions: list[str] = []
+        self.audit_events: list[dict[str, object]] = []
 
     async def create(self, user_id: UUID) -> IngestionTask:
         now = datetime.now(UTC)
@@ -62,6 +63,26 @@ class FakeRepository:
         self.failed_message = message
         self.transitions.append("failed")
         return task
+
+    async def record_audit_event(
+        self,
+        user_id: UUID | None,
+        action: str,
+        resource_type: str,
+        resource_id: str,
+        details: dict,
+        request_id: str,
+    ) -> None:
+        self.audit_events.append(
+            {
+                "user_id": user_id,
+                "action": action,
+                "resource_type": resource_type,
+                "resource_id": resource_id,
+                "details": details,
+                "request_id": request_id,
+            }
+        )
 
 
 def principal(role: UserRole = UserRole.RESEARCHER) -> AuthenticatedPrincipal:
@@ -175,6 +196,7 @@ def test_create_task_runs_complete_ingestion_pipeline() -> None:
                 "neo4j_adapter_pending",
                 "qdrant_adapter_pending",
             ]
+            assert repository.audit_events[0]["action"] == "ingestion.completed"
 
     asyncio.run(run())
     assert repository.transitions == ["pending", "processing", "completed"]

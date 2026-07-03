@@ -1,0 +1,45 @@
+{
+  "schema_version": "aliases_mvp.v1",
+  "aliases": [
+    {
+      "canonical": "обратный осмос",
+      "aliases": ["reverse osmosis", "RO", "мембранное обессоливание"]
+    },
+    {
+      "canonical": "электродиализ",
+      "aliases": ["electrodialysis", "ED"]
+    },
+    {
+      "canonical": "ионный обмен",
+      "aliases": ["ion exchange", "ионообмен"]
+    },
+    {
+      "canonical": "электроэкстракция никеля",
+      "aliases": ["nickel electrowinning", "electroextraction of nickel"]
+    },
+    {
+      "canonical": "католит",
+      "aliases": ["catholyte"]
+    },
+    {
+      "canonical": "МПГ",
+      "aliases": ["ПГЭ", "PGM", "PGE", "платиноиды"]
+    },
+    {
+      "canonical": "медный штейн",
+      "aliases": ["copper matte"]
+    },
+    {
+      "canonical": "никелевый штейн",
+      "aliases": ["nickel matte"]
+    },
+    {
+      "canonical": "шахтные воды",
+      "aliases": ["mine water", "рудничные воды"]
+    },
+    {
+      "canonical": "закачка в глубокие горизонты",
+      "aliases": ["deep well injection", "закачка в глубокие пласты"]
+    }
+  ]
+}

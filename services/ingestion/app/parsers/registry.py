@@ -1,4 +1,6 @@
+import csv
 import hashlib
+import json
 import stat
 import subprocess
 import zipfile
@@ -44,7 +46,18 @@ class ParsedBlock:
 
 
 class ParserRegistry:
-    supported_extensions = frozenset({".pdf", ".docx", ".pptx", ".doc", ".zip"})
+    supported_extensions = frozenset({
+        ".pdf",
+        ".docx",
+        ".pptx",
+        ".doc",
+        ".zip",
+        ".txt",
+        ".md",
+        ".csv",
+        ".tsv",
+        ".json",
+    })
 
     def __init__(
         self,
@@ -71,6 +84,8 @@ class ParserRegistry:
                 return self._normalize_archive(source, access_policy)
             except ParserError as error:
                 return [], [f"{error.code}:{source.original_filename}"]
+        if extension == ".json":
+            return self._parse_json(source, access_policy)
         try:
             document, warnings = self._normalize_document(source, access_policy, extension)
         except ParserError as error:
@@ -121,6 +136,14 @@ class ParserRegistry:
                     archive_entry=entry_path,
                 )
                 try:
+                    if extension == ".json":
+                        entry_documents, entry_warnings = self._parse_json(
+                            nested_source,
+                            access_policy,
+                        )
+                        documents.extend(entry_documents)
+                        warnings.extend(entry_warnings)
+                        continue
                     document, entry_warnings = self._normalize_document(
                         nested_source,
                         access_policy,
@@ -156,6 +179,15 @@ class ParserRegistry:
             blocks, tables = self._parse_pptx(source.content, document_id)
             warnings = []
             parser_name = "python-pptx"
+        elif extension in {".txt", ".md"}:
+            blocks = self._parse_text(source.content)
+            tables = []
+            warnings = []
+            parser_name = "text"
+        elif extension in {".csv", ".tsv"}:
+            blocks, tables = self._parse_delimited(source.content, document_id, "\t" if extension == ".tsv" else ",")
+            warnings = []
+            parser_name = "csv"
         else:
             converted = self._convert_doc(source.content)
             blocks, tables = self._parse_docx(converted, document_id)
@@ -201,6 +233,54 @@ class ParserRegistry:
                 except Exception:
                     warnings.append(f"pdf_table_extraction_failed:page_{page_index}")
         return blocks, tables, warnings
+
+    def _parse_text(self, content: bytes) -> list[ParsedBlock]:
+        text = self._decode_text(content).strip()
+        return [ParsedBlock(page=1, text=text)] if text else []
+
+    def _parse_delimited(
+        self,
+        content: bytes,
+        document_id: str,
+        delimiter: str,
+    ) -> tuple[list[ParsedBlock], list[TableBlock]]:
+        reader = csv.reader(self._decode_text(content).splitlines(), delimiter=delimiter)
+        rows = self._clean_rows(list(reader))
+        if not rows:
+            return [], []
+        table = self._table_block(document_id, 1, 0, rows)
+        return self._table_blocks(table), [table]
+
+    def _parse_json(
+        self,
+        source: SourceContent,
+        access_policy: AccessPolicy,
+    ) -> tuple[list[NormalizedDocument], list[str]]:
+        try:
+            payload = json.loads(self._decode_text(source.content))
+        except json.JSONDecodeError:
+            return [], [f"invalid_json:{source.original_filename}"]
+        if isinstance(payload, dict) and "normalized_documents" in payload:
+            return [
+                NormalizedDocument.model_validate(item)
+                for item in payload["normalized_documents"]
+            ], []
+        if isinstance(payload, dict) and "source_spans" in payload:
+            return [NormalizedDocument.model_validate(payload)], []
+        if isinstance(payload, dict):
+            document_id = self._document_id(source)
+            content = str(payload.get("content") or "")
+            title = str(payload.get("title") or source.original_filename)
+            document = self._build_document(
+                source,
+                document_id,
+                "json",
+                [ParsedBlock(page=1, text=content)] if content else [],
+                [],
+                access_policy,
+            )
+            return [document.model_copy(update={"title": title})], []
+        return [], [f"unsupported_json_shape:{source.original_filename}"]
 
     def _parse_docx(
         self,
@@ -366,6 +446,15 @@ class ParserRegistry:
     def _clean_rows(rows: list[list[str | None]]) -> list[list[str]]:
         cleaned = [[str(cell or "").strip() for cell in row] for row in rows]
         return [row for row in cleaned if any(row)]
+
+    @staticmethod
+    def _decode_text(content: bytes) -> str:
+        for encoding in ("utf-8-sig", "utf-8", "cp1251"):
+            try:
+                return content.decode(encoding)
+            except UnicodeDecodeError:
+                continue
+        return content.decode("utf-8", errors="replace")
 
     @staticmethod
     def _table_block(

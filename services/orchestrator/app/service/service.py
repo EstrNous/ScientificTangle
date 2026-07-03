@@ -1,3 +1,4 @@
+from time import perf_counter
 from uuid import UUID
 
 import httpx
@@ -119,10 +120,42 @@ class OrchestratorService:
             completed_report = IngestionReport(
                 sources=report.sources,
                 warnings=list(dict.fromkeys(warnings)),
+                normalized_documents=normalized.documents,
+                documents_count=len(normalized.documents),
+                source_spans_count=sum(
+                    len(document.source_spans)
+                    for document in normalized.documents
+                ),
+                tables_count=sum(
+                    len(document.table_blocks)
+                    for document in normalized.documents
+                ),
+                indexed_points_count=retrieval_result.vector_write.records_count,
+                extracted_claims_count=sum(
+                    len(result.extraction.get("confirmed", []))
+                    for result in knowledge_results
+                    if isinstance(result.extraction, dict)
+                ),
+                candidates_count=sum(
+                    len(result.extraction.get("candidates", []))
+                    for result in knowledge_results
+                    if isinstance(result.extraction, dict)
+                ),
             )
-            return self._payload(
-                await self._repository.mark_completed(task, completed_report)
+            completed_task = await self._repository.mark_completed(task, completed_report)
+            await self._repository.record_audit_event(
+                principal.user_id,
+                "ingestion.completed",
+                "ingestion_task",
+                str(task.id),
+                {
+                    "documents_count": completed_report.documents_count,
+                    "source_spans_count": completed_report.source_spans_count,
+                    "indexed_points_count": completed_report.indexed_points_count,
+                },
+                request_id,
             )
+            return self._payload(completed_task)
         except OrchestratorServiceError as error:
             await self._repository.mark_failed(task, error.message)
             raise
@@ -202,59 +235,99 @@ class OrchestratorService:
         request_id: str,
         limit: int,
     ) -> dict:
-        retrieval_response = await self._request_downstream(
-            "POST",
-            self._retrieval_url,
-            "/v1/query",
-            {
-                "query": query,
-                "documents": [document.model_dump(mode="json") for document in documents],
-                "access_roles": [principal.role.value],
-                "limit": limit,
-            },
-            request_id,
-            "retrieval",
-        )
-        query_ir = QueryIR.model_validate(retrieval_response["query_ir"])
-        evidence_bundle = EvidenceBundle.model_validate(retrieval_response["evidence_bundle"])
-        gaps_response = await self._request_downstream(
-            "POST",
-            self._model_url,
-            "/v1/gaps/suggest",
-            {
+        started_at = perf_counter()
+        query_run = await self._repository.create_query_run(principal.user_id, query)
+        try:
+            retrieval_response = await self._request_downstream(
+                "POST",
+                self._retrieval_url,
+                "/v1/query",
+                {
+                    "query": query,
+                    "documents": [document.model_dump(mode="json") for document in documents],
+                    "access_roles": [principal.role.value],
+                    "limit": limit,
+                },
+                request_id,
+                "retrieval",
+            )
+            query_ir = QueryIR.model_validate(retrieval_response["query_ir"])
+            evidence_bundle = EvidenceBundle.model_validate(retrieval_response["evidence_bundle"])
+            gaps_response = await self._request_downstream(
+                "POST",
+                self._model_url,
+                "/v1/gaps/suggest",
+                {
+                    "query_ir": query_ir.model_dump(mode="json"),
+                    "evidence_bundle": evidence_bundle.model_dump(mode="json"),
+                    "candidates": [],
+                },
+                request_id,
+                "model",
+            )
+            evidence_bundle.gaps = [
+                gap.get("description", str(gap))
+                for gap in gaps_response.get("gaps", [])
+            ]
+            evidence_bundle.has_gaps = bool(evidence_bundle.gaps)
+            answer_response = await self._request_downstream(
+                "POST",
+                self._model_url,
+                "/v1/answers/synthesize",
+                {
+                    "query_ir": query_ir.model_dump(mode="json"),
+                    "evidence_bundle": evidence_bundle.model_dump(mode="json"),
+                    "candidate_items": [],
+                },
+                request_id,
+                "model",
+            )
+            answer = AnswerPayload.model_validate(answer_response["answer"])
+            result = {
+                "query_run_id": str(query_run.id),
                 "query_ir": query_ir.model_dump(mode="json"),
                 "evidence_bundle": evidence_bundle.model_dump(mode="json"),
-                "candidates": [],
-            },
-            request_id,
-            "model",
-        )
-        evidence_bundle.gaps = [gap.get("description", str(gap)) for gap in gaps_response.get("gaps", [])]
-        evidence_bundle.has_gaps = bool(evidence_bundle.gaps)
-        answer_response = await self._request_downstream(
-            "POST",
-            self._model_url,
-            "/v1/answers/synthesize",
-            {
-                "query_ir": query_ir.model_dump(mode="json"),
-                "evidence_bundle": evidence_bundle.model_dump(mode="json"),
-                "candidate_items": [],
-            },
-            request_id,
-            "model",
-        )
-        answer = AnswerPayload.model_validate(answer_response["answer"])
-        return {
-            "query_ir": query_ir.model_dump(mode="json"),
-            "evidence_bundle": evidence_bundle.model_dump(mode="json"),
-            "answer": answer.model_dump(mode="json"),
-            "unsupported_warnings": answer_response.get("unsupported_warnings", []),
-            "warnings": [
-                *retrieval_response.get("warnings", []),
-                *gaps_response.get("warnings", []),
-                *answer_response.get("warnings", []),
-            ],
-        }
+                "answer": answer.model_dump(mode="json"),
+                "unsupported_warnings": answer_response.get("unsupported_warnings", []),
+                "warnings": [
+                    *retrieval_response.get("warnings", []),
+                    *gaps_response.get("warnings", []),
+                    *answer_response.get("warnings", []),
+                ],
+            }
+            latency_ms = int((perf_counter() - started_at) * 1000)
+            await self._repository.complete_query_run(
+                query_run,
+                query_ir.model_dump(mode="json"),
+                {
+                    "retrieval": retrieval_response,
+                    "gaps": gaps_response,
+                    "request_id": request_id,
+                },
+                answer.model_dump(mode="json"),
+                latency_ms,
+            )
+            await self._repository.record_audit_event(
+                principal.user_id,
+                "query.completed",
+                "query_run",
+                str(query_run.id),
+                {"raw_query": query, "sources_count": answer.sources_count, "latency_ms": latency_ms},
+                request_id,
+            )
+            return result
+        except OrchestratorServiceError as error:
+            latency_ms = int((perf_counter() - started_at) * 1000)
+            await self._repository.fail_query_run(query_run, error.message, latency_ms)
+            await self._repository.record_audit_event(
+                principal.user_id,
+                "query.failed",
+                "query_run",
+                str(query_run.id),
+                {"raw_query": query, "error": error.message, "latency_ms": latency_ms},
+                request_id,
+            )
+            raise
 
     async def _request_downstream(
         self,

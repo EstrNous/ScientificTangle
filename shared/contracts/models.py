@@ -34,6 +34,13 @@ class IngestionReport(BaseModel):
     stage: Literal["uploaded"] = "uploaded"
     sources: list[StoredSource] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+    normalized_documents: list["NormalizedDocument"] = Field(default_factory=list)
+    documents_count: int = 0
+    source_spans_count: int = 0
+    tables_count: int = 0
+    indexed_points_count: int = 0
+    extracted_claims_count: int = 0
+    candidates_count: int = 0
 
 
 class IngestionTaskPayload(BaseModel):
