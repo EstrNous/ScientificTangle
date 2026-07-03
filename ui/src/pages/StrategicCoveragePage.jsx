@@ -4,19 +4,43 @@ import PageShell from '../components/shared/PageShell.jsx';
 import Loader from '../components/shared/Loader.jsx';
 import PdfDownloadButton from '../components/shared/PdfDownloadButton.jsx';
 import { ManagerDashboard, StrategicSubNav } from '../components/strategic/index.js';
-import { apiGet } from '../api/client.js';
+import { ensureAuth } from '../api/auth.js';
+import { fetchStrategicMetrics } from '../api/strategic.js';
 import { exportStrategicCoveragePdf } from '../utils/pagePdfExport.js';
+
+function getApiErrorMessage(error, fallback) {
+  return error?.response?.data?.message ?? error?.message ?? fallback;
+}
 
 export default function StrategicCoveragePage() {
   const { t, i18n } = useTranslation();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [manager, setManager] = useState(null);
   const coverageChartRef = useRef(null);
 
   useEffect(() => {
-    apiGet('/strategic/metrics')
-      .then(setManager)
-      .finally(() => setLoading(false));
+    let cancelled = false;
+
+    async function load() {
+      setError(null);
+      try {
+        await ensureAuth();
+        const data = await fetchStrategicMetrics();
+        if (!cancelled) setManager(data);
+      } catch (loadError) {
+        if (!cancelled) {
+          setError(getApiErrorMessage(loadError, 'strategic_load_failed'));
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleExportPdf = async () => {
@@ -30,6 +54,16 @@ export default function StrategicCoveragePage() {
   };
 
   if (loading) return <Loader />;
+
+  if (error) {
+    return (
+      <PageShell>
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
+          {error}
+        </div>
+      </PageShell>
+    );
+  }
 
   return (
     <PageShell>
