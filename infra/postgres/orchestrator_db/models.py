@@ -71,12 +71,18 @@ class QueryRun(Base):
 
     id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4)
     user_id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), nullable=False)
-    status: Mapped[str] = mapped_column(String(32), nullable=False, default=QueryRunStatus.PENDING)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default=QueryRunStatus.PENDING.value)
+    raw_query: Mapped[str | None] = mapped_column(Text)
     query_ir: Mapped[dict | None] = mapped_column(JSONB)
     retrieval_trace: Mapped[dict | None] = mapped_column(JSONB)
+    answer_payload: Mapped[dict | None] = mapped_column(JSONB)
     latency_ms: Mapped[int | None] = mapped_column(Integer)
+    error_message: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )
 
 
@@ -90,7 +96,7 @@ class ExportJob(Base):
 
     id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4)
     user_id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), nullable=False)
-    status: Mapped[str] = mapped_column(String(32), nullable=False, default=ExportJobStatus.PENDING)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default=ExportJobStatus.PENDING.value)
     format: Mapped[str] = mapped_column(String(32), nullable=False)
     file_url: Mapped[str | None] = mapped_column(String(1024))
     created_at: Mapped[datetime] = mapped_column(

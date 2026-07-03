@@ -22,7 +22,7 @@
 - `.zed/rules/project.md` — правила для Zed Agent.
 - `docker-compose.yml` — полная локальная среда (сервисы + PostgreSQL + Neo4j + Qdrant + MinIO + Redis + nginx), включая запуск миграций `auth_audit` и `orchestrator`, а также подключение внешних RSA-секретов.
 - `docker-compose.prod.yml` — production-оверрайды (ресурсы, логирование, реплики).
-- `Makefile` — цели сборки и управления: up, down, build, logs, seed, e2e, eval, test, audit и др.
+- `Makefile` — цели сборки и управления: bootstrap, up, up-auth, down, build, logs, seed, ingest-demo, eval, eval-yandex-live, perf-smoke, test, test-yandex-live и др.
 - `.env.example` — шаблон переменных окружения для копирования в `.env`.
 
 ### Документация
@@ -110,14 +110,15 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 - `infra/chat_ui_db/` — модели и миграции Gateway/BFF (база `chat_ui_db`): ChatSession, ChatMessage, AdminSetting, ServiceState. SQLAlchemy 2.0 async, Alembic.
 - `infra/notification_db/` — модели и миграции Notification (база `notification_db`): UserInterest, Notification. SQLAlchemy 2.0 async, Alembic.
 - `infra/neo4j/` — конфигурация Neo4j.
-- `infra/qdrant/` — конфигурация Qdrant.
+- `infra/qdrant/` — описание Qdrant collection `st_evidence_v1`, payload indexes и access-aware retrieval.
 - `infra/minio/buckets.txt` — список бакетов MinIO.
 - `infra/nginx/nginx.conf` — reverse proxy (порт 80), маршрутизирует `/api/auth/` и JWKS в `auth_audit`, остальные внешние API — в Gateway.
 - `infra/monitoring/prometheus.yml` — конфигурация Prometheus для сбора /metrics со всех сервисов.
 - `infra/monitoring/grafana/` — provisioning datasource и SRE-дашборды Grafana.
 - `infra/nginx/Dockerfile` — nginx с basic auth для `/grafana/`.
 - `infra/docker/Dockerfile.python-service` — multistage Dockerfile для Python-сервисов (deps + runtime, shared).
-- `scripts/` — `audit_repo.py`, `validate_ontology.py`, `run_tests.py`, `generate_auth_keys.py`.
+- `infra/scripts/` — скрипты эксплуатации.
+- `scripts/` — локальные MVP smoke/eval/seed scripts: demo seed, Yandex live smoke, official eval, performance smoke.
 
 ### Онтология (`ontology/`)
 
@@ -127,6 +128,7 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 
 ### Справочники (`dictionaries/`)
 
+- `dictionaries/aliases_mvp.json` — MVP-словарь алиасов для demo/eval.
 - `dictionaries/materials/` — материалы (руды, минералы, сплавы).
 - `dictionaries/equipment/` — оборудование (печи, мельницы, реакторы).
 - `dictionaries/properties/` — свойства материалов.
@@ -144,7 +146,7 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 
 ### Демо (`demo/`)
 
-- `demo/seed_data/` — исходные файлы для загрузки в систему.
+- `demo/seed_data/` — исходные файлы для загрузки в систему, включая `mvp_normalized_documents.json`.
 - `demo/official_questions.md` — официальные вопросы для демонстрации.
 - `demo/screenshots/` — скриншоты интерфейса.
 
@@ -172,8 +174,8 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 
 - `services/ingestion/app/api/documents.py` — internal text/table fallback normalization endpoint; task pipeline дополнительно нормализует сохранённые PDF, DOCX, PPTX, DOC и ZIP через реестр parser-адаптеров.
 - `services/knowledge/app/api/extraction.py` — internal handoff `NormalizedDocument` → model structured extraction с явным mock boundary для будущей записи в Neo4j.
-- `services/retrieval/app/api/indexing.py` — internal mock boundary индексации документов в Qdrant без сохранения данных.
-- `services/retrieval/app/api/query.py` — internal Query IR + evidence collection + model rerank поверх переданных `NormalizedDocument`, с access-aware фильтрацией.
+- `services/retrieval/app/api/indexing.py` — legacy internal mock boundary индексации документов, не подключается в FastAPI app.
+- `services/retrieval/app/api/query.py` — internal Query IR, Qdrant bootstrap/index/reset, Qdrant-first evidence retrieval, lexical fallback и model rerank; переданные `NormalizedDocument` остаются in-memory fallback.
 - `services/orchestrator/app/api/query.py` и `services/gateway/app/api/query.py` — тонкий query run/proxy path для eval-compatible ответа через `EvidenceBundle` и answer synthesis.
 
 ### services/auth_audit/
