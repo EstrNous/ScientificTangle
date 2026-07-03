@@ -52,6 +52,14 @@ export async function mockFetch(resource, options = {}) {
   if (resource === 'notifications') {
     return notifications.items;
   }
+  if (resource === 'api/query' || resource === 'query') {
+    const { runMockChatQuery } = await import('./chatQuery.js');
+    const body = options.body ?? {};
+    return runMockChatQuery(
+      { text: body.query ?? '', files: [] },
+      { t: (key, params) => key, stepDelayMs: 0 },
+    );
+  }
 
   throw new Error(`Mock resource not found: ${resource}`);
 }

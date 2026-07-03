@@ -1,4 +1,4 @@
-from app.service.service import IngestionService, UploadStorageError
-from app.service.storage import SourceStorage
+from .service import IngestionService, UploadStorageError
+from .storage import SourceStorage
 
 __all__ = ["IngestionService", "SourceStorage", "UploadStorageError"]

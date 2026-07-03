@@ -22,7 +22,7 @@
 - `.zed/rules/project.md` — правила для Zed Agent.
 - `docker-compose.yml` — полная локальная среда (сервисы + PostgreSQL + Neo4j + Qdrant + MinIO + Redis + nginx), включая запуск миграций `auth_audit` и `orchestrator`, а также подключение внешних RSA-секретов.
 - `docker-compose.prod.yml` — production-оверрайды (ресурсы, логирование, реплики).
-- `Makefile` — цели сборки и управления: up, up-auth, down, build, logs, seed, e2e, eval, test и др.
+- `Makefile` — цели сборки и управления: up, down, build, logs, seed, e2e, eval, test, audit и др.
 - `.env.example` — шаблон переменных окружения для копирования в `.env`.
 
 ### Документация
@@ -104,7 +104,7 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 
 ### Инфраструктура (`infra/`)
 
-- `infra/postgres/init.sql` — SQL-схемы PostgreSQL: users, audit_log, ingestion_tasks, query_runs, exports, notifications, user_interests, service_state, admin_settings.
+- `infra/postgres/` — DB-per-service слои (auth_audit_db, orchestrator_db, chat_ui_db, export_db, notification_db); миграции через Alembic в `services/<name>/storage/` или `infra/postgres/<db>/storage/`.
 - `infra/orchestrator_db/` — модели и миграции Orchestrator (база `orchestrator_db`): IngestionTask, QueryRun, ExportJob. SQLAlchemy 2.0 async, Alembic.
 - `infra/chat_ui_db/` — модели и миграции Gateway/BFF (база `chat_ui_db`): ChatSession, ChatMessage, AdminSetting, ServiceState. SQLAlchemy 2.0 async, Alembic.
 - `infra/notification_db/` — модели и миграции Notification (база `notification_db`): UserInterest, Notification. SQLAlchemy 2.0 async, Alembic.
@@ -116,7 +116,7 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 - `infra/monitoring/grafana/` — provisioning datasource и SRE-дашборды Grafana.
 - `infra/nginx/Dockerfile` — nginx с basic auth для `/grafana/`.
 - `infra/docker/Dockerfile.python-service` — multistage Dockerfile для Python-сервисов (deps + runtime, shared).
-- `infra/scripts/` — скрипты эксплуатации (seed, reset-demo — в разработке).
+- `scripts/` — `audit_repo.py`, `validate_ontology.py`, `run_tests.py`, `generate_auth_keys.py`.
 
 ### Онтология (`ontology/`)
 

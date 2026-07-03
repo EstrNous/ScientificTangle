@@ -1,3 +1,3 @@
-from app.service.service import OrchestratorService, OrchestratorServiceError
+from .service import OrchestratorService, OrchestratorServiceError
 
 __all__ = ["OrchestratorService", "OrchestratorServiceError"]

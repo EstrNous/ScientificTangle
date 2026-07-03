@@ -1,6 +1,6 @@
 from fastapi import Request
 
-from app.service.service import IngestionService
+from ..service.service import IngestionService
 
 
 def get_ingestion_service(request: Request) -> IngestionService:

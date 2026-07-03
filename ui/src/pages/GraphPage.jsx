@@ -11,9 +11,12 @@ import {
   VerificationInbox,
 } from '../components/graph/index.js';
 import { ALL_GRAPH_NODE_TYPES } from '../components/graph/graphNodeTypes.js';
+import {
+  filterGraphSearchResults,
+  filterEntitiesByNodeTypes,
+  filterSubgraphByNodeTypes,
+} from '../components/graph/graphFilterUtils.js';
 import { apiGet } from '../api/client.js';
-import { filterGraphSearchResults } from '../api/mock/graphSearch.js';
-import { filterEntitiesByNodeTypes, filterSubgraphByNodeTypes } from '../api/mock/graphFilters.js';
 
 export default function GraphPage() {
   const { t } = useTranslation();

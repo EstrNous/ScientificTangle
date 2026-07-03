@@ -3,8 +3,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Header, Request
 from pydantic import BaseModel, Field
 
-from app.core.dependencies import get_gateway_service
-from app.service.service import GatewayService, GatewayServiceError
+from ..core.dependencies import get_gateway_service
+from ..service.service import GatewayService, GatewayServiceError
 from shared.contracts import NormalizedDocument
 from shared.security import AuthenticatedPrincipal
 from shared.web import ServiceError, require_principal

@@ -5,13 +5,13 @@ import httpx
 from fastapi import FastAPI
 from minio import Minio
 
-from app.api.documents import router as documents_router
-from app.api.health import router as health_router
-from app.api.ingestion import router as ingestion_router
-from app.core.config import settings
-from app.core.logging import setup_logging
-from app.service.service import IngestionService
-from app.service.storage import SourceStorage
+from .api.documents import router as documents_router
+from .api.health import router as health_router
+from .api.ingestion import router as ingestion_router
+from .core.config import settings
+from .core.logging import setup_logging
+from .service.service import IngestionService
+from .service.storage import SourceStorage
 from shared.metrics import build_metrics_router, setup_metrics
 from shared.security import JWKSValidator
 from shared.web import install_error_handlers, request_id_middleware

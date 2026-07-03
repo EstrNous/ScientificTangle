@@ -2,7 +2,7 @@ from uuid import UUID
 
 from fastapi import UploadFile
 
-from app.service.storage import InvalidUploadError, SourceStorage, StorageOperationError
+from .storage import InvalidUploadError, SourceStorage, StorageOperationError
 from shared.contracts import IngestionReport
 
 

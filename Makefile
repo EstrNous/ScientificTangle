@@ -1,10 +1,7 @@
-.PHONY: up down build logs seed ingest-demo e2e eval perf-smoke reset-demo lint test export-demo
+.PHONY: up down build logs seed ingest-demo e2e eval perf-smoke reset-demo lint test export-demo audit
 
 up:
 	docker compose up -d
-
-up-auth:
-	docker compose up -d auth_audit
 
 down:
 	docker compose down -v
@@ -16,28 +13,32 @@ logs:
 	docker compose logs -f $(SERVICE)
 
 seed:
-	@echo "TODO: seed data"
+	python -m infra.postgres.auth_audit_db.seed
 
 ingest-demo:
-	@echo "TODO: ingest demo data"
+	@echo "ingest-demo: use eval with EVAL_DOCUMENTS"
 
 e2e:
-	@echo "TODO: run e2e tests"
+	RUN_E2E=1 python scripts/run_tests.py
 
 eval:
 	python eval/run_eval.py --service-url $${EVAL_SERVICE_URL:-http://localhost:8000/api/query} --gold $${EVAL_GOLD:-eval/gold_questions.json} $${EVAL_DOCUMENTS:+--documents $$EVAL_DOCUMENTS} $${INGESTION_NORMALIZE_URL:+--ingestion-normalize-url $$INGESTION_NORMALIZE_URL} --auth-token-env EVAL_AUTH_TOKEN
 
 perf-smoke:
-	@echo "TODO: run performance smoke test"
+	python -m pytest -q tests/performance
 
 reset-demo:
-	@echo "TODO: reset demo data"
+	docker compose down -v
 
 lint:
-	@echo "TODO: run linters"
+	ruff check shared services scripts tests
+	cd ui && npm run lint
 
 test:
-	@echo "TODO: run tests"
+	python scripts/run_tests.py
+
+audit:
+	python scripts/audit_repo.py
 
 export-demo:
-	@echo "TODO: export demo"
+	@echo "export-demo: use ui ExportPanel or eval reports"
