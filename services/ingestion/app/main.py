@@ -5,13 +5,14 @@ import httpx
 from fastapi import FastAPI
 from minio import Minio
 
-from app.api.documents import router as documents_router
-from app.api.health import router as health_router
-from app.api.ingestion import router as ingestion_router
-from app.core.config import settings
-from app.core.logging import setup_logging
-from app.service.service import IngestionService
-from app.service.storage import SourceStorage
+from .api.documents import router as documents_router
+from .api.health import router as health_router
+from .api.ingestion import router as ingestion_router
+from .core.config import settings
+from .core.logging import setup_logging
+from .parsers import ParserRegistry
+from .service.service import IngestionService
+from .service.storage import SourceStorage
 from shared.metrics import build_metrics_router, setup_metrics
 from shared.security import JWKSValidator
 from shared.web import install_error_handlers, request_id_middleware
@@ -34,7 +35,13 @@ async def lifespan(app: FastAPI):
         upload_limit_bytes=settings.upload_limit_bytes,
     )
     await source_storage.ensure_bucket()
-    app.state.ingestion_service = IngestionService(source_storage)
+    parser_registry = ParserRegistry(
+        libreoffice_binary=settings.libreoffice_binary,
+        conversion_timeout_seconds=settings.doc_conversion_timeout_seconds,
+        archive_max_entries=settings.archive_max_entries,
+        archive_max_uncompressed_bytes=settings.archive_max_uncompressed_bytes,
+    )
+    app.state.ingestion_service = IngestionService(source_storage, parser_registry)
     app.state.jwt_validator = JWKSValidator(
         auth_url=settings.auth_url,
         issuer=settings.auth_jwt_issuer,

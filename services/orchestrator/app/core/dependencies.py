@@ -3,9 +3,9 @@ from typing import Annotated
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
+from .config import settings
 from infra.postgres.orchestrator_db import get_session, IngestionTaskRepository
-from app.service.service import OrchestratorService
+from ..service.service import OrchestratorService
 
 
 def get_orchestrator_service(
@@ -16,6 +16,7 @@ def get_orchestrator_service(
         repository=IngestionTaskRepository(session),
         client=request.app.state.http_client,
         ingestion_url=settings.ingestion_url,
+        knowledge_url=settings.knowledge_url,
         retrieval_url=settings.retrieval_url,
         model_url=settings.model_url,
     )

@@ -4,10 +4,10 @@ import structlog
 import httpx
 from fastapi import FastAPI
 
-from app.api.extraction import router as extraction_router
-from app.api.health import router as health_router
-from app.core.config import settings
-from app.core.logging import setup_logging
+from .api.extraction import router as extraction_router
+from .api.health import router as health_router
+from .core.config import settings
+from .core.logging import setup_logging
 from shared.metrics import build_metrics_router, setup_metrics
 
 setup_logging(settings.service_name)

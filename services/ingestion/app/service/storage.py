@@ -39,6 +39,9 @@ class SourceStorage:
     ) -> list[StoredSource]:
         return await to_thread.run_sync(self._store, user_id, task_id, files)
 
+    async def read(self, source: StoredSource) -> bytes:
+        return await to_thread.run_sync(self._read, source)
+
     def _ensure_bucket(self) -> None:
         try:
             if not self._client.bucket_exists(self._bucket):
@@ -90,6 +93,22 @@ class SourceStorage:
         except Exception as error:
             self._rollback(stored)
             raise StorageOperationError from error
+
+    def _read(self, source: StoredSource) -> bytes:
+        response = None
+        try:
+            response = self._client.get_object(self._bucket, source.object_key)
+            content = response.read()
+        except Exception as error:
+            raise StorageOperationError from error
+        finally:
+            if response is not None:
+                response.close()
+                response.release_conn()
+        checksum = hashlib.sha256(content).hexdigest()
+        if len(content) != source.size_bytes or checksum != source.sha256:
+            raise StorageOperationError
+        return content
 
     def _inspect(self, upload: UploadFile) -> tuple[int, str]:
         if not upload.filename:

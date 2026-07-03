@@ -31,6 +31,32 @@ class IngestionTaskRepository:
         await self._session.refresh(task)
         return task
 
+    async def mark_processing(
+        self,
+        task: IngestionTask,
+        report: IngestionReport,
+    ) -> IngestionTask:
+        task.status = IngestionTaskStatus.PROCESSING.value
+        task.report = report.model_dump(mode="json")
+        task.error_message = None
+        task.updated_at = datetime.now(UTC)
+        await self._session.commit()
+        await self._session.refresh(task)
+        return task
+
+    async def mark_completed(
+        self,
+        task: IngestionTask,
+        report: IngestionReport,
+    ) -> IngestionTask:
+        task.status = IngestionTaskStatus.COMPLETED.value
+        task.report = report.model_dump(mode="json")
+        task.error_message = None
+        task.updated_at = datetime.now(UTC)
+        await self._session.commit()
+        await self._session.refresh(task)
+        return task
+
     async def mark_failed(self, task: IngestionTask, message: str) -> IngestionTask:
         task.status = IngestionTaskStatus.FAILED.value
         task.error_message = message
