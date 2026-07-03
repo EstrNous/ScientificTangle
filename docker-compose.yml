@@ -155,14 +155,12 @@ services:
   orchestrator:
     build:
       context: .
-      dockerfile: infra/docker/Dockerfile.python-service
-      args:
-        SERVICE_DIR: services/orchestrator
-        SERVICE_PORT: 8002
+      dockerfile: services/orchestrator/Dockerfile
     container_name: st-orchestrator
     ports:
       - "8002:8002"
     env_file: .env
+    command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8002"]
     depends_on:
       postgres:
         condition: service_healthy

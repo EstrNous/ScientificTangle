@@ -74,7 +74,11 @@ services/<name>/
     core/
       __init__.py
       config.py      — Settings (ServiceSettings из shared)
+      dependencies.py — сборка зависимостей прикладного слоя
       logging.py     — setup_logging
+    db/              — модели, сессии и репозитории сервиса при наличии БД
+    service/         — прикладная логика и адаптеры внешних систем
+  storage/           — Alembic-миграции сервиса при наличии собственной схемы
   tests/
     __init__.py
   Dockerfile         — python:3.12-slim + uv + healthcheck
