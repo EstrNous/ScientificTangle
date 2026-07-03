@@ -4,9 +4,9 @@ from typing import Annotated, Any
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.models import Role, User
-from app.repository import AuthRepository, SqlAlchemyAuthRepository
-from app.service import AuthenticationError, AuthService, RequestContext
+from app.db.models import Role, User
+from app.db.repository import AuthRepository, SqlAlchemyAuthRepository
+from app.service.service import AuthenticationError, AuthService, RequestContext
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -16,6 +16,7 @@ async def get_repository(request: Request) -> AsyncIterator[AuthRepository]:
     if fixed_repository is not None:
         yield fixed_repository
         return
+
     async with request.app.state.session_factory() as session:
         yield SqlAlchemyAuthRepository(session)
 
@@ -47,10 +48,11 @@ async def get_current_user(
     service: Annotated[AuthService, Depends(get_auth_service)],
     context: Annotated[RequestContext, Depends(get_request_context)],
 ) -> User:
-    from app.web import UnauthorizedError
+    from app.api.web import UnauthorizedError
 
     if credentials is None or credentials.scheme.casefold() != "bearer":
         raise UnauthorizedError
+
     try:
         return await service.authenticate_access_token(credentials.credentials, context)
     except AuthenticationError as error:
@@ -65,11 +67,12 @@ def require_roles(
         service: Annotated[AuthService, Depends(get_auth_service)],
         context: Annotated[RequestContext, Depends(get_request_context)],
     ) -> User:
-        from app.web import ForbiddenError
+        from app.api.web import ForbiddenError
 
         if Role(user.role) not in allowed_roles:
             await service.record_access_denied(user, context)
             raise ForbiddenError
+
         return user
 
     return dependency

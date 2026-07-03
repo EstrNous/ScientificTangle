@@ -5,8 +5,8 @@ import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
 
-from app.models import Role
-from app.security import (
+from app.db.models import Role
+from app.service.security import (
     InvalidAccessTokenError,
     KeyStore,
     PasswordManager,

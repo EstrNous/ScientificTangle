@@ -11,7 +11,7 @@ from pydantic import (
     model_validator,
 )
 
-from app.models import Role
+from .models import Role
 
 USERNAME_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9._-]{2,127}$"
 

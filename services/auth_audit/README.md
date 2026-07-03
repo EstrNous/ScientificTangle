@@ -1,57 +1,83 @@
-# Auth / Audit Service
+# Сервис аутентификации
 
-Микросервис аутентификации, авторизации (RBAC) и аудита.
+`auth_audit` владеет учётными записями пользователей, регистрацией, профилями, паролями, JWT access-токенами, refresh-сессиями и базовыми ролями. Политики доступа к документам применяются gateway и доменными сервисами к доверенной идентичности из JWT.
 
-## Ответственность
+## Требования
 
-- Управление пользователями, ролями, разрешениями.
-- Журналирование действий в `audit_events`.
-- Проверка прав доступа к документам (access_level, allowed_roles).
+- Python 3.12;
+- PostgreSQL;
+- RSA-ключи в формате PEM.
 
-## Базы данных
+## Настройка
 
-Сервис работает с двумя физическими базами внутри одного PostgreSQL-инстанса:
+Все переменные имеют префикс `AUTH_`.
 
-| База | Таблицы | Назначение |
-|------|---------|-----------|
-| `auth_db` | `users`, `roles`, `permissions`, `user_roles`, `role_permissions` | Ролевая модель, пользователи |
-| `audit_db` | `audit_events` | Аудит-лог запросов, действий, экспорта |
+| Переменная | Назначение |
+|---|---|
+| `AUTH_DATABASE_URL` | Асинхронный PostgreSQL URL |
+| `AUTH_JWT_PRIVATE_KEY_PATH` | Путь к закрытому RSA-ключу |
+| `AUTH_JWT_PUBLIC_KEY_PATH` | Путь к открытому RSA-ключу |
+| `AUTH_JWT_ISSUER` | Издатель JWT |
+| `AUTH_JWT_AUDIENCE` | Получатель JWT |
+| `AUTH_JWT_KEY_ID` | Идентификатор ключа в JWT и JWKS |
+| `AUTH_ALLOWED_ORIGINS` | Разделённый запятыми список допустимых Origin |
+| `AUTH_REFRESH_COOKIE_SECURE` | Требовать HTTPS для refresh cookie |
 
-## Стек
+Для локальной разработки ключи можно передать через `AUTH_JWT_PRIVATE_KEY` и `AUTH_JWT_PUBLIC_KEY`. Секреты нельзя сохранять в репозитории.
 
-- Python 3.11+
-- SQLAlchemy 2.0 (строго Async)
-- Asyncpg
-- Alembic
-- Pydantic v2
-
-## Модели SQLAlchemy
-
-Все модели находятся в `src/models/`:
-
-- `base.py` — общий `DeclarativeBase` и `TimestampMixin`.
-- `auth.py` — `User`, `Role`, `Permission`, `UserRole`, `RolePermission`.
-- `audit.py` — `AuditEvent`.
-
-## Предопределённые роли (seed)
-
-Роли не реализованы через PG ENUM — используются строки с валидацией на уровне приложения:
-
-`admin`, `researcher`, `analyst`, `manager`, `external_partner`, `project_owner`, `reviewer`, `auditor`
-
-## Миграции
+## Запуск
 
 ```bash
-cd services/auth_audit/alembic
+python -m venv .venv
+pip install -e ".[dev]"
 alembic upgrade head
+uvicorn app.main:app --reload
 ```
 
-## Индексы
+Для локального HTTP требуется явно установить `AUTH_REFRESH_COOKIE_SECURE=false`.
 
-- `ix_audit_events_user_id` — FK на users
-- `ix_audit_events_request_id` — поиск по request_id
-- `ix_audit_events_status` — фильтрация по статусу
-- `ix_audit_events_timestamp` — временной диапазон
-- `ix_audit_events_action` — фильтрация по типу действия
-- `uq_user_roles_user_role` — уникальность пары user+role
-- `uq_role_permissions_role_perm` — уникальность пары role+permission
+## Начальные пользователи
+
+Команда `auth-seed-users` создаёт или обновляет демонстрационных и тестовых пользователей из переменных окружения. Для каждой роли используются пары вида `AUTH_SEED_ADMIN_USERNAME` и `AUTH_SEED_ADMIN_PASSWORD`; электронная почта задаётся необязательной переменной `AUTH_SEED_ADMIN_EMAIL`. Аналогичные имена поддерживаются для остальных ролей. Команду не следует автоматически запускать при обычном production-старте, потому что она обновляет пароли, роли и состояние найденных пользователей.
+
+## Регистрация и пароли
+
+Самостоятельная регистрация создаёт активного пользователя с ролью `external_partner`. Имя пользователя и электронная почта нормализуются и должны быть уникальными. Имя пользователя не может содержать `@`; вход принимает имя пользователя или электронную почту.
+
+Новый пароль должен содержать от 8 до 128 символов, хотя бы одну латинскую заглавную букву, одну латинскую строчную букву и одну цифру. Проверка состава действует при регистрации и смене пароля, но не при входе, чтобы не блокировать ранее созданных пользователей.
+
+## API
+
+- `POST /api/auth/register`;
+- `POST /api/auth/login`;
+- `POST /api/auth/refresh`;
+- `POST /api/auth/logout`;
+- `POST /api/auth/logout-all`;
+- `POST /api/auth/change-password`;
+- `GET /api/auth/me`;
+- `PATCH /api/auth/me`;
+- `DELETE /api/auth/me`;
+- `GET /api/auth/users` для администратора;
+- `PATCH /api/auth/users/{user_id}` для администратора;
+- `GET /.well-known/jwks.json`;
+- `GET /health`;
+- `GET /ready`;
+- `GET /metrics`.
+
+Refresh-токен хранится только в cookie с атрибутами `HttpOnly` и `SameSite=Strict`. В PostgreSQL сохраняется SHA-256 хеш токена. Повторное использование ротированного токена отзывает всё семейство сессий. Смена пароля, деактивация и изменение роли отзывают все refresh-сессии пользователя. Уже выданный access-токен может оставаться действительным для автономно проверяющего его сервиса не дольше настроенного срока жизни, по умолчанию 15 минут.
+
+## Проверка
+
+```bash
+pytest
+ruff check .
+mypy app
+```
+
+Интеграционные тесты миграций, уникальности идентичности, массового отзыва сессий и транзакционной ротации запускаются при наличии отдельной тестовой базы:
+
+```bash
+AUTH_TEST_DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/auth_test pytest
+```
+
+Тест применяет миграции к указанной базе и откатывает их после завершения.

@@ -1,6 +1,7 @@
 import asyncio
 import os
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from uuid import UUID, uuid4
 
 import pytest
@@ -8,18 +9,19 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import func, select
 
-from app.database import create_database
-from app.models import RefreshSession, Role, User
-from app.repository import (
+from app.db.database import create_database
+from app.db.models import RefreshSession, Role, User
+from app.db.repository import (
     IdentityConflictError,
     NewUserData,
     RefreshSessionData,
     RotationStatus,
     SqlAlchemyAuthRepository,
 )
-from app.security import PasswordManager
+from app.service.security import PasswordManager
 
 TEST_DATABASE_URL = os.getenv("AUTH_TEST_DATABASE_URL")
+ALEMBIC_INI_PATH = Path(__file__).resolve().parents[1] / "alembic.ini"
 pytestmark = pytest.mark.skipif(
     TEST_DATABASE_URL is None,
     reason="AUTH_TEST_DATABASE_URL is not configured",
@@ -29,7 +31,7 @@ pytestmark = pytest.mark.skipif(
 @pytest.fixture
 async def migrated_database(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("AUTH_DATABASE_URL", TEST_DATABASE_URL or "")
-    config = Config("alembic.ini")
+    config = Config(str(ALEMBIC_INI_PATH))
     await asyncio.to_thread(command.upgrade, config, "head")
     engine, session_factory = create_database(TEST_DATABASE_URL or "")
     try:

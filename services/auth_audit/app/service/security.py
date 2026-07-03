@@ -13,8 +13,8 @@ from jwt.algorithms import RSAAlgorithm
 from pwdlib import PasswordHash
 from pydantic import BaseModel, ConfigDict
 
-from app.config import Settings
-from app.models import Role
+from app.core.config import Settings
+from app.db.models import Role
 
 
 class InvalidAccessTokenError(Exception):
