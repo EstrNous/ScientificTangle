@@ -37,6 +37,23 @@ class FakeMinio:
     def remove_object(self, bucket: str, object_key: str) -> None:
         self.objects.pop(object_key, None)
 
+    def get_object(self, bucket: str, object_key: str):
+        return FakeObjectResponse(self.objects[object_key])
+
+
+class FakeObjectResponse:
+    def __init__(self, content: bytes) -> None:
+        self.content = content
+
+    def read(self) -> bytes:
+        return self.content
+
+    def close(self) -> None:
+        return None
+
+    def release_conn(self) -> None:
+        return None
+
 
 def upload(filename: str, content: bytes, content_type: str = "text/plain") -> UploadFile:
     return UploadFile(
@@ -91,3 +108,15 @@ def test_partial_failure_removes_previously_stored_objects() -> None:
         )
 
     assert client.objects == {}
+
+
+def test_read_validates_stored_size_and_checksum() -> None:
+    client = FakeMinio()
+    storage = SourceStorage(client, "source-files", 1024)
+    stored = asyncio.run(storage.store(uuid4(), uuid4(), [upload("report.docx", b"value")]))
+
+    assert asyncio.run(storage.read(stored[0])) == b"value"
+
+    client.objects[stored[0].object_key] = b"changed"
+    with pytest.raises(StorageOperationError):
+        asyncio.run(storage.read(stored[0]))

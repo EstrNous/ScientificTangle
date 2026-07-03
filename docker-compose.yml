@@ -176,6 +176,7 @@ services:
       args:
         SERVICE_DIR: services/ingestion
         SERVICE_PORT: 8003
+        RUNTIME_APT_PACKAGES: libreoffice-writer fonts-dejavu-core
     container_name: st-ingestion
     ports:
       - "8003:8003"

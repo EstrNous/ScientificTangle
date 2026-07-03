@@ -5,11 +5,11 @@ import httpx
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-from app.api.health import router as health_router
-from app.api.ingestion import router as ingestion_router
-from app.api.query import router as query_router
-from app.core.config import settings
-from app.core.logging import setup_logging
+from .api.health import router as health_router
+from .api.ingestion import router as ingestion_router
+from .api.query import router as query_router
+from .core.config import settings
+from .core.logging import setup_logging
 from shared.metrics import build_metrics_router, setup_metrics
 from shared.security import JWKSValidator
 from shared.web import install_error_handlers, request_id_middleware
