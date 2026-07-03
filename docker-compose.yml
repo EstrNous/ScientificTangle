@@ -110,15 +110,16 @@ services:
   gateway:
     build:
       context: .
-      dockerfile: infra/docker/Dockerfile.python-service
-      args:
-        SERVICE_DIR: services/gateway
-        SERVICE_PORT: 8000
+      dockerfile: services/gateway/Dockerfile
     container_name: st-gateway
     ports:
       - "8000:8000"
     env_file: .env
+    environment:
+      GATEWAY_DATABASE_URL: postgresql+asyncpg://st_user:st_pass@postgres:5432/scientific_tangle
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
       auth_audit:

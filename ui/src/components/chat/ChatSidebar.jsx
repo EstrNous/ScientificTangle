@@ -1,6 +1,5 @@
 import { useTranslation } from 'react-i18next';
 import ExportPanel from './ExportPanel.jsx';
-import LocalGraph from '../graph/LocalGraph.jsx';
 
 function DeleteIcon() {
   return (
@@ -23,7 +22,6 @@ export default function ChatSidebar({
   sessionId,
   sessionTitle,
   messages,
-  subgraph,
 }) {
   const { t } = useTranslation();
 
@@ -79,8 +77,6 @@ export default function ChatSidebar({
         messages={messages}
         inline
       />
-
-      {subgraph && <LocalGraph subgraph={subgraph} inline />}
     </aside>
   );
 }

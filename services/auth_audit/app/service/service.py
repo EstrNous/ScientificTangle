@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
-from ..core.audit import AuthAuditEvent, AuthAuditSink
 from infra.postgres.auth_audit_db import (
     AuthRepository,
     NewUserData,
@@ -11,6 +10,8 @@ from infra.postgres.auth_audit_db import (
     RotationStatus,
     User,
 )
+
+from ..core.audit import AuthAuditEvent, AuthAuditSink
 from .security import (
     InvalidAccessTokenError,
     PasswordManager,

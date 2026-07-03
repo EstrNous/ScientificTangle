@@ -4,7 +4,7 @@ from enum import StrEnum
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class UserRole(StrEnum):
@@ -204,6 +204,81 @@ class AnswerPayload(BaseModel):
     sources_count: int = 0
     model_used: str = ""
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class QueryRunResponse(BaseModel):
+    query_run_id: str
+    query_ir: QueryIR
+    evidence_bundle: EvidenceBundle
+    answer: AnswerPayload
+    unsupported_warnings: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class GraphNode(BaseModel):
+    id: str
+    label: str
+    type: str
+
+
+class GraphLink(BaseModel):
+    source: str
+    target: str
+    type: str
+
+
+class GraphSubgraph(BaseModel):
+    nodes: list[GraphNode] = Field(default_factory=list)
+    links: list[GraphLink] = Field(default_factory=list)
+
+
+class GraphEntity(BaseModel):
+    id: str
+    name: str
+    type: str
+    status: str
+
+
+class GraphCandidate(BaseModel):
+    id: str
+    name: str
+    type: str
+    confidence: float = Field(ge=0.0, le=1.0)
+
+
+class NodeCombinationRow(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+
+class NodeCombinationGroup(BaseModel):
+    group: str = ""
+    rows: list[dict] = Field(default_factory=list)
+
+
+class GraphPayload(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    knowledge_graph: GraphSubgraph = Field(default_factory=GraphSubgraph, alias="knowledgeGraph")
+    subgraph: GraphSubgraph = Field(default_factory=GraphSubgraph)
+    entities: list[GraphEntity] = Field(default_factory=list)
+    candidates: list[GraphCandidate] = Field(default_factory=list)
+    node_combinations: list[NodeCombinationGroup] = Field(default_factory=list, alias="nodeCombinations")
+
+
+class SearchResultItem(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: str
+    title: str
+    material: str
+    process: str
+    year: int | None = None
+    geo: str = ""
+    geo_key: str = Field(default="", alias="geoKey")
+
+
+class SearchResultsPayload(BaseModel):
+    items: list[SearchResultItem] = Field(default_factory=list)
 
 
 class ServiceInfo(BaseModel):

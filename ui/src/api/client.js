@@ -1,24 +1,45 @@
 import axios from 'axios';
+import { ensureAuth, authHeaders } from './auth.js';
 import { mockFetch } from './mock/index.js';
 
 const useMock = import.meta.env.VITE_USE_MOCK !== 'false';
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const baseURL = import.meta.env.VITE_API_URL || '/api';
 
 const http = axios.create({ baseURL, timeout: 120000 });
 
+async function authorizedConfig(options = {}) {
+  if (!options.real) return options;
+  const token = await ensureAuth();
+  return {
+    ...options,
+    headers: {
+      ...options.headers,
+      ...authHeaders(token),
+    },
+  };
+}
+
 export async function apiGet(path, options = {}) {
-  if (useMock) {
+  if (useMock && !options.real) {
     return mockFetch(path.replace(/^\//, ''), options);
   }
-  const { data } = await http.get(path);
+  const { data } = await http.get(path, await authorizedConfig(options));
   return data;
 }
 
 export async function apiPost(path, body, options = {}) {
-  if (useMock) {
+  if (useMock && !options.real) {
     return mockFetch(path.replace(/^\//, ''), { ...options, method: 'POST', body });
   }
-  const { data } = await http.post(path, body);
+  const { data } = await http.post(path, body, await authorizedConfig(options));
+  return data;
+}
+
+export async function apiDelete(path, options = {}) {
+  if (useMock && !options.real) {
+    return mockFetch(path.replace(/^\//, ''), { ...options, method: 'DELETE' });
+  }
+  const { data } = await http.delete(path, await authorizedConfig(options));
   return data;
 }
 

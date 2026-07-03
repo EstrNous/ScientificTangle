@@ -80,7 +80,7 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 - `ui/vite.config.js` — Vite, proxy `/api` → Gateway.
 - `ui/tailwind.config.js`, `ui/postcss.config.js` — Tailwind CSS.
 - `ui/index.html` — точка входа HTML.
-- `ui/Dockerfile` — nginx-skeleton на порту 3000.
+- `ui/Dockerfile` — multi-stage: Vite build + nginx на порту 3000.
 - `ui/nginx.conf` — конфигурация nginx внутри UI-контейнера.
 - `ui/public/` — статические файлы для контейнера.
 - `ui/.env.local.example` — шаблон переменных UI.
@@ -97,8 +97,10 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 - `ui/src/stores/` — authStore, localeStore, notificationStore, themeStore (Zustand).
 - `ui/src/i18n/` — ru/en, synonyms.json.
 - `ui/src/api/client.js` — mock/real переключатель.
+- `ui/src/api/auth.js`, `ui/src/api/chat.js`, `ui/src/api/graph.js` — реальные API чата и графа.
 - `ui/src/api/contracts/` — имена DTO (зеркало shared/contracts).
-- `ui/src/api/mock/` — JSON demo-данные для экрана чата.
+- `ui/src/api/mock/` — JSON demo-данные для экранов без backend.
+- `ui/src/utils/graphFilters.js`, `ui/src/utils/graphSearch.js` — клиентская фильтрация графа.
 - `ui/src/hooks/` — useRoleAccess.
 - `ui/src/utils/reportExport.js` — экспорт MD/JSON/PDF.
 
@@ -236,7 +238,10 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 
 ### services/gateway/
 
-Внешний API для загрузки документов и чтения статуса ingestion-задач. Проверяет JWT через JWKS, создаёт или принимает `request_id`, нормализует ошибки и передаёт запросы в Orchestrator.
+Внешний API для загрузки документов, чтения статуса ingestion-задач, чата, графа знаний и поиска. Проверяет JWT через JWKS, создаёт или принимает `request_id`, нормализует ошибки и передаёт запросы в Orchestrator.
+
+- `app/api/graph.py` — `GET /graph`, `GET /search`.
+- `app/service/graph_service.py` — отдача GraphPayload и SearchResultsPayload (пока пустые структуры до подключения Neo4j).
 
 ### services/orchestrator/
 

@@ -2,6 +2,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
+from app.main import app
 from fastapi.testclient import TestClient
 
 from adapters.neo4j_adapter import Neo4jKnowledgeAdapter

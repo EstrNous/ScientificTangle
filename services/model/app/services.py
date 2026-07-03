@@ -7,6 +7,13 @@ from difflib import SequenceMatcher
 from typing import Any
 
 try:
+    from redis import Redis
+    from redis.exceptions import RedisError
+except ImportError:
+    Redis = None
+    RedisError = Exception
+
+try:
     from thefuzz import fuzz, process
 except ImportError:
     fuzz = None
@@ -50,7 +57,6 @@ from .contracts import (
 )
 from .core.config import settings
 from .yandex_client import YandexModelClient
-
 
 DEGRADED_WARNING = "LLM API is not configured; deterministic degraded extraction is active"
 NUMERIC_PATTERN = re.compile(
@@ -188,6 +194,9 @@ PROPERTY_TERMS = {
 EXPERT_PATTERN = re.compile(r"\b[А-ЯЁ][а-яё]+(?:\s+[А-ЯЁ]\.){1,2}|\b[A-Z][a-z]+(?:\s+[A-Z]\.){1,2}")
 DATE_PATTERN = re.compile(r"\b(?:19|20)\d{2}\b|\b\d{1,2}[./-]\d{1,2}[./-](?:19|20)?\d{2}\b")
 MODEL_CACHE: dict[str, dict[str, Any]] = {}
+REDIS_CLIENT: Any | None = None
+REDIS_CACHE_AVAILABLE: bool | None = None
+REDIS_CACHE_DEGRADED_REASON = ""
 FUZZY_ALIAS_THRESHOLD = 88
 
 SEED_ALIASES = {
@@ -223,46 +232,152 @@ RU_EN_ALIASES = {
 def cache_key(operation: str, version: str, model_name: str, payload: dict[str, Any]) -> str:
     raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str)
     digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
-    return f"{operation}:{version}:{model_name}:{digest}"
+    provider_signature = f"{settings.llm_provider}:{settings.yandex_enabled}:{model_name}:{settings.embedding_dimensions}:{settings.confirmed_confidence_threshold}"
+    provider_digest = hashlib.sha256(provider_signature.encode("utf-8")).hexdigest()[:16]
+    return f"st:model:v1:{operation}:{version}:{provider_digest}:{digest}"
 
 
-def cached_response(model_cls: type[Any], key: str) -> Any | None:
-    cached = MODEL_CACHE.get(key)
-    if cached is None:
+def cache_ttl_seconds(operation: str) -> int:
+    if operation == "embeddings":
+        return settings.model_embedding_cache_ttl_seconds
+    return settings.model_cache_ttl_seconds
+
+
+def redis_cache_enabled() -> bool:
+    return settings.model_cache_backend.lower() == "redis"
+
+
+def redis_client() -> Any | None:
+    global REDIS_CLIENT, REDIS_CACHE_AVAILABLE, REDIS_CACHE_DEGRADED_REASON
+    if not redis_cache_enabled():
+        REDIS_CACHE_AVAILABLE = False
+        REDIS_CACHE_DEGRADED_REASON = "redis cache backend is disabled"
         return None
-    return model_cls.model_validate(cached)
+    if Redis is None:
+        REDIS_CACHE_AVAILABLE = False
+        REDIS_CACHE_DEGRADED_REASON = "redis package is not installed"
+        return None
+    if REDIS_CLIENT is not None:
+        return REDIS_CLIENT
+    try:
+        REDIS_CLIENT = Redis.from_url(
+            settings.redis_url,
+            socket_connect_timeout=settings.model_cache_connect_timeout_seconds,
+            socket_timeout=settings.model_cache_connect_timeout_seconds,
+            decode_responses=True,
+        )
+        REDIS_CLIENT.ping()
+        REDIS_CACHE_AVAILABLE = True
+        REDIS_CACHE_DEGRADED_REASON = ""
+        return REDIS_CLIENT
+    except RedisError as exc:
+        REDIS_CLIENT = None
+        REDIS_CACHE_AVAILABLE = False
+        REDIS_CACHE_DEGRADED_REASON = str(exc)
+        return None
 
 
-def store_cache(key: str, response: Any) -> Any:
+def redis_cache_status() -> tuple[bool, str]:
+    client = redis_client()
+    if client is not None:
+        return True, ""
+    return bool(REDIS_CACHE_AVAILABLE), REDIS_CACHE_DEGRADED_REASON
+
+
+def cached_response(model_cls: type[Any], key: str, redis_allowed: bool = True) -> Any | None:
+    cached = MODEL_CACHE.get(key)
+    if cached is not None:
+        return model_cls.model_validate(cached)
+    if not redis_allowed:
+        return None
+    client = redis_client()
+    if client is None:
+        return None
+    try:
+        raw = client.get(key)
+    except RedisError as exc:
+        global REDIS_CACHE_AVAILABLE, REDIS_CACHE_DEGRADED_REASON
+        REDIS_CACHE_AVAILABLE = False
+        REDIS_CACHE_DEGRADED_REASON = str(exc)
+        return None
+    if raw is None:
+        return None
+    try:
+        payload = json.loads(raw)
+        response = model_cls.model_validate(payload)
+    except (TypeError, ValueError):
+        return None
     MODEL_CACHE[key] = response.model_dump(mode="json")
+    return response
+
+
+def store_cache(key: str, response: Any, operation: str, redis_allowed: bool = True) -> Any:
+    payload = response.model_dump(mode="json")
+    MODEL_CACHE[key] = payload
+    if not redis_allowed:
+        return response
+    client = redis_client()
+    if client is None:
+        return response
+    try:
+        client.setex(key, cache_ttl_seconds(operation), json.dumps(payload, ensure_ascii=False))
+    except RedisError as exc:
+        global REDIS_CACHE_AVAILABLE, REDIS_CACHE_DEGRADED_REASON
+        REDIS_CACHE_AVAILABLE = False
+        REDIS_CACHE_DEGRADED_REASON = str(exc)
     return response
 
 
 def build_embeddings(request: EmbeddingRequest) -> EmbeddingResponse:
     client = YandexModelClient(settings)
     selected_model = select_embedding_model(request)
-    key = cache_key("embeddings", "embeddings.v1", selected_model, request.model_dump(mode="json"))
-    cached = cached_response(EmbeddingResponse, key)
-    if cached:
-        return cached
+    cached_items: list[EmbeddingItem | None] = []
+    missing: list[tuple[int, str, str]] = []
+    for index, text in enumerate(request.texts):
+        item_payload = {
+            "text": text,
+            "dimensions": request.dimensions,
+            "model_name": selected_model,
+            "input_type": request.input_type,
+        }
+        item_key = cache_key("embeddings", "embeddings.v1", selected_model, item_payload)
+        cached = cached_response(EmbeddingItem, item_key)
+        if cached is None:
+            cached_items.append(None)
+            missing.append((index, text, item_key))
+        else:
+            cached_items.append(EmbeddingItem(index=index, text=text, vector=cached.vector))
+    if not missing:
+        return EmbeddingResponse(
+            mode="llm" if settings.yandex_enabled else "deterministic_degraded",
+            model_name=selected_model if settings.yandex_enabled else request.model_name,
+            dimensions=request.dimensions,
+            embeddings=[item for item in cached_items if item is not None],
+            warnings=[],
+        )
     warnings = []
     mode = "deterministic_degraded"
-    embeddings = []
+    missing_embeddings: list[EmbeddingItem] = []
     if client.is_configured:
         try:
-            embeddings = [
+            missing_embeddings = [
                 EmbeddingItem(index=index, text=text, vector=client.embedding(text, selected_model, request.dimensions))
-                for index, text in enumerate(request.texts)
+                for index, text, _ in missing
             ]
             mode = "llm"
         except Exception as exc:
             warnings.append(f"Yandex embeddings failed, deterministic fallback used: {exc}")
-    if not embeddings:
-        embeddings = [
+    if not missing_embeddings:
+        missing_embeddings = [
             EmbeddingItem(index=index, text=text, vector=hash_embedding(text, request.dimensions))
-            for index, text in enumerate(request.texts)
+            for index, text, _ in missing
         ]
         warnings.append(DEGRADED_WARNING)
+    redis_allowed_for_embeddings = mode == "llm" or not settings.yandex_enabled
+    for item, (_, _, item_key) in zip(missing_embeddings, missing, strict=True):
+        store_cache(item_key, item, "embeddings", redis_allowed=redis_allowed_for_embeddings)
+        cached_items[item.index] = item
+    embeddings = [item for item in cached_items if item is not None]
     response = EmbeddingResponse(
         mode=mode,
         model_name=selected_model if mode == "llm" else request.model_name,
@@ -270,7 +385,7 @@ def build_embeddings(request: EmbeddingRequest) -> EmbeddingResponse:
         embeddings=embeddings,
         warnings=warnings,
     )
-    return store_cache(key, EmbeddingResponse.model_validate(response.model_dump()))
+    return EmbeddingResponse.model_validate(response.model_dump())
 
 
 def select_embedding_model(request: EmbeddingRequest) -> str:
@@ -287,7 +402,7 @@ def hash_embedding(text: str, dimensions: int) -> list[float]:
     values = []
     counter = 0
     while len(values) < dimensions:
-        digest = hashlib.sha256(f"{counter}:{text}".encode("utf-8")).digest()
+        digest = hashlib.sha256(f"{counter}:{text}".encode()).digest()
         values.extend((byte / 127.5) - 1.0 for byte in digest)
         counter += 1
     vector = values[:dimensions]
@@ -299,7 +414,8 @@ def build_structured_extraction(request: StructuredExtractionRequest) -> Structu
     document = request.document
     selected_model = settings.yandex_long_context_model
     key = cache_key("structured_extraction", "structured_extraction.v1", selected_model, request.model_dump(mode="json"))
-    cached = cached_response(StructuredExtractionResponse, key)
+    redis_allowed = document.access_policy.level != "restricted"
+    cached = cached_response(StructuredExtractionResponse, key, redis_allowed=redis_allowed)
     if cached:
         return cached
     span_index = {source_span_id(span): span for span in document.source_spans}
@@ -353,7 +469,7 @@ def build_structured_extraction(request: StructuredExtractionRequest) -> Structu
         unsupported_warnings=warnings,
         warnings=response_warnings,
     )
-    return store_cache(key, StructuredExtractionResponse.model_validate(response.model_dump()))
+    return store_cache(key, StructuredExtractionResponse.model_validate(response.model_dump()), "structured_extraction", redis_allowed=redis_allowed)
 
 
 def build_llm_structured_extraction(
@@ -1079,7 +1195,7 @@ def build_query_ir(request: QueryIRBuildRequest) -> QueryIRBuildResponse:
         constraints=constraints,
         warnings=warnings,
     )
-    return store_cache(key, QueryIRBuildResponse.model_validate(response.model_dump()))
+    return store_cache(key, QueryIRBuildResponse.model_validate(response.model_dump()), "query_ir")
 
 
 def build_llm_query_ir(client: YandexModelClient, request: QueryIRBuildRequest) -> QueryIRBuildResponse:
@@ -1433,6 +1549,7 @@ def enrich_jsonld(request: JsonLdEnrichmentRequest) -> JsonLdEnrichmentResponse:
 
 
 def model_status() -> ModelStatusResponse:
+    cache_available, cache_degraded_reason = redis_cache_status()
     return ModelStatusResponse(
         provider=settings.llm_provider,
         yandex_configured=settings.yandex_enabled,
@@ -1441,6 +1558,10 @@ def model_status() -> ModelStatusResponse:
         embedding_query_model=settings.yandex_embedding_query_model,
         embedding_dimensions=settings.yandex_embedding_dim,
         mode="llm" if settings.yandex_enabled else "deterministic_degraded",
+        cache_backend=settings.model_cache_backend,
+        cache_available=cache_available,
+        cache_mode="memory+redis" if cache_available else "memory",
+        cache_degraded_reason=cache_degraded_reason,
     )
 
 

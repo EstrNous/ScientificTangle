@@ -1,6 +1,5 @@
-from fastapi.testclient import TestClient
-
 from app.main import app as retrieval_app
+from fastapi.testclient import TestClient
 
 
 def test_retrieval_health_offline() -> None:

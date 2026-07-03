@@ -34,11 +34,16 @@
     "download": "Download PDF",
     "downloading": "PDF…",
     "page": "Page {{page}}",
+    "pageLabel": "Page {{page}}",
+    "pageCount": "{{count}} pages",
     "totalPages": "{{count}} pages total",
+    "citedFragment": "Cited excerpt",
     "prevPage": "Previous",
     "nextPage": "Next",
     "close": "Close",
-    "pageEmpty": "Page text is not available"
+    "pageEmpty": "Page text is not available",
+    "refsTitle": "Source documents",
+    "refsCount": "{{count}} documents"
   },
   "chat": {
     "history": "History",
@@ -48,8 +53,11 @@
     "downloadPdf": "Download PDF",
     "downloadingPdf": "PDF…",
     "deleteSession": "Delete query",
+    "backendError": "Backend error: {{message}}",
     "scrollHint": "↕ scroll the list",
     "retrievalTitle": "Search and processing",
+    "evidenceRow": "Row {{index}}: {{label}}",
+    "evidenceCellHint": "Show source documents for this row",
     "retrieval": {
       "analyze": "Analyzing query and extracting key entities",
       "synonyms": "Expanding synonyms: {{terms}}",
@@ -94,6 +102,7 @@
     "combinationsEditHint": "Edit cells and group names directly",
     "combinationsAddRow": "Add row",
     "combinationsDeleteRow": "Delete row",
+    "combinationsCellHint": "Show source documents for this row",
     "statsFiltered": "{{nodes}} of {{total}} nodes · {{links}} links",
     "nodeTypes": {
       "Material": "Materials",
@@ -140,6 +149,9 @@
     "collapseDetails": "Collapse breakdown",
     "coverageValue": "Coverage {{value}}%",
     "documentsCount": "{{count}} documents",
+    "barClickHint": "Click a bar to see source documents",
+    "metricValue": "Value: {{value}}",
+    "sourcesLine": "Sources: {{actual}} of {{expected}}",
     "lowCoverage": "Knowledge gaps",
     "highConflict": "Conflict zones",
     "alertHint": "Require priority source ingestion or expert review",
@@ -315,6 +327,7 @@
     },
     "experimentsCount": "{{count}} links",
     "cellTooltip": "{{row}} × {{col}}: {{count}} links",
+    "cellClickHint": "Click a cell to see source documents",
     "legend": {
       "none": "no data",
       "low": "low",

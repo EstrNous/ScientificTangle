@@ -6,7 +6,6 @@ from typing import Any
 
 import httpx
 
-
 DEFAULT_RETRIEVAL_URL = "http://localhost:8005"
 DEFAULT_KNOWLEDGE_URL = "http://localhost:8004"
 DEFAULT_SEED_PATH = "demo/seed_data/mvp_normalized_documents.json"
@@ -61,6 +60,7 @@ async def seed_demo(
         )
         index_response.raise_for_status()
         result = index_response.json()
+        indexed_count = result.get("vector_write", {}).get("records_count", 0)
         warnings = " ".join(str(item).lower() for item in result.get("warnings", []))
         if fail_on_degraded and ("fallback" in warnings or "degraded" in warnings):
             raise SystemExit(json.dumps(result, ensure_ascii=False, indent=2))

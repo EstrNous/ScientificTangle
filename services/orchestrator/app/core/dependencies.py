@@ -3,9 +3,10 @@ from typing import Annotated
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .config import settings
-from infra.postgres.orchestrator_db import get_session, IngestionTaskRepository
+from infra.postgres.orchestrator_db import IngestionTaskRepository, get_session
+
 from ..service.service import OrchestratorService
+from .config import settings
 
 
 def get_orchestrator_service(

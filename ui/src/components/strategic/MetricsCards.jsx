@@ -1,4 +1,7 @@
 import { useTranslation } from 'react-i18next';
+import { getMetricSources } from '../../api/mock/sourceBindings.js';
+import { useSourceRefsPopover } from '../../hooks/useSourceRefsPopover.js';
+import SourceRefsPopover from '../shared/SourceRefsPopover.jsx';
 
 const METRIC_KEYS = [
   'documents',
@@ -20,24 +23,40 @@ const ACCENT = {
 
 export default function MetricsCards({ totals }) {
   const { t } = useTranslation();
+  const { popover, openPopover, closePopover } = useSourceRefsPopover();
 
   if (!totals) return null;
 
+  const handleMetricClick = (event, key) => {
+    const value = totals[key];
+    if (!value) return;
+    openPopover(event, {
+      title: t(`strategic.metrics.${key}`),
+      subtitle: t('strategic.metricValue', { value: value.toLocaleString('ru-RU') }),
+      sources: getMetricSources(key, value),
+    });
+  };
+
   return (
-    <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
-      {METRIC_KEYS.map((key) => (
-        <div
-          key={key}
-          className="nn-card shrink-0 rounded-xl border border-nn-border p-2.5 dark:border-slate-700"
-        >
-          <p className="text-[10px] font-medium uppercase leading-tight tracking-wide text-nn-gray dark:text-slate-400">
-            {t(`strategic.metrics.${key}`)}
-          </p>
-          <p className={`mt-0.5 text-xl font-bold tabular-nums leading-none ${ACCENT[key]}`}>
-            {totals[key]?.toLocaleString('ru-RU') ?? '—'}
-          </p>
-        </div>
-      ))}
-    </div>
+    <>
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
+        {METRIC_KEYS.map((key) => (
+          <button
+            key={key}
+            type="button"
+            onClick={(event) => handleMetricClick(event, key)}
+            className="nn-card shrink-0 rounded-xl border border-nn-border p-2.5 text-left transition-colors hover:border-nn-blue/40 hover:bg-nn-blue-light/40 dark:border-slate-700 dark:hover:border-sky-500/40 dark:hover:bg-slate-800/60"
+          >
+            <p className="text-[10px] font-medium uppercase leading-tight tracking-wide text-nn-gray dark:text-slate-400">
+              {t(`strategic.metrics.${key}`)}
+            </p>
+            <p className={`mt-0.5 text-xl font-bold tabular-nums leading-none ${ACCENT[key]}`}>
+              {totals[key]?.toLocaleString('ru-RU') ?? '—'}
+            </p>
+          </button>
+        ))}
+      </div>
+      <SourceRefsPopover state={popover} onClose={closePopover} />
+    </>
   );
 }

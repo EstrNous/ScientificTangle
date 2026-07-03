@@ -1,10 +1,8 @@
 import asyncio
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import httpx
-import pytest
-
 from app.service.service import OrchestratorService
 from infra.postgres.orchestrator_db import QueryRun
 from shared.contracts import NormalizedDocument, SourceSpan, UserRole
@@ -12,10 +10,13 @@ from shared.security import AuthenticatedPrincipal
 
 
 class FakeRepository:
-    async def create(self, user_id):
+    def __init__(self) -> None:
+        self.query_run: QueryRun | None = None
+
+    async def create(self, user_id: UUID):
         raise NotImplementedError
 
-    async def get(self, task_id):
+    async def get(self, task_id: UUID):
         return None
 
     async def set_report(self, task, report):

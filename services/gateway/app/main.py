@@ -1,18 +1,22 @@
 from contextlib import asynccontextmanager
 
-import structlog
 import httpx
+import structlog
 from fastapi import FastAPI
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
+from shared.metrics import build_metrics_router, setup_metrics
+from shared.security import JWKSValidator
+from shared.web import install_error_handlers, request_id_middleware
+
+from .api.chat import router as chat_router
 from .api.documents import router as documents_router
+from .api.graph import router as graph_router
 from .api.health import router as health_router
 from .api.query import router as query_router
 from .core.config import settings
 from .core.logging import setup_logging
 from .service.service import GatewayService
-from shared.metrics import build_metrics_router, setup_metrics
-from shared.security import JWKSValidator
-from shared.web import install_error_handlers, request_id_middleware
 
 setup_logging(settings.service_name)
 
@@ -20,7 +24,8 @@ setup_logging(settings.service_name)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger = structlog.get_logger()
-    http_client = httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=5.0))
+    engine = create_async_engine(settings.postgres_url, pool_pre_ping=True)
+    http_client = httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=5.0))
     jwt_validator = JWKSValidator(
         auth_url=settings.auth_url,
         issuer=settings.auth_jwt_issuer,
@@ -29,6 +34,7 @@ async def lifespan(app: FastAPI):
         clock_skew_seconds=settings.auth_clock_skew_seconds,
         client=http_client,
     )
+    app.state.session_factory = async_sessionmaker(engine, expire_on_commit=False)
     app.state.http_client = http_client
     app.state.gateway_service = GatewayService(
         client=http_client,
@@ -39,6 +45,7 @@ async def lifespan(app: FastAPI):
     logger.info("service_started", service=settings.service_name, port=settings.port)
     yield
     await http_client.aclose()
+    await engine.dispose()
     logger.info("service_stopped", service=settings.service_name)
 
 
@@ -56,3 +63,5 @@ app.include_router(build_metrics_router())
 app.include_router(health_router)
 app.include_router(documents_router)
 app.include_router(query_router)
+app.include_router(chat_router)
+app.include_router(graph_router)

@@ -1,13 +1,18 @@
-import asyncio
+from unittest.mock import AsyncMock
 
 from app.api.query import collect_index_links
+import httpx
+from fastapi.testclient import TestClient
+from app.api.query import source_span_id
+from app.main import app
 from shared.contracts import (
     KnowledgeIngestionResponse,
     NormalizedDocument,
-    RetrievalIndexRequest,
     SourceSpan,
     StorageWriteResult,
 )
+
+COLLECTION_NAME = "st_evidence_v1"
 
 
 def test_collect_index_links_from_knowledge_results() -> None:

@@ -1,8 +1,8 @@
 from fastapi import Response
+from infra.postgres.auth_audit_db import TokenResponse, UserResponse
 
 from ..core.config import Settings
 from ..service.service import TokenPairResult
-from infra.postgres.auth_audit_db import TokenResponse, UserResponse
 
 
 def set_refresh_cookie(response: Response, settings: Settings, result: TokenPairResult) -> None:

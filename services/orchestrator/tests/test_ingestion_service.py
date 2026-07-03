@@ -5,9 +5,9 @@ from uuid import UUID, uuid4
 
 import httpx
 import pytest
+from app.service.service import OrchestratorService, OrchestratorServiceError
 from fastapi import UploadFile
 
-from app.service.service import OrchestratorService, OrchestratorServiceError
 from infra.postgres.orchestrator_db import IngestionTask
 from shared.contracts import IngestionReport, UserRole
 from shared.security import AuthenticatedPrincipal
@@ -252,8 +252,11 @@ def test_empty_normalization_marks_task_failed() -> None:
 
     async def run() -> None:
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            service = OrchestratorService(
+                repository, client, "http://ingestion", "http://knowledge", "http://retrieval", "http://model"
+            )
             with pytest.raises(OrchestratorServiceError) as error:
-                await service(repository, client).create_task(
+                await service.create_task(
                     principal(),
                     [UploadFile(file=BytesIO(b"data"), filename="file.bin")],
                     "Bearer token",
@@ -284,7 +287,7 @@ def test_task_is_visible_only_to_owner_or_admin() -> None:
             admin = principal(UserRole.ADMIN)
             assert (await orchestrator.get_task(task.id, admin)).id == task.id
             with pytest.raises(OrchestratorServiceError) as error:
-                await orchestrator.get_task(task.id, principal())
+                await service.get_task(task.id, principal())
             assert error.value.status_code == 404
 
     asyncio.run(run())

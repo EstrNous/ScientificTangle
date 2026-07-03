@@ -26,17 +26,17 @@ jobs:
           python-version: "3.12"
       - name: Install dependencies
         run: |
-          pip install pytest pytest-asyncio httpx pydantic pydantic-settings structlog fastapi uvicorn PyJWT cryptography prometheus-client sqlalchemy asyncpg
+          pip install pytest pytest-asyncio ruff
           pip install -e shared
-          for svc in auth_audit gateway orchestrator ingestion knowledge retrieval model export notification; do
-            pip install -e "services/$svc" 2>/dev/null || pip install -r "services/$svc/pyproject.toml" 2>/dev/null || true
-          done
-          for svc in auth_audit gateway orchestrator ingestion knowledge retrieval model export notification shared; do
-            if [ -f "services/$svc/pyproject.toml" ] || [ -f "shared/pyproject.toml" ]; then
-              dir=$([ "$svc" = "shared" ] && echo shared || echo "services/$svc")
-              pip install -e "$dir" || (cd "$dir" && pip install .)
-            fi
-          done
+          pip install -e services/auth_audit
+          pip install -e services/gateway
+          pip install -e services/ingestion
+          pip install -e services/knowledge
+          pip install -e services/model
+          pip install -e services/orchestrator
+          pip install -e services/retrieval
+          pip install -e services/export
+          pip install -e services/notification
       - name: Pytest
         run: python scripts/run_tests.py
 
