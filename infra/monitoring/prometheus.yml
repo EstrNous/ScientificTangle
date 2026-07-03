@@ -1,0 +1,40 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: "gateway"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["gateway:8000"]
+  - job_name: "auth-audit"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["auth_audit:8001"]
+  - job_name: "orchestrator"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["orchestrator:8002"]
+  - job_name: "ingestion"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["ingestion:8003"]
+  - job_name: "knowledge"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["knowledge:8004"]
+  - job_name: "retrieval"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["retrieval:8005"]
+  - job_name: "model"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["model:8006"]
+  - job_name: "export"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["export:8007"]
+  - job_name: "notification"
+    metrics_path: "/metrics"
+    static_configs:
+      - targets: ["notification:8008"]
