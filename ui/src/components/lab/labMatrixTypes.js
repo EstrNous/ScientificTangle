@@ -59,11 +59,20 @@ export function applyMatrixConfig(matrixView, config) {
 
   if (!rowIndices.length || !colIndices.length) return null;
 
+  const cellSources = matrixView.cell_sources ?? matrixView.cellSources;
+
   return {
     rowType: matrixView.rowType,
     colType: matrixView.colType,
     rows: rowIndices.map((index) => matrixView.rows[index]),
     cols: colIndices.map((index) => matrixView.cols[index]),
     matrix: rowIndices.map((row) => colIndices.map((col) => matrixView.matrix[row][col])),
+    ...(cellSources
+      ? {
+          cell_sources: rowIndices.map((row) =>
+            colIndices.map((col) => cellSources[row][col]),
+          ),
+        }
+      : {}),
   };
 }
