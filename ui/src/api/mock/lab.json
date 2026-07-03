@@ -16,7 +16,44 @@
         "material": "Никель",
         "process": "Электроэкстракция",
         "year": 2024,
-        "geo": "зарубежная"
+        "geo": "зарубежная",
+        "geoKey": "foreign"
+      },
+      {
+        "id": "r2",
+        "title": "Циркуляция католита на никелевом производстве",
+        "material": "Никель",
+        "process": "Электроэкстракция",
+        "year": 2023,
+        "geo": "отечественная",
+        "geoKey": "domestic"
+      },
+      {
+        "id": "r3",
+        "title": "Обессоливание шахтных вод обогатительных фабрик",
+        "material": "Шахтная вода",
+        "process": "Обессоливание",
+        "year": 2022,
+        "geo": "отечественная",
+        "geoKey": "domestic"
+      },
+      {
+        "id": "r4",
+        "title": "Mine water desalination for concentrator plants",
+        "material": "Шахтная вода",
+        "process": "Обессоливание",
+        "year": 2024,
+        "geo": "зарубежная",
+        "geoKey": "foreign"
+      },
+      {
+        "id": "r5",
+        "title": "Copper rougher flotation reagent regime",
+        "material": "Медь",
+        "process": "Флотация",
+        "year": 2021,
+        "geo": "неизвестно",
+        "geoKey": "unknown"
       }
     ]
   },

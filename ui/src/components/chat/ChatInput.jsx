@@ -15,7 +15,7 @@ function PaperclipIcon() {
   );
 }
 
-export default function ChatInput({ onSend }) {
+export default function ChatInput({ onSend, disabled }) {
   const fileRef = useRef(null);
   const [files, setFiles] = useState([]);
 
@@ -45,6 +45,7 @@ export default function ChatInput({ onSend }) {
         const fd = new FormData(e.currentTarget);
         const text = String(fd.get('message') ?? '').trim();
         if (!text && files.length === 0) return;
+        if (disabled) return;
         onSend?.({ text, files: [...files] });
         resetForm(e.currentTarget);
       }}
@@ -86,7 +87,8 @@ export default function ChatInput({ onSend }) {
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
-          className="flex shrink-0 items-center justify-center rounded-lg border border-nn-border px-3 text-nn-blue transition-colors hover:border-nn-blue hover:bg-nn-blue-light dark:border-slate-600 dark:hover:bg-slate-800"
+          disabled={disabled}
+          className="flex shrink-0 items-center justify-center rounded-lg border border-nn-border px-3 text-nn-blue transition-colors hover:border-nn-blue hover:bg-nn-blue-light disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-800"
           aria-label="Прикрепить файл"
           title="Прикрепить PDF, DOCX, TXT"
         >
@@ -94,10 +96,11 @@ export default function ChatInput({ onSend }) {
         </button>
         <input
           name="message"
-          className="min-w-0 flex-1 rounded-lg border border-nn-border bg-nn-gray-light px-4 py-2.5 text-sm text-gray-900 outline-none focus:border-nn-blue focus:ring-1 focus:ring-nn-blue dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+          disabled={disabled}
+          className="min-w-0 flex-1 rounded-lg border border-nn-border bg-nn-gray-light px-4 py-2.5 text-sm text-gray-900 outline-none focus:border-nn-blue focus:ring-1 focus:ring-nn-blue disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
           placeholder="Задайте вопрос…"
         />
-        <button type="submit" className="nn-btn-ghost shrink-0">
+        <button type="submit" disabled={disabled} className="nn-btn-ghost shrink-0 disabled:cursor-not-allowed disabled:opacity-50">
           Отправить
           <span aria-hidden>›</span>
         </button>

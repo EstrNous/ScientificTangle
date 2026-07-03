@@ -1,3 +1,4 @@
+import React from 'react';
 import { Navigate } from 'react-router-dom';
 import ChatPage from '../pages/ChatPage.jsx';
 import GraphPage from '../pages/GraphPage.jsx';

@@ -34,7 +34,73 @@
     "downloadPdf": "Скачать PDF",
     "downloadingPdf": "PDF…",
     "deleteSession": "Удалить запрос",
-    "scrollHint": "↕ прокрутка списка"
+    "scrollHint": "↕ прокрутка списка",
+    "retrievalTitle": "Поиск и обработка",
+    "retrieval": {
+      "analyze": "Анализирую запрос и выделяю ключевые сущности",
+      "synonyms": "Расширяю синонимы: {{terms}}",
+      "searchFile": "Ищу в «{{file}}» — {{method}}",
+      "processFile": "Обрабатываю фрагменты из «{{file}}»",
+      "filterAccess": "Фильтрую результаты по уровню доступа",
+      "synthesize": "Формирую ответ с привязкой к источникам",
+      "methodHybrid": "BM25 + семантический поиск"
+    }
+  },
+  "graph": {
+    "searchPlaceholder": "Поиск по узлам, материалам и публикациям",
+    "searchButton": "Найти",
+    "searching": "Поиск…",
+    "searchResults": "Результаты поиска",
+    "searchHint": "Задайте запрос и примените фильтры",
+    "noResults": "Ничего не найдено по заданным условиям",
+    "knowledgeMap": "Карта знаний",
+    "stats": "{{nodes}} узлов · {{links}} связей",
+    "entities": "Сущности",
+    "entityName": "Имя",
+    "entityType": "Тип",
+    "entityStatus": "Статус",
+    "verificationInbox": "Кандидаты на верификацию",
+    "confidence": "Достоверность",
+    "approve": "Подтвердить",
+    "reject": "Отклонить",
+    "edit": "Править",
+    "empty": "Граф пуст — загрузите документы",
+    "emptyFiltered": "Нет узлов по выбранным типам и запросу",
+    "nodeTypeFilters": "Типы узлов",
+    "selectAllTypes": "Все типы",
+    "resetTypes": "Сбросить",
+    "statsFiltered": "{{nodes}} из {{total}} узлов · {{links}} связей",
+    "nodeTypes": {
+      "Material": "Материалы",
+      "Experiment": "Эксперименты",
+      "Regime": "Режимы",
+      "Property": "Свойства",
+      "Result": "Результаты",
+      "Lab": "Лаборатории",
+      "Author": "Авторы",
+      "Document": "Документы"
+    },
+    "filterMaterial": "Материал",
+    "filterProcess": "Процесс",
+    "filterGeo": "География",
+    "filterAllMaterials": "Все материалы",
+    "filterAllProcesses": "Все процессы",
+    "geo": {
+      "all": "Вся география",
+      "domestic": "Отечественная",
+      "foreign": "Зарубежная",
+      "unknown": "Неизвестно"
+    },
+    "geoLabel": {
+      "domestic": "отечественная",
+      "foreign": "зарубежная",
+      "unknown": "неизвестно"
+    },
+    "status": {
+      "verified": "подтверждено",
+      "candidate": "кандидат",
+      "conflicting": "конфликт"
+    }
   },
   "pages": {
     "chat": "Семантический поиск и отчёты",

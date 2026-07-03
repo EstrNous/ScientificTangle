@@ -1,18 +1,53 @@
+import { useTranslation } from 'react-i18next';
+
 export default function VerificationInbox({ candidates }) {
+  const { t } = useTranslation();
+
+  if (!candidates?.length) return null;
+
   return (
-    <div className="space-y-2">
-      <h3 className="text-sm font-medium">Инбокс верификации</h3>
-      {candidates.map((c) => (
-        <div key={c.id} className="p-2 border border-slate-700 rounded text-xs">
-          <p>{c.name} ({c.type})</p>
-          <p className="text-slate-400">confidence: {c.confidence}</p>
-          <div className="flex gap-2 mt-2">
-            <button type="button" className="px-2 py-1 rounded bg-emerald-800">Подтвердить</button>
-            <button type="button" className="px-2 py-1 rounded bg-red-900">Отклонить</button>
-            <button type="button" className="px-2 py-1 rounded bg-slate-700">Править</button>
-          </div>
-        </div>
-      ))}
+    <div className="nn-card p-3">
+      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-nn-gray dark:text-slate-400">
+        {t('graph.verificationInbox')}
+      </p>
+      <ul className="space-y-2">
+        {candidates.map((candidate) => (
+          <li
+            key={candidate.id}
+            className="rounded-lg border border-nn-border bg-nn-gray-light p-2 text-xs dark:border-slate-600 dark:bg-slate-800"
+          >
+            <p className="font-medium text-gray-900 dark:text-slate-100">
+              {candidate.name}{' '}
+              <span className="font-normal text-nn-gray dark:text-slate-400">
+                ({t(`graph.nodeTypes.${candidate.type}`, { defaultValue: candidate.type })})
+              </span>
+            </p>
+            <p className="mt-1 text-nn-gray dark:text-slate-400">
+              {t('graph.confidence')}: {Math.round(candidate.confidence * 100)}%
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="rounded-lg bg-nn-blue px-2 py-1 text-[11px] font-medium text-white hover:bg-nn-blue-dark"
+              >
+                {t('graph.approve')}
+              </button>
+              <button
+                type="button"
+                className="rounded-lg border border-nn-border bg-white px-2 py-1 text-[11px] font-medium text-nn-gray hover:bg-nn-gray-light dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                {t('graph.reject')}
+              </button>
+              <button
+                type="button"
+                className="rounded-lg border border-nn-border bg-white px-2 py-1 text-[11px] font-medium text-nn-gray hover:bg-nn-gray-light dark:border-slate-600 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800"
+              >
+                {t('graph.edit')}
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

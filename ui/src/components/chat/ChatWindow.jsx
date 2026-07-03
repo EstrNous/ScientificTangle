@@ -1,4 +1,6 @@
+import { useEffect, useRef } from 'react';
 import AnswerRenderer from './AnswerRenderer.jsx';
+import RetrievalProgress from './RetrievalProgress.jsx';
 
 function AttachmentList({ attachments }) {
   if (!attachments?.length) return null;
@@ -16,10 +18,16 @@ function AttachmentList({ attachments }) {
   );
 }
 
-export default function ChatWindow({ messages }) {
+export default function ChatWindow({ messages, retrievalTrace }) {
+  const bottomRef = useRef(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, retrievalTrace]);
+
   return (
     <div className="min-h-0 flex-1 space-y-4 overflow-auto pr-2">
-      {messages.length === 0 && (
+      {messages.length === 0 && !retrievalTrace && (
         <div className="flex h-full items-center justify-center text-sm text-nn-gray dark:text-slate-400">
           Задайте вопрос, чтобы начать диалог
         </div>
@@ -43,6 +51,8 @@ export default function ChatWindow({ messages }) {
           )}
         </div>
       ))}
+      {retrievalTrace && <RetrievalProgress trace={retrievalTrace} />}
+      <div ref={bottomRef} />
     </div>
   );
 }

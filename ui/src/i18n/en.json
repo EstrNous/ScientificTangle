@@ -34,7 +34,73 @@
     "downloadPdf": "Download PDF",
     "downloadingPdf": "PDF…",
     "deleteSession": "Delete query",
-    "scrollHint": "↕ scroll the list"
+    "scrollHint": "↕ scroll the list",
+    "retrievalTitle": "Search and processing",
+    "retrieval": {
+      "analyze": "Analyzing query and extracting key entities",
+      "synonyms": "Expanding synonyms: {{terms}}",
+      "searchFile": "Searching in «{{file}}» — {{method}}",
+      "processFile": "Processing fragments from «{{file}}»",
+      "filterAccess": "Filtering results by access level",
+      "synthesize": "Building answer with source citations",
+      "methodHybrid": "BM25 + semantic search"
+    }
+  },
+  "graph": {
+    "searchPlaceholder": "Search nodes, materials and publications",
+    "searchButton": "Search",
+    "searching": "Searching…",
+    "searchResults": "Search results",
+    "searchHint": "Enter a query and apply filters",
+    "noResults": "No results match your filters",
+    "knowledgeMap": "Knowledge map",
+    "stats": "{{nodes}} nodes · {{links}} links",
+    "entities": "Entities",
+    "entityName": "Name",
+    "entityType": "Type",
+    "entityStatus": "Status",
+    "verificationInbox": "Verification candidates",
+    "confidence": "Confidence",
+    "approve": "Approve",
+    "reject": "Reject",
+    "edit": "Edit",
+    "empty": "Graph is empty — upload documents first",
+    "emptyFiltered": "No nodes match the selected types and query",
+    "nodeTypeFilters": "Node types",
+    "selectAllTypes": "All types",
+    "resetTypes": "Reset",
+    "statsFiltered": "{{nodes}} of {{total}} nodes · {{links}} links",
+    "nodeTypes": {
+      "Material": "Materials",
+      "Experiment": "Experiments",
+      "Regime": "Regimes",
+      "Property": "Properties",
+      "Result": "Results",
+      "Lab": "Laboratories",
+      "Author": "Authors",
+      "Document": "Documents"
+    },
+    "filterMaterial": "Material",
+    "filterProcess": "Process",
+    "filterGeo": "Geography",
+    "filterAllMaterials": "All materials",
+    "filterAllProcesses": "All processes",
+    "geo": {
+      "all": "All regions",
+      "domestic": "Domestic",
+      "foreign": "Foreign",
+      "unknown": "Unknown"
+    },
+    "geoLabel": {
+      "domestic": "domestic",
+      "foreign": "foreign",
+      "unknown": "unknown"
+    },
+    "status": {
+      "verified": "verified",
+      "candidate": "candidate",
+      "conflicting": "conflicting"
+    }
   },
   "pages": {
     "chat": "Semantic search and reports",

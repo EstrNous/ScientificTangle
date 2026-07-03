@@ -8,3 +8,4 @@ export { default as SynonymTransparency } from './SynonymTransparency.jsx';
 export { default as SourceCitation } from './SourceCitation.jsx';
 export { default as ExportPanel } from './ExportPanel.jsx';
 export { default as WarningsPanel } from './WarningsPanel.jsx';
+export { default as RetrievalProgress } from './RetrievalProgress.jsx';

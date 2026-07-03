@@ -1,13 +1,134 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import PageShell from '../components/shared/PageShell.jsx';
+import Loader from '../components/shared/Loader.jsx';
+import {
+  GraphSearchPanel,
+  GraphSearchResults,
+  GraphNodeTypeFilters,
+  KnowledgeGraph,
+  SyncedEntityTable,
+  VerificationInbox,
+} from '../components/graph/index.js';
+import { ALL_GRAPH_NODE_TYPES } from '../components/graph/graphNodeTypes.js';
+import { apiGet } from '../api/client.js';
+import { filterGraphSearchResults } from '../api/mock/graphSearch.js';
+import { filterEntitiesByNodeTypes, filterSubgraphByNodeTypes } from '../api/mock/graphFilters.js';
 
 export default function GraphPage() {
   const { t } = useTranslation();
+  const [loading, setLoading] = useState(true);
+  const [fullGraph, setFullGraph] = useState(null);
+  const [entities, setEntities] = useState([]);
+  const [candidates, setCandidates] = useState([]);
+  const [searchCatalog, setSearchCatalog] = useState([]);
+  const [searchResults, setSearchResults] = useState([]);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [selectedNodeId, setSelectedNodeId] = useState(null);
+  const [activeNodeTypes, setActiveNodeTypes] = useState(ALL_GRAPH_NODE_TYPES);
+  const [graphQuery, setGraphQuery] = useState('');
+
+  useEffect(() => {
+    Promise.all([apiGet('/graph'), apiGet('/lab/search')])
+      .then(([graphData, searchData]) => {
+        setFullGraph(graphData.knowledgeGraph ?? graphData.subgraph);
+        setEntities(graphData.entities ?? []);
+        setCandidates(graphData.candidates ?? []);
+        setSearchCatalog(searchData.items ?? []);
+        setSelectedNodeId(graphData.entities?.[0]?.id ?? null);
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const filteredSubgraph = useMemo(
+    () => filterSubgraphByNodeTypes(fullGraph, activeNodeTypes, graphQuery),
+    [fullGraph, activeNodeTypes, graphQuery],
+  );
+
+  const filteredEntities = useMemo(
+    () => filterEntitiesByNodeTypes(entities, activeNodeTypes, graphQuery),
+    [entities, activeNodeTypes, graphQuery],
+  );
+
+  useEffect(() => {
+    if (!filteredEntities.length) {
+      setSelectedNodeId(null);
+      return;
+    }
+    if (!filteredEntities.some((entity) => entity.id === selectedNodeId)) {
+      setSelectedNodeId(filteredEntities[0].id);
+    }
+  }, [filteredEntities, selectedNodeId]);
+
+  const handleSearch = useCallback(
+    async (filters) => {
+      setGraphQuery(filters.query);
+      setIsSearching(true);
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      const results = filterGraphSearchResults(searchCatalog, filters);
+      setSearchResults(results);
+      setHasSearched(true);
+      setIsSearching(false);
+    },
+    [searchCatalog],
+  );
+
+  const graphStats = useMemo(
+    () => ({
+      nodes: filteredSubgraph.nodes.length,
+      links: filteredSubgraph.links.length,
+      total: fullGraph?.nodes?.length ?? 0,
+    }),
+    [filteredSubgraph, fullGraph],
+  );
+
+  if (loading) return <Loader />;
 
   return (
     <PageShell>
-      <div className="flex h-full items-center justify-center text-sm text-nn-gray dark:text-slate-400">
-        {t('common.placeholder')}
+      <div className="flex h-full min-h-0 flex-col gap-4">
+        <GraphSearchPanel onSearch={handleSearch} isSearching={isSearching} />
+        <GraphNodeTypeFilters activeTypes={activeNodeTypes} onChange={setActiveNodeTypes} />
+
+        <div className="flex min-h-0 flex-1 gap-4">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+            <div className="flex shrink-0 items-center justify-between gap-2">
+              <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
+                {t('graph.knowledgeMap')}
+              </p>
+              <p className="text-xs text-nn-gray dark:text-slate-400">
+                {t('graph.statsFiltered', {
+                  nodes: graphStats.nodes,
+                  links: graphStats.links,
+                  total: graphStats.total,
+                })}
+              </p>
+            </div>
+            <div className="min-h-0 flex-1">
+              <KnowledgeGraph
+                subgraph={filteredSubgraph}
+                selectedNodeId={selectedNodeId}
+                onNodeClick={setSelectedNodeId}
+                emptyMessage={
+                  filteredSubgraph.nodes.length === 0 && fullGraph?.nodes?.length
+                    ? t('graph.emptyFiltered')
+                    : undefined
+                }
+              />
+            </div>
+          </div>
+
+          <aside className="flex w-80 shrink-0 min-h-0 flex-col gap-3 overflow-y-auto pr-1">
+            <SyncedEntityTable
+              entities={filteredEntities}
+              selectedId={selectedNodeId}
+              onSelect={setSelectedNodeId}
+            />
+            <VerificationInbox candidates={candidates} />
+            <GraphSearchResults results={searchResults} hasSearched={hasSearched} />
+          </aside>
+        </div>
       </div>
     </PageShell>
   );

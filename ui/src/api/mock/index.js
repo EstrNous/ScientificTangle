@@ -25,6 +25,9 @@ export async function mockFetch(resource, options = {}) {
   if (resource.startsWith('chat/sessions/') && resource.endsWith('/messages')) {
     return chat.messages;
   }
+  if (resource === 'graph') {
+    return graph;
+  }
   if (resource === 'graph/subgraph') {
     return graph.subgraph;
   }
