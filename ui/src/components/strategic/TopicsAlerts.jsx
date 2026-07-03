@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-function AlertList({ title, items, tone }) {
+function AlertList({ title, items, tone, compact }) {
   const { t } = useTranslation();
 
   if (!items?.length) return null;
@@ -13,37 +13,46 @@ function AlertList({ title, items, tone }) {
   const dotClass = tone === 'gap' ? 'bg-amber-500' : 'bg-nn-gray dark:bg-slate-400';
 
   return (
-    <div className={`rounded-xl border p-3 ${toneClass}`}>
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-900 dark:text-slate-100">
+    <div className={`rounded-xl border p-2.5 ${toneClass}`}>
+      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-gray-900 dark:text-slate-100">
         {title}
       </p>
-      <ul className="space-y-2">
+      <ul className={compact ? 'space-y-1' : 'space-y-2'}>
         {items.map((item) => (
-          <li key={item} className="flex items-start gap-2 text-sm text-gray-800 dark:text-slate-200">
-            <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${dotClass}`} />
+          <li
+            key={item}
+            className={`flex items-start gap-2 text-gray-800 dark:text-slate-200 ${compact ? 'text-xs leading-snug' : 'text-sm'}`}
+          >
+            <span className={`mt-1 h-1.5 w-1.5 shrink-0 rounded-full ${dotClass}`} />
             <span>{item}</span>
           </li>
         ))}
       </ul>
-      <p className="mt-2 text-[11px] text-nn-gray dark:text-slate-400">{t('strategic.alertHint')}</p>
+      <p className={`mt-1.5 text-nn-gray dark:text-slate-400 ${compact ? 'text-[10px] leading-tight' : 'text-[11px]'}`}>
+        {t('strategic.alertHint')}
+      </p>
     </div>
   );
 }
 
-export default function TopicsAlerts({ lowCoverageTopics, highConflictTopics }) {
+export default function TopicsAlerts({ lowCoverageTopics, highConflictTopics, fill = false }) {
   const { t } = useTranslation();
 
   return (
-    <div className="flex flex-col gap-3">
+    <div
+      className={`flex flex-col gap-2 ${fill ? 'scrollbar-thin scrollbar-thumb-nn-border dark:scrollbar-thumb-slate-600 min-h-0 overflow-y-auto' : 'gap-3'}`}
+    >
       <AlertList
         title={t('strategic.lowCoverage')}
         items={lowCoverageTopics}
         tone="gap"
+        compact={fill}
       />
       <AlertList
         title={t('strategic.highConflict')}
         items={highConflictTopics}
         tone="conflict"
+        compact={fill}
       />
     </div>
   );

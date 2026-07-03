@@ -20,7 +20,8 @@
           "title": "Catholyte circulation in nickel electrowinning",
           "author": "Smith J.",
           "date": "2023",
-          "confidence_level": "verified"
+          "confidence_level": "verified",
+          "source_span_id": "span-1"
         }
       ],
       "evidence_table": {

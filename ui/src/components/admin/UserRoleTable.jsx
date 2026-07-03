@@ -21,6 +21,9 @@ export default function UserRoleTable({
       expanded={expanded}
       onToggleExpand={onToggleExpand}
     >
+      <p className="mb-3 text-[11px] leading-relaxed text-nn-gray dark:text-slate-400">
+        {t('admin.usersHint')}
+      </p>
       {!users?.length ? (
         <p className="text-xs text-nn-gray dark:text-slate-400">{t('admin.usersEmpty')}</p>
       ) : (
@@ -37,7 +40,10 @@ export default function UserRoleTable({
                 <th className="border-b border-nn-border px-2 py-2 font-medium dark:border-slate-600">
                   {t('admin.userRole')}
                 </th>
-                <th className="border-b border-nn-border px-2 py-2 font-medium dark:border-slate-600">
+                <th
+                  className="border-b border-nn-border px-2 py-2 font-medium dark:border-slate-600"
+                  title={t('admin.userStatusHint')}
+                >
                   {t('admin.userStatus')}
                 </th>
                 <th className="w-10 border-b border-nn-border px-2 py-2 font-medium dark:border-slate-600">
@@ -71,9 +77,12 @@ export default function UserRoleTable({
                     <button
                       type="button"
                       onClick={() => onActiveToggle?.(user.id)}
-                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
+                      title={
+                        user.active ? t('admin.statusActiveHint') : t('admin.statusInactiveHint')
+                      }
+                      className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${
                         user.active
-                          ? 'bg-nn-blue-light text-nn-blue dark:bg-slate-800 dark:text-sky-300'
+                          ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
                           : 'bg-gray-100 text-gray-600 dark:bg-slate-800 dark:text-slate-400'
                       }`}
                     >

@@ -25,13 +25,16 @@ export default function ServiceMetricsTable({ services, compact = false, fill = 
     <div
       className={`nn-card flex min-h-0 flex-col ${compact ? 'p-3' : 'p-4'} ${fill ? 'flex-1' : ''}`}
     >
-      <div className={`flex shrink-0 items-center justify-between gap-2 ${compact ? 'mb-2' : 'mb-3'}`}>
+      <div className={`flex shrink-0 flex-col gap-1 ${compact ? 'mb-2' : 'mb-3'}`}>
         <p
           className={`font-semibold text-gray-900 dark:text-slate-100 ${
             compact ? 'text-xs' : 'text-sm'
           }`}
         >
           {t('admin.ops.servicesTitle')}
+        </p>
+        <p className="text-[10px] leading-relaxed text-nn-gray dark:text-slate-400">
+          {t('admin.ops.statusHint')}
         </p>
       </div>
       <div className={`min-h-0 ${fill ? 'flex-1 overflow-auto' : 'overflow-x-auto'}`}>
@@ -94,7 +97,8 @@ export default function ServiceMetricsTable({ services, compact = false, fill = 
                 </td>
                 <td className={`border-b border-nn-border dark:border-slate-700 ${cellPad}`}>
                   <span
-                    className={`inline-block rounded-full px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide ${
+                    title={t(`admin.ops.statusDescriptions.${service.status}`)}
+                    className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                       STATUS_STYLES[service.status] ?? STATUS_STYLES.ok
                     }`}
                   >
@@ -105,6 +109,16 @@ export default function ServiceMetricsTable({ services, compact = false, fill = 
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="mt-2 flex shrink-0 flex-wrap gap-x-4 gap-y-1 text-[10px] text-nn-gray dark:text-slate-400">
+        {['ok', 'degraded', 'down'].map((status) => (
+          <span key={status}>
+            <span className="font-medium text-gray-800 dark:text-slate-200">
+              {t(`admin.ops.statuses.${status}`)}:
+            </span>{' '}
+            {t(`admin.ops.statusDescriptions.${status}`)}
+          </span>
+        ))}
       </div>
     </div>
   );

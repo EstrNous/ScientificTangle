@@ -1,0 +1,48 @@
+import { useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import SourceDocumentPanel from './SourceDocumentPanel.jsx';
+
+export default function SourceDocumentModal({ open, source, onClose }) {
+  const { t } = useTranslation();
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [open, onClose]);
+
+  if (!open || !source) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <button
+        type="button"
+        aria-label={t('source.close')}
+        className="absolute inset-0 bg-black/45"
+        onClick={onClose}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        className="relative z-10 flex max-h-[min(88vh,760px)] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-nn-border bg-white shadow-xl dark:border-slate-700 dark:bg-slate-900"
+      >
+        <div className="flex shrink-0 items-center justify-between border-b border-nn-border px-4 py-3 dark:border-slate-700">
+          <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{t('source.title')}</p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md px-2 py-1 text-xs text-nn-gray hover:bg-nn-gray-light dark:text-slate-400 dark:hover:bg-slate-800"
+          >
+            {t('source.close')}
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-auto p-4">
+          <SourceDocumentPanel source={source} />
+        </div>
+      </div>
+    </div>
+  );
+}
