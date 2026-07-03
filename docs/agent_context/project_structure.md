@@ -21,7 +21,7 @@
 - `.cursor/rules/project.mdc` — always-on правила для Cursor.
 - `.github/copilot-instructions.md` — инструкции для GitHub Copilot.
 - `.zed/rules/project.md` — правила для Zed Agent.
-- `docker-compose.yml` — полная локальная среда (сервисы + PostgreSQL + Neo4j + Qdrant + MinIO + Redis + nginx).
+- `docker-compose.yml` — полная локальная среда (сервисы + PostgreSQL + Neo4j + Qdrant + MinIO + Redis + nginx), включая запуск миграций `auth_audit` и подключение внешних RSA-секретов.
 - `docker-compose.prod.yml` — production-оверрайды (ресурсы, логирование, реплики).
 - `Makefile` — цели сборки и управления: up, up-auth, down, build, logs, seed, e2e, eval, test и др.
 - `.env.example` — шаблон переменных окружения для копирования в `.env`.
@@ -74,7 +74,7 @@
 - `infra/neo4j/` — конфигурация Neo4j.
 - `infra/qdrant/` — конфигурация Qdrant.
 - `infra/minio/buckets.txt` — список бакетов MinIO.
-- `infra/nginx/nginx.conf` — reverse proxy (порт 80), lazy DNS для `/auth/` когда auth_audit не запущен.
+- `infra/nginx/nginx.conf` — reverse proxy (порт 80), маршрутизирует `/api/auth/` и JWKS в `auth_audit`, остальные внешние API — в Gateway.
 - `infra/monitoring/prometheus.yml` — конфигурация Prometheus для сбора /metrics со всех сервисов.
 - `infra/docker/Dockerfile.python-service` — multistage Dockerfile для Python-сервисов (deps + runtime, shared).
 - `infra/scripts/` — скрипты эксплуатации (seed, reset-demo — в разработке).

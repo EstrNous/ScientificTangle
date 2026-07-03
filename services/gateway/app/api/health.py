@@ -9,6 +9,7 @@ from app.core.config import settings
 router = APIRouter(tags=["health"])
 
 PEER_SERVICES = {
+    "auth_audit": "http://auth_audit:8001",
     "orchestrator": "http://orchestrator:8002",
     "ingestion": "http://ingestion:8003",
     "knowledge": "http://knowledge:8004",

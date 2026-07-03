@@ -4,7 +4,7 @@ up:
 	docker compose up -d
 
 up-auth:
-	docker compose --profile auth up -d
+	docker compose up -d auth_audit
 
 down:
 	docker compose down -v
