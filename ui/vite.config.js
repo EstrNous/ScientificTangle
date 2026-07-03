@@ -7,7 +7,7 @@ export default defineConfig({
     jsx: 'automatic',
   },
   server: {
-    port: 5173,
+    port: 3000,
     proxy: {
       '/api/auth': {
         target: 'http://localhost:8001',
@@ -19,5 +19,8 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },
+  },
+  preview: {
+    port: 3000,
   },
 });

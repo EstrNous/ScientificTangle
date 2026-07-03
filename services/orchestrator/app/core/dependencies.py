@@ -10,6 +10,7 @@ from infra.postgres.orchestrator_db import (
     get_session,
 )
 from ..service.service import OrchestratorService
+from .config import settings
 
 
 def get_orchestrator_service(

@@ -3,8 +3,15 @@ from typing import Any, Literal, Self
 
 from pydantic import BaseModel, Field, model_validator
 
-from shared.contracts import AccessPolicy, AnswerPayload, EvidenceBundle, EvidenceItem, NormalizedDocument, QueryIR, SourceSpan
-
+from shared.contracts import (
+    AccessPolicy,
+    AnswerPayload,
+    EvidenceBundle,
+    EvidenceItem,
+    NormalizedDocument,
+    QueryIR,
+    SourceSpan,
+)
 
 CONFIRMED_MIN_CONFIDENCE = 0.72
 
@@ -284,6 +291,10 @@ class ModelStatusResponse(BaseModel):
     embedding_query_model: str
     embedding_dimensions: int
     mode: ModelMode
+    cache_backend: str = "memory"
+    cache_available: bool = True
+    cache_mode: str = "memory"
+    cache_degraded_reason: str = ""
 
 
 class SchemaEntry(BaseModel):

@@ -2,6 +2,7 @@ import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
+from app.api.query import collect_index_links, source_span_id
 import httpx
 from fastapi import Response
 from fastapi.testclient import TestClient
@@ -16,7 +17,6 @@ from shared.contracts import (
     RetrievalIndexRequest,
     SourceSpan,
     StorageWriteResult,
-    TableBlock,
 )
 
 COLLECTION_NAME = "st_evidence_v1"
@@ -77,6 +77,8 @@ def test_indexing_returns_explicit_qdrant_mock_counts() -> None:
         headers=["parameter", "value"],
         rows=[["recovery", "82 %"]],
     )
+    
+def test_collect_index_links_from_knowledge_results() -> None:
     document = NormalizedDocument(
         id="document-1",
         source_type="docx",
@@ -92,61 +94,22 @@ def test_indexing_returns_explicit_qdrant_mock_counts() -> None:
                 source_type="text",
             )
         ],
-        table_blocks=[table],
     )
-    knowledge_result = KnowledgeIngestionResponse(
-        document_id=document.id,
-        graph_write=StorageWriteResult(
-            backend="neo4j",
-            document_ids=[document.id],
-            warnings=["neo4j_adapter_pending"],
-        ),
+    request = RetrievalIndexRequest(
+        documents=[document],
+        knowledge_results=[
+            KnowledgeIngestionResponse(
+                document_id=document.id,
+                graph_write=StorageWriteResult(
+                    backend="neo4j",
+                    mode="live",
+                    document_ids=[document.id],
+                    claim_ids=["claim-1", "claim-2"],
+                    graph_entity_ids=["entity-1"],
+                ),
+            )
+        ],
     )
-
-    async def mock_get(url: str, **kwargs):
-        if url.endswith(f"/collections/{COLLECTION_NAME}"):
-            return httpx.Response(
-                200,
-                json={"result": {"status": "green"}},
-                request=httpx.Request("GET", url),
-            )
-        return httpx.Response(404, request=httpx.Request("GET", url))
-
-    async def mock_put(url: str, **kwargs):
-        if f"/collections/{COLLECTION_NAME}" in url:
-            return httpx.Response(
-                200,
-                json={"result": {"status": "completed"}},
-                request=httpx.Request("PUT", url),
-            )
-        return httpx.Response(404, request=httpx.Request("PUT", url))
-
-    async def mock_post(url: str, **kwargs):
-        if url.endswith("/embeddings"):
-            return httpx.Response(
-                200,
-                json={
-                    "embeddings": [{"vector": [0.0] * 256}],
-                    "warnings": [],
-                },
-                request=httpx.Request("POST", url),
-            )
-        return httpx.Response(404, request=httpx.Request("POST", url))
-
-    with TestClient(app) as client:
-        client.app.state.http_client.get = AsyncMock(side_effect=mock_get)
-        client.app.state.http_client.put = AsyncMock(side_effect=mock_put)
-        client.app.state.http_client.post = AsyncMock(side_effect=mock_post)
-        response = client.post(
-            "/v1/documents/index",
-            json={
-                "documents": [document.model_dump(mode="json")],
-                "knowledge_results": [knowledge_result.model_dump(mode="json")],
-            },
-        )
-        assert response.status_code == 200
-        body = response.json()
-        assert body["vector_write"]["backend"] == "qdrant"
-        assert body["vector_write"]["mode"] == "mock"
-        assert body["vector_write"]["records_count"] == 1
-        assert body["vector_write"]["document_ids"] == [document.id]
+    claim_ids, entity_ids = collect_index_links(request)
+    assert claim_ids == ["claim-1", "claim-2"]
+    assert entity_ids == ["entity-1"]

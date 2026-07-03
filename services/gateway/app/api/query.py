@@ -4,12 +4,12 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Header, Query, Request
 from pydantic import BaseModel, Field
 
-from shared.contracts import GraphSubgraph, QueryRunPayload, SearchResultPayload, SourcePayload
+from shared.contracts import GraphSubgraph, QueryRunPayload, SearchResultPayload, SourcePayload,NormalizedDocument, QueryRunResponse
 from shared.security import AuthenticatedPrincipal
 from shared.web import ServiceError, require_principal
 
-from app.core.dependencies import get_gateway_service
-from app.service.service import GatewayService, GatewayServiceError
+from ..core.dependencies import get_gateway_service
+from ..service.service import GatewayService, GatewayServiceError
 
 router = APIRouter(tags=["query"])
 

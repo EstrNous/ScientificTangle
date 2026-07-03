@@ -1,4 +1,4 @@
 export {
   filterSubgraphByNodeTypes,
   filterEntitiesByNodeTypes,
-} from '../../components/graph/graphFilterUtils.js';
+} from '../components/graph/graphFilterUtils.js';

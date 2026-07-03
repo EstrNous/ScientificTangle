@@ -1,10 +1,9 @@
 import pytest
-from fastapi.testclient import TestClient
-
 from app.core.config import settings
 from app.main import app
-from shared.contracts import NormalizedDocument, SourceSpan
+from fastapi.testclient import TestClient
 
+from shared.contracts import NormalizedDocument, SourceSpan
 
 pytestmark = pytest.mark.skipif(
     not settings.yandex_enabled,

@@ -3,7 +3,6 @@ import json
 from types import SimpleNamespace
 
 import httpx
-
 from app.api.query import (
     RetrievalQueryRequest,
     RetrievalSearchRequest,
@@ -25,6 +24,7 @@ from shared.contracts import (
     SearchResultPayload,
     SourcePayload,
     SourceSpan,
+    TableBlock
 )
 
 
@@ -229,7 +229,8 @@ def test_build_points_preserves_source_span_id_access_and_numeric_payload() -> N
         access_policy=AccessPolicy(level="internal", allowed_roles=["researcher"]),
     )
 
-    points = build_points([document], ["claim-1"], ["entity-1"])
+    span_id = source_span_id(span)
+    points = build_points([document], {span_id: ["claim-1"]}, {span_id: ["entity-1"]})
 
     assert len(points) == 1
     payload = points[0]["payload"]
@@ -239,6 +240,34 @@ def test_build_points_preserves_source_span_id_access_and_numeric_payload() -> N
     assert payload["units"] == ["m/s"]
     assert payload["geo_bucket"] == "domestic"
     assert payload["claim_ids"] == ["claim-1"]
+
+
+def test_build_points_indexes_table_rows_as_evidence() -> None:
+    table = TableBlock(
+        id="table-1",
+        document_id="doc-table",
+        page=3,
+        headers=["parameter", "value"],
+        rows=[["flow", "0,4 м/с"], ["recovery", "82 %"]],
+        caption="Test conditions",
+    )
+    document = NormalizedDocument(
+        id="doc-table",
+        source_type="docx",
+        title="Table Doc",
+        content="",
+        table_blocks=[table],
+        access_policy=AccessPolicy(level="internal", allowed_roles=["researcher"]),
+    )
+
+    points = build_points([document], {}, {})
+
+    assert len(points) == 2
+    payloads = [point["payload"] for point in points]
+    assert all(payload["item_type"] == "table_row" for payload in payloads)
+    assert payloads[0]["table_block_id"] == "table-1:row:0"
+    assert payloads[0]["units"] == ["m/s"]
+    assert payloads[1]["units"] == ["%"]
 
 
 def test_payload_allowed_respects_roles_and_admin_bypass() -> None:

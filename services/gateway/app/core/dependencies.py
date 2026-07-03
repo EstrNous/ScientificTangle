@@ -1,8 +1,9 @@
 from typing import Annotated
 
 from fastapi import Depends, Request
-from infra.postgres.chat_ui_db import ChatRepository, get_session
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from infra.postgres.chat_ui_db import ChatRepository, get_session
 
 from ..service.chat_service import ChatService
 from ..service.graph_service import GraphService

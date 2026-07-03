@@ -5,11 +5,10 @@ from uuid import UUID
 import httpx
 from fastapi import UploadFile, status
 
-from infra.postgres.orchestrator_db import IngestionTask, QueryRun
-from infra.postgres.orchestrator_db import IngestionTaskRepository, QueryRunRepository
+from infra.postgres.orchestrator_db import IngestionTaskRepository, QueryRunRepository,IngestionTask, QueryRun
 from shared.contracts import (
-    ApiError,
     AnswerPayload,
+    ApiError,
     EvidenceBundle,
     GraphSubgraph,
     IngestionReport,

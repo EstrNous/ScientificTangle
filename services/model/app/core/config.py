@@ -1,5 +1,6 @@
-from shared.config.settings import ServiceSettings
 from pydantic_settings import SettingsConfigDict
+
+from shared.config.settings import ServiceSettings
 
 
 class Settings(ServiceSettings):
@@ -25,6 +26,10 @@ class Settings(ServiceSettings):
     model_max_output_tokens: int = 2000
     embedding_dimensions: int = 256
     confirmed_confidence_threshold: float = 0.72
+    model_cache_backend: str = "redis"
+    model_cache_ttl_seconds: int = 86400
+    model_embedding_cache_ttl_seconds: int = 604800
+    model_cache_connect_timeout_seconds: float = 0.2
     model_config = SettingsConfigDict(env_prefix="", env_file=".env", extra="ignore")
 
     @property

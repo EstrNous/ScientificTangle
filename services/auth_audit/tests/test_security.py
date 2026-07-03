@@ -4,8 +4,8 @@ from uuid import uuid4
 import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric import rsa
-
 from infra.postgres.auth_audit_db import Role
+
 from app.service.security import (
     InvalidAccessTokenError,
     KeyStore,

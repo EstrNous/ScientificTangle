@@ -19,8 +19,10 @@ from shared.contracts import (
     SourcePayload,
     SourceSpan,
     StorageWriteResult,
+    TableBlock,
 )
 
+from shared.utils.source_span import compute_source_span_id as source_span_id
 from ..core.config import settings
 from ..storage import RetrievalStorageAdapter, StorageAdapterNotReady, access_allowed
 
@@ -56,6 +58,27 @@ class RetrievalSearchRequest(BaseModel):
 
 class SourceResolveRequest(BaseModel):
     access_roles: list[str] = Field(default_factory=list)
+class IndexDocumentsRequest(RetrievalIndexRequest):
+    claim_ids: list[str] = Field(default_factory=list)
+    graph_entity_ids: list[str] = Field(default_factory=list)
+
+
+def collect_index_links(request: RetrievalIndexRequest) -> tuple[list[str], list[str]]:
+    claim_ids = list(getattr(request, "claim_ids", []) or [])
+    graph_entity_ids = list(getattr(request, "graph_entity_ids", []) or [])
+    for result in request.knowledge_results:
+        claim_ids.extend(result.graph_write.claim_ids)
+        graph_entity_ids.extend(result.graph_write.graph_entity_ids)
+    return list(dict.fromkeys(item for item in claim_ids if item)), list(
+        dict.fromkeys(item for item in graph_entity_ids if item)
+    )
+
+
+class IndexDocumentsResponse(BaseModel):
+    collection: str
+    documents_count: int
+    points_count: int
+    warnings: list[str] = Field(default_factory=list)
 
 
 class BootstrapIndexResponse(BaseModel):
@@ -97,21 +120,33 @@ async def reset_index(app_request: Request) -> ResetIndexResponse:
     )
 
 
+ENTITY_ARTIFACT_KINDS = {"entity", "alias", "material", "substance", "process", "equipment", "property", "geography", "expert", "source"}
+CLAIM_ARTIFACT_KINDS = {"claim", "measurement", "relation", "recommendation", "conclusion", "date"}
+
+
 def knowledge_index_metadata(
     knowledge_results: list[KnowledgeIngestionResponse],
-) -> tuple[list[str], list[str]]:
-    claim_ids: list[str] = []
-    graph_entity_ids: list[str] = []
+) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
+    claim_ids_by_span: dict[str, list[str]] = {}
+    graph_entity_ids_by_span: dict[str, list[str]] = {}
     for result in knowledge_results:
         extraction = result.extraction if isinstance(result.extraction, dict) else {}
         for artifact in extraction.get("confirmed", []):
-            if isinstance(artifact, dict) and artifact.get("id"):
-                claim_ids.append(str(artifact["id"]))
-        graph_entity_ids.extend(
-            str(document_id)
-            for document_id in result.graph_write.document_ids
-        )
-    return claim_ids, graph_entity_ids
+            if not isinstance(artifact, dict) or not artifact.get("id"):
+                continue
+            artifact_id = str(artifact["id"])
+            kind = str(artifact.get("kind", ""))
+            source_span_ids = [str(span_id) for span_id in artifact.get("source_span_ids", []) if span_id]
+            for span_id in source_span_ids:
+                if kind in ENTITY_ARTIFACT_KINDS:
+                    graph_entity_ids_by_span.setdefault(span_id, []).append(artifact_id)
+                if kind in CLAIM_ARTIFACT_KINDS:
+                    claim_ids_by_span.setdefault(span_id, []).append(artifact_id)
+    return dedupe_mapping(claim_ids_by_span), dedupe_mapping(graph_entity_ids_by_span)
+
+
+def dedupe_mapping(mapping: dict[str, list[str]]) -> dict[str, list[str]]:
+    return {key: list(dict.fromkeys(value)) for key, value in mapping.items()}
 
 
 @router.post("/documents/index", response_model=RetrievalIndexResponse)
@@ -121,16 +156,19 @@ async def index_documents(
 ) -> RetrievalIndexResponse:
     client: httpx.AsyncClient = app_request.app.state.http_client
     bootstrap = await ensure_collection(client)
-    claim_ids, graph_entity_ids = knowledge_index_metadata(request.knowledge_results)
+    claim_ids, graph_entity_ids = collect_index_links(request)
     points = build_points(request.documents, claim_ids, graph_entity_ids)
     warnings = [*bootstrap.warnings]
+    document_ids = [document.id for document in request.documents]
     if not points:
         return RetrievalIndexResponse(
             vector_write=StorageWriteResult(
                 backend="qdrant",
-                document_ids=[],
+                mode="live",
+                document_ids=document_ids,
                 records_count=0,
-                warnings=warnings,
+                claim_ids=claim_ids,
+                graph_entity_ids=graph_entity_ids,
             ),
             warnings=warnings,
         )
@@ -153,7 +191,8 @@ async def index_documents(
             backend="qdrant",
             document_ids=[document.id for document in request.documents],
             records_count=len(points),
-            warnings=warnings,
+            claim_ids=claim_ids,
+            graph_entity_ids=graph_entity_ids,
         ),
         warnings=warnings,
     )
@@ -289,22 +328,54 @@ def payload_indexes() -> dict[str, str]:
 
 def build_points(
     documents: list[NormalizedDocument],
-    claim_ids: list[str],
-    graph_entity_ids: list[str],
+    claim_ids_by_span: dict[str, list[str]],
+    graph_entity_ids_by_span: dict[str, list[str]],
 ) -> list[dict[str, Any]]:
     points = []
+    seen_ids: set[str] = set()
     for document in documents:
-        for span in document.source_spans:
+        for span in [*document.source_spans, *table_row_spans(document)]:
             span_id = source_span_id(span)
+            if span_id in seen_ids:
+                continue
+            seen_ids.add(span_id)
             payload = build_payload(
                 document,
                 span,
                 span_id,
-                claim_ids,
-                graph_entity_ids,
+                claim_ids_by_span.get(span_id, []),
+                graph_entity_ids_by_span.get(span_id, []),
             )
             points.append({"id": point_id(span_id), "payload": payload})
     return points
+
+
+def table_row_spans(document: NormalizedDocument) -> list[SourceSpan]:
+    spans = []
+    for table in document.table_blocks:
+        for row_index, row in enumerate(table.rows):
+            text = table_row_text(table, row)
+            spans.append(
+                SourceSpan(
+                    document_id=table.document_id,
+                    page=table.page,
+                    start_offset=row_index,
+                    end_offset=row_index + len(text),
+                    text=text,
+                    table_block_id=f"{table.id}:row:{row_index}",
+                    source_type="table",
+                )
+            )
+    return spans
+
+
+def table_row_text(table: TableBlock, row: list[str]) -> str:
+    pairs = []
+    for index, value in enumerate(row):
+        header = table.headers[index] if index < len(table.headers) else f"col_{index + 1}"
+        pairs.append(f"{header}: {value}")
+    prefix = f"{table.caption}. " if table.caption else ""
+    return prefix + "; ".join(pairs)
 
 
 def build_payload(

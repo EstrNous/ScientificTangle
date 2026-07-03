@@ -4,11 +4,11 @@ from io import BytesIO
 from pathlib import Path
 
 import fitz
+from app.parsers import ParserRegistry, SourceContent
 from docx import Document
 from pptx import Presentation
 from pptx.util import Inches
 
-from app.parsers import ParserRegistry, SourceContent
 from shared.contracts import AccessPolicy
 
 

@@ -16,30 +16,33 @@ class FakeQueryRepository:
         self.transitions = []
 
     async def create(self, user_id, question, request_id):
-        now = datetime.now(UTC)
-        self.run = QueryRun(
-            id=uuid4(),
-            user_id=user_id,
-            status=QueryRunStatus.PENDING.value,
-            raw_question=question,
-            request_id=request_id,
-            warnings=[],
-            graph_subgraph={},
-            created_at=now,
-            updated_at=now,
-        )
-        self.transitions.append("pending")
-        return self.run
+            now = datetime.now(UTC)
+            self.run = QueryRun(
+                id=uuid4(),
+                user_id=user_id,
+                status=QueryRunStatus.PENDING.value,
+                raw_question=question,
+                request_id=request_id,
+                warnings=[],
+                graph_subgraph={},
+                created_at=now,
+                updated_at=now,
+            )
+            self.transitions.append("pending")
+            return self.run
 
     async def get(self, run_id):
         return self.run if self.run and self.run.id == run_id else None
 
+    async def set_report(self, task, report):
+        return task
+      
     async def mark_processing(self, run):
         run.status = QueryRunStatus.PROCESSING.value
         self.transitions.append("processing")
         return run
-
-    async def mark_completed(
+      
+      async def mark_completed(
         self,
         run,
         query_ir,
@@ -60,6 +63,35 @@ class FakeQueryRepository:
         run.latency_ms = latency_ms
         self.transitions.append("completed")
         return run
+      
+    async def create_query_run(self, user_id, raw_query: str) -> QueryRun:
+        now = datetime.now(UTC)
+        return QueryRun(
+            id=uuid4(),
+            user_id=user_id,
+            status="processing",
+            raw_query=raw_query,
+            created_at=now,
+            updated_at=now,
+        )
+
+    async def complete_query_run(self, run, query_ir, retrieval_trace, answer_payload, latency_ms):
+        run.status = "completed"
+        run.query_ir = query_ir
+        run.retrieval_trace = retrieval_trace
+        run.answer_payload = answer_payload
+        run.latency_ms = latency_ms
+        return run
+
+    async def fail_query_run(self, run, message, latency_ms):
+        run.status = "failed"
+        run.error_message = message
+        run.latency_ms = latency_ms
+        return run
+
+    async def record_audit_event(self, user_id, action, resource_type, resource_id, details, request_id):
+        return None
+
 
     async def mark_failed(self, run, code, message, latency_ms):
         run.status = QueryRunStatus.FAILED.value

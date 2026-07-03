@@ -3,8 +3,7 @@ import { ensureAuth, authHeaders } from './auth.js';
 import { mockFetch } from './mock/index.js';
 
 const useMock = import.meta.env.VITE_USE_MOCK !== 'false';
-const baseURL =
-  import.meta.env.VITE_API_URL || (import.meta.env.DEV ? '/api' : 'http://localhost:8000');
+const baseURL = import.meta.env.VITE_API_URL || '/api';
 
 const http = axios.create({ baseURL, timeout: 120000 });
 

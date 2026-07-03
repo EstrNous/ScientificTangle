@@ -4,14 +4,15 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
 
-from shared.contracts import GraphSubgraph, QueryRunPayload, SearchResultPayload, SourcePayload
+from shared.contracts import GraphSubgraph, QueryRunPayload, SearchResultPayload, SourcePayload,NormalizedDocument, QueryRunResponse
+from shared.contracts import 
 from shared.security import AuthenticatedPrincipal
 from shared.web import ServiceError, require_principal
 
 from ..core.dependencies import get_orchestrator_service
 from ..service.service import OrchestratorService, OrchestratorServiceError
 
-router = APIRouter(tags=["query"])
+router = APIRouter(prefix="/query", tags=["query"])
 
 
 class QueryRunRequest(BaseModel):
