@@ -1,0 +1,31 @@
+{
+  "coverage": {
+    "materials": ["Никель", "Медь", "Шахтная вода"],
+    "processes": ["Электроэкстракция", "Обессоливание", "Флотация"],
+    "matrix": [
+      [12, 3, 0],
+      [5, 8, 2],
+      [1, 6, 4]
+    ]
+  },
+  "searchResults": {
+    "items": [
+      {
+        "id": "r1",
+        "title": "Nickel electrowinning flow optimization",
+        "material": "Никель",
+        "process": "Электроэкстракция",
+        "year": 2024,
+        "geo": "зарубежная"
+      }
+    ]
+  },
+  "contradictions": [
+    {
+      "process": "Электроэкстракция никеля",
+      "claim_a": "Оптимальный поток 2 м/ч",
+      "claim_b": "Оптимальный поток 4 м/ч",
+      "risk": "high"
+    }
+  ]
+}

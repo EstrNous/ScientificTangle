@@ -1,0 +1,20 @@
+{
+  "events": [
+    {
+      "id": "a1",
+      "user": "researcher@lab.local",
+      "role": "researcher",
+      "action": "query_created",
+      "object": "Электроэкстракция никеля",
+      "timestamp": "2026-07-03T09:15:00Z"
+    },
+    {
+      "id": "a2",
+      "user": "director@corp.local",
+      "role": "director",
+      "action": "document_exported",
+      "object": "report_session_s1.md",
+      "timestamp": "2026-07-03T10:00:00Z"
+    }
+  ]
+}

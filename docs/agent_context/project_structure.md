@@ -73,10 +73,33 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 
 ### UI (`ui/`)
 
-- `ui/package.json` — заготовка для фронтенд-приложения Next.js.
-- `ui/Dockerfile` — nginx-skeleton на порту 3000 для Sync 2.
-- `ui/public/index.html` — стартовая страница skeleton.
+Фронтенд-приложение Vite + React. Работает автономно на mock API (`VITE_USE_MOCK=true`).
+
+- `ui/package.json` — зависимости и скрипты (`dev`, `build`, `preview`, `lint`).
+- `ui/vite.config.js` — Vite, proxy `/api` → Gateway.
+- `ui/tailwind.config.js`, `ui/postcss.config.js` — Tailwind CSS.
+- `ui/index.html` — точка входа HTML.
+- `ui/Dockerfile` — nginx-skeleton на порту 3000.
 - `ui/nginx.conf` — конфигурация nginx внутри UI-контейнера.
+- `ui/public/` — статические файлы для контейнера.
+- `ui/.env.local.example` — шаблон переменных UI.
+- `ui/src/main.jsx` — bootstrap React.
+- `ui/src/app/` — `App.jsx`, `routes.jsx` (маршруты и RBAC).
+- `ui/src/layout/` — `DashboardShell`, `TopBar`, `TabNav`.
+- `ui/src/pages/` — ChatPage, GraphPage, StrategicPage, LabPage, AdminPage, UploadPage, SearchPage.
+- `ui/src/components/shared/` — Loader, ErrorBoundary, RoleSwitcher, NotificationBell, PageShell, ProfileButton, DarkModeToggle.
+- `ui/src/components/chat/` — чат, ответы, evidence, export.
+- `ui/src/components/graph/` — граф, таблица сущностей, ingestion, dropzone.
+- `ui/src/components/strategic/` — ManagerDashboard, EvaluationDashboard.
+- `ui/src/components/lab/` — CoverageMatrix, GapConflictView.
+- `ui/src/components/admin/` — SourceViewer, AuditLogTable.
+- `ui/src/stores/` — authStore, localeStore, notificationStore, themeStore (Zustand).
+- `ui/src/i18n/` — ru/en, synonyms.json.
+- `ui/src/api/client.js` — mock/real переключатель.
+- `ui/src/api/contracts/` — имена DTO (зеркало shared/contracts).
+- `ui/src/api/mock/` — JSON demo-данные для экрана чата.
+- `ui/src/hooks/` — useRoleAccess.
+- `ui/src/utils/reportExport.js` — экспорт MD/JSON/PDF.
 
 ### Инфраструктура (`infra/`)
 

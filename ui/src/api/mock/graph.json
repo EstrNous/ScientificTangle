@@ -1,0 +1,23 @@
+{
+  "subgraph": {
+    "nodes": [
+      { "id": "n1", "label": "Никель", "type": "Material" },
+      { "id": "n2", "label": "Электроэкстракция", "type": "Process" },
+      { "id": "n3", "label": "Католитовая ячейка", "type": "Equipment" },
+      { "id": "n4", "label": "Катодный никель", "type": "Material" }
+    ],
+    "links": [
+      { "source": "n1", "target": "n2", "type": "uses_material" },
+      { "source": "n2", "target": "n3", "type": "uses_equipment" },
+      { "source": "n2", "target": "n4", "type": "produces_output" }
+    ]
+  },
+  "entities": [
+    { "id": "n1", "name": "Никель", "type": "Material", "status": "verified" },
+    { "id": "n2", "name": "Электроэкстракция", "type": "Process", "status": "verified" },
+    { "id": "n3", "name": "Католитовая ячейка", "type": "Equipment", "status": "candidate" }
+  ],
+  "candidates": [
+    { "id": "c1", "name": "Циркуляционный насос", "type": "Equipment", "confidence": 0.65 }
+  ]
+}

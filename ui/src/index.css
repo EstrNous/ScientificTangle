@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+  @apply bg-white text-gray-900 dark:bg-slate-950 dark:text-slate-100;
+}
+
+@layer components {
+  .nn-btn-ghost {
+    @apply inline-flex items-center gap-1 rounded-full border border-nn-blue bg-white px-4 py-1.5 text-sm font-medium text-nn-blue transition-colors hover:bg-nn-blue-light;
+    @apply dark:border-nn-blue dark:bg-slate-900 dark:text-nn-blue dark:hover:bg-slate-800;
+  }
+
+  .nn-card {
+    @apply rounded-xl border border-nn-border bg-white shadow-card;
+    @apply dark:border-slate-700 dark:bg-slate-900 dark:shadow-none;
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "app": {
+    "title": "Scientific Tangle"
+  },
+  "nav": {
+    "chat": "AI R&D Assistant",
+    "graph": "Knowledge Graph",
+    "strategic": "Strategic Analytics",
+    "lab": "R&D Lab",
+    "admin": "Administration"
+  },
+  "roles": {
+    "director": "Director",
+    "researcher": "Researcher",
+    "analyst": "Analyst",
+    "admin": "Administrator",
+    "external_partner": "External Partner"
+  },
+  "common": {
+    "loading": "Loading…",
+    "accessDenied": "Access denied",
+    "placeholder": "Section under development",
+    "home": "Home",
+    "searchPlaceholder": "Search",
+    "team": "Team",
+    "roleSwitcher": "Role",
+    "profile": "Profile"
+  },
+  "chat": {
+    "history": "History",
+    "export": "Export",
+    "downloadMd": "Download MD",
+    "downloadJson": "Download JSON",
+    "downloadPdf": "Download PDF",
+    "downloadingPdf": "PDF…",
+    "deleteSession": "Delete query",
+    "scrollHint": "↕ scroll the list"
+  },
+  "pages": {
+    "chat": "Semantic search and reports",
+    "graph": "Knowledge structure and data upload",
+    "strategic": "Management analytics",
+    "lab": "Deep dependency analysis",
+    "admin": "Security and audit",
+    "upload": "Document upload",
+    "search": "Filtered search"
+  }
+}

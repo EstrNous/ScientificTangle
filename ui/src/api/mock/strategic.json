@@ -1,0 +1,38 @@
+{
+  "manager": {
+    "directions": [
+      { "id": "hydro", "name": "Гидрометаллургия", "coverage": 0.72 },
+      { "id": "pyro", "name": "Пирометаллургия", "coverage": 0.58 },
+      { "id": "eco", "name": "Экология", "coverage": 0.45 },
+      { "id": "waste", "name": "Переработка отходов", "coverage": 0.51 },
+      { "id": "water", "name": "Водоочистка", "coverage": 0.63 },
+      { "id": "ew", "name": "Электроэкстракция", "coverage": 0.78 },
+      { "id": "gas", "name": "Газоочистка", "coverage": 0.41 }
+    ],
+    "totals": {
+      "documents": 1240,
+      "claims": 5680,
+      "verified_claims": 4120,
+      "candidates": 890,
+      "gaps": 34,
+      "conflicts": 12
+    },
+    "low_coverage_topics": ["Кучное выщелачивание в холодном климате"],
+    "high_conflict_topics": ["Скорость потока католита"]
+  },
+  "evaluation": {
+    "questions": [
+      {
+        "id": "q1",
+        "text": "Обессоливание воды для обогатительной фабрики",
+        "expected_sources": 5,
+        "actual_sources": 4,
+        "missing_evidence": 1,
+        "unsupported_claims": 0,
+        "numeric_correctness": 0.9,
+        "citation_coverage": 0.85,
+        "latency_ms": 3200
+      }
+    ]
+  }
+}

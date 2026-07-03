@@ -1,0 +1,48 @@
+{
+  "app": {
+    "title": "Научный Клубок"
+  },
+  "nav": {
+    "chat": "AI R&D Ассистент",
+    "graph": "Граф знаний",
+    "strategic": "Аналитика",
+    "lab": "R&D Лаборатория",
+    "admin": "Администрирование"
+  },
+  "roles": {
+    "director": "Директор",
+    "researcher": "Научный сотрудник",
+    "analyst": "Аналитик",
+    "admin": "Администратор",
+    "external_partner": "Внешний партнёр"
+  },
+  "common": {
+    "loading": "Загрузка…",
+    "accessDenied": "Нет доступа к этой странице",
+    "placeholder": "Раздел в разработке",
+    "home": "Главная",
+    "searchPlaceholder": "Поиск",
+    "team": "Команда",
+    "roleSwitcher": "Роль",
+    "profile": "Профиль"
+  },
+  "chat": {
+    "history": "История",
+    "export": "Экспорт",
+    "downloadMd": "Скачать MD",
+    "downloadJson": "Скачать JSON",
+    "downloadPdf": "Скачать PDF",
+    "downloadingPdf": "PDF…",
+    "deleteSession": "Удалить запрос",
+    "scrollHint": "↕ прокрутка списка"
+  },
+  "pages": {
+    "chat": "Семантический поиск и отчёты",
+    "graph": "Структура знаний и загрузка данных",
+    "strategic": "Управленческая аналитика",
+    "lab": "Глубокий анализ зависимостей",
+    "admin": "Безопасность и аудит",
+    "upload": "Загрузка документов",
+    "search": "Поиск с фильтрами"
+  }
+}
