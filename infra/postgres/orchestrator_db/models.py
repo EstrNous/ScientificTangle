@@ -6,14 +6,7 @@ from sqlalchemy import DateTime, Index, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PostgreSQLUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from shared.contracts import IngestionTaskStatus
-
-
-class QueryRunStatus(StrEnum):
-    PENDING = "pending"
-    PROCESSING = "processing"
-    COMPLETED = "completed"
-    FAILED = "failed"
+from shared.contracts import IngestionTaskStatus, QueryRunStatus
 
 
 class ExportJobStatus(StrEnum):
@@ -72,8 +65,11 @@ class QueryRun(Base):
     id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4)
     user_id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default=QueryRunStatus.PENDING.value)
-    raw_query: Mapped[str | None] = mapped_column(Text)
+    raw_question: Mapped[str] = mapped_column(Text, nullable=False)
     query_ir: Mapped[dict | None] = mapped_column(JSONB)
+    evidence_bundle: Mapped[dict | None] = mapped_column(JSONB)
+    answer: Mapped[dict | None] = mapped_column(JSONB)
+    graph_subgraph: Mapped[dict | None] = mapped_column(JSONB)
     retrieval_trace: Mapped[dict | None] = mapped_column(JSONB)
     answer_payload: Mapped[dict | None] = mapped_column(JSONB)
     latency_ms: Mapped[int | None] = mapped_column(Integer)
@@ -82,7 +78,10 @@ class QueryRun(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
     )
 
 

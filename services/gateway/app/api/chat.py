@@ -2,12 +2,13 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Request, status
+
 from infra.postgres.chat_ui_db.schemas import ChatMessageCreate, ChatSessionCreate
+from shared.security import AuthenticatedPrincipal
+from shared.web import ServiceError, require_principal
 
 from ..core.dependencies import get_chat_service
 from ..service.chat_service import ChatService, ChatServiceError
-from shared.security import AuthenticatedPrincipal
-from shared.web import ServiceError, require_principal
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 

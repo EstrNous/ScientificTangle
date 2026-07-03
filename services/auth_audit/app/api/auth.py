@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, Request, Response, status
 from typing import Annotated
 
+from fastapi import APIRouter, Depends, Request, Response, status
 from infra.postgres.auth_audit_db import (
     IdentityConflictError,
     LoginRequest,
@@ -9,18 +9,19 @@ from infra.postgres.auth_audit_db import (
     ProfileUpdateRequest,
     RegisterRequest,
     TokenResponse,
+    User,
     UserResponse,
 )
+from shared.web import ServiceError
+
 from ..core.config import Settings
 from ..core.dependencies import (
     get_auth_service,
     get_current_user,
     get_request_context,
 )
-from infra.postgres.auth_audit_db import User
 from ..service.service import AuthenticationError, AuthService, RequestContext
 from .cookies import clear_refresh_cookie, set_refresh_cookie, token_response
-from .errors import ConflictError, ForbiddenError, UnauthorizedError
 
 router = APIRouter()
 
@@ -33,10 +34,14 @@ def validate_origin(request: Request) -> None:
     origin = request.headers.get("origin")
     settings: Settings = request.app.state.settings
     if origin is not None and origin not in settings.origin_allowlist:
-        raise ForbiddenError
+        raise ServiceError(403, "forbidden", "Access is denied")
 
 
-@router.post("/api/auth/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/api/auth/register",
+    response_model=TokenResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 async def register(
     payload: RegisterRequest,
     request: Request,
@@ -50,7 +55,7 @@ async def register(
             payload.username, str(payload.email), payload.password, context
         )
     except IdentityConflictError as error:
-        raise ConflictError from error
+        raise ServiceError(409, "identity_already_exists", "Identity already exists") from error
     set_refresh_cookie(response, request.app.state.settings, result)
     return token_response(result)
 
@@ -67,7 +72,7 @@ async def login(
     try:
         result = await service.login(payload.identifier, payload.password, context)
     except AuthenticationError as error:
-        raise UnauthorizedError from error
+        raise ServiceError(401, "unauthorized", "Authentication is required") from error
     set_refresh_cookie(response, request.app.state.settings, result)
     return token_response(result)
 
@@ -83,12 +88,12 @@ async def refresh(
     settings: Settings = request.app.state.settings
     refresh_token = request.cookies.get(settings.refresh_cookie_name)
     if refresh_token is None:
-        raise UnauthorizedError
+        raise ServiceError(401, "unauthorized", "Authentication is required")
     try:
         result = await service.refresh(refresh_token, context)
     except AuthenticationError as error:
         clear_refresh_cookie(response, settings)
-        raise UnauthorizedError from error
+        raise ServiceError(401, "unauthorized", "Authentication is required") from error
     set_refresh_cookie(response, settings, result)
     return token_response(result)
 
@@ -131,9 +136,9 @@ async def update_me(
             context,
         )
     except AuthenticationError as error:
-        raise UnauthorizedError from error
+        raise ServiceError(401, "unauthorized", "Authentication is required") from error
     except IdentityConflictError as error:
-        raise ConflictError from error
+        raise ServiceError(409, "identity_already_exists", "Identity already exists") from error
     return UserResponse.model_validate(updated)
 
 
@@ -152,7 +157,7 @@ async def change_password(
             user, payload.current_password, payload.new_password, context
         )
     except AuthenticationError as error:
-        raise UnauthorizedError from error
+        raise ServiceError(401, "unauthorized", "Authentication is required") from error
     set_refresh_cookie(response, request.app.state.settings, result)
     return token_response(result)
 
@@ -183,5 +188,5 @@ async def deactivate_me(
     try:
         await service.deactivate(user, payload.current_password, context)
     except AuthenticationError as error:
-        raise UnauthorizedError from error
+        raise ServiceError(401, "unauthorized", "Authentication is required") from error
     clear_refresh_cookie(response, request.app.state.settings)

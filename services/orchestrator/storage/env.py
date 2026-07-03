@@ -2,10 +2,10 @@ import asyncio
 from logging.config import fileConfig
 
 from alembic import context
+from app.core.config import Settings
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
-from app.core.config import Settings
 from infra.postgres.orchestrator_db import Base
 
 config = context.config

@@ -1,5 +1,6 @@
-from shared.config.settings import ServiceSettings
 from pydantic_settings import SettingsConfigDict
+
+from shared.config.settings import ServiceSettings
 
 
 class Settings(ServiceSettings):
@@ -13,3 +14,6 @@ class Settings(ServiceSettings):
     auth_clock_skew_seconds: int = 30
     upload_limit_bytes: int = 100 * 1024 * 1024
     model_config = SettingsConfigDict(env_prefix="", env_file=".env", extra="ignore")
+
+
+settings = Settings()

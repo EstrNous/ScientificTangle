@@ -7,10 +7,17 @@ from shared.contracts import ApiError, IngestionTaskPayload
 
 
 class GatewayServiceError(Exception):
-    def __init__(self, status_code: int, code: str, message: str) -> None:
+    def __init__(
+        self,
+        status_code: int,
+        code: str,
+        message: str,
+        query_run_id: UUID | None = None,
+    ) -> None:
         self.status_code = status_code
         self.code = code
         self.message = message
+        self.query_run_id = query_run_id
         super().__init__(message)
 
 
@@ -78,12 +85,66 @@ class GatewayService:
         )
         if response.status_code != status.HTTP_200_OK:
             raise self._downstream_error(response)
-        try:
-            return response.json()
-        except ValueError as error:
-            raise GatewayServiceError(
-                502, "invalid_orchestrator_response", "Orchestrator returned invalid data"
-            ) from error
+        return self._json_payload(response)
+
+    async def get_query_run(
+        self,
+        run_id: UUID,
+        authorization: str,
+        request_id: str,
+    ) -> dict:
+        return await self._get_json(f"/runs/{run_id}", authorization, request_id)
+
+    async def get_source(
+        self,
+        source_span_id: str,
+        authorization: str,
+        request_id: str,
+    ) -> dict:
+        return await self._get_json(
+            f"/source/{source_span_id}", authorization, request_id
+        )
+
+    async def get_subgraph(
+        self,
+        run_id: UUID,
+        authorization: str,
+        request_id: str,
+    ) -> dict:
+        return await self._get_json(
+            "/graph/subgraph",
+            authorization,
+            request_id,
+            params={"run_id": str(run_id)},
+        )
+
+    async def search(
+        self,
+        params: list[tuple[str, str]],
+        authorization: str,
+        request_id: str,
+    ) -> dict:
+        return await self._get_json(
+            "/search", authorization, request_id, params=params
+        )
+
+    async def _get_json(
+        self,
+        path: str,
+        authorization: str,
+        request_id: str,
+        params: dict | list[tuple[str, str]] | None = None,
+    ) -> dict:
+        response = await self._request(
+            "GET",
+            path,
+            authorization,
+            request_id,
+            params=params,
+        )
+        if response.status_code != status.HTTP_200_OK:
+            raise self._downstream_error(response)
+        return self._json_payload(response)
 
     async def _measure_uploads(self, files: list[UploadFile]) -> None:
         total_size = 0
@@ -108,6 +169,7 @@ class GatewayService:
         request_id: str,
         files: list[tuple[str, tuple[str | None, object, str]]] | None = None,
         json_body: dict | None = None,
+        params: dict | list[tuple[str, str]] | None = None,
     ) -> httpx.Response:
         try:
             return await self._client.request(
@@ -116,6 +178,7 @@ class GatewayService:
                 files=files,
                 json=json_body,
                 headers={"Authorization": authorization, "X-Request-ID": request_id},
+                params=params,
             )
         except httpx.TimeoutException as error:
             raise GatewayServiceError(504, "orchestrator_timeout", "Orchestrator request timed out") from error
@@ -127,7 +190,12 @@ class GatewayService:
         status_code = response.status_code if 400 <= response.status_code < 600 else 502
         try:
             payload = ApiError.model_validate(response.json())
-            return GatewayServiceError(status_code, payload.code, payload.message)
+            return GatewayServiceError(
+                status_code,
+                payload.code,
+                payload.message,
+                payload.query_run_id,
+            )
         except (ValueError, TypeError):
             return GatewayServiceError(
                 status_code, "downstream_error", "Downstream service request failed"
@@ -140,4 +208,18 @@ class GatewayService:
         except ValueError as error:
             raise GatewayServiceError(
                 502, "invalid_orchestrator_response", "Orchestrator returned invalid data"
+            ) from error
+
+    @staticmethod
+    def _json_payload(response: httpx.Response) -> dict:
+        try:
+            payload = response.json()
+            if not isinstance(payload, dict):
+                raise ValueError
+            return payload
+        except ValueError as error:
+            raise GatewayServiceError(
+                502,
+                "invalid_orchestrator_response",
+                "Orchestrator returned invalid data",
             ) from error

@@ -1,11 +1,11 @@
-from fastapi import APIRouter, Request, Response, status
-from fastapi.responses import JSONResponse
-from sqlalchemy import text
-
-from infra.postgres.auth_audit_db import HealthResponse
-from ..service.security import KeyStore
 from typing import Any, cast
 
+from fastapi import APIRouter, Request, Response
+from fastapi.responses import JSONResponse
+from infra.postgres.auth_audit_db import HealthResponse
+from sqlalchemy import text
+
+from ..service.security import KeyStore
 
 router = APIRouter()
 

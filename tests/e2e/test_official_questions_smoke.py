@@ -1,13 +1,4 @@
-import os
-
-import pytest
-
 from eval.run_eval import build_report
-
-pytestmark = pytest.mark.skipif(
-    os.getenv("RUN_E2E") != "1",
-    reason="Set RUN_E2E=1 for eval smoke",
-)
 
 
 def test_build_report_has_core_metrics() -> None:

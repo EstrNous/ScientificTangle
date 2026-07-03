@@ -1,3 +1,4 @@
+# ruff: noqa: E402
 import asyncio
 import sys
 from dataclasses import dataclass
@@ -18,17 +19,19 @@ for import_root in (SERVICE_DIR, REPOSITORY_ROOT):
     if import_root_text not in sys.path:
         sys.path.insert(0, import_root_text)
 
-from app.api.factory import create_app
-from app.core.config import Settings
-from infra.postgres.auth_audit_db import Role, User
 from infra.postgres.auth_audit_db import (
     AuthRepository,
     IdentityConflictError,
     NewUserData,
     RefreshSessionData,
+    Role,
     RotationResult,
     RotationStatus,
+    User,
 )
+
+from app.api.factory import create_app
+from app.core.config import Settings
 from app.service.security import PasswordManager
 
 

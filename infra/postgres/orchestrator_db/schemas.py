@@ -1,7 +1,7 @@
 from typing import Any
 from uuid import UUID
-from pydantic import BaseModel, ConfigDict, Field
-from .models import IngestionStatus, QueryRunStatus
+from pydantic import BaseModel, ConfigDict
+from shared.contracts import IngestionTaskStatus, QueryRunStatus
 
 # Модели для IngestionTask
 class IngestionTaskCreate(BaseModel):
@@ -11,7 +11,7 @@ class IngestionTaskResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
     user_id: UUID
-    status: IngestionStatus
+    status: IngestionTaskStatus
     report: dict[str, Any] | None = None
 
 # Модели для QueryRun
@@ -29,4 +29,4 @@ class QueryRunResponse(BaseModel):
 
 # Модель для обновления статусов (универсальная)
 class StatusUpdate(BaseModel):
-    status: IngestionStatus | QueryRunStatus
+    status: IngestionTaskStatus | QueryRunStatus

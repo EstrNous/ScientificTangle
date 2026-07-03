@@ -5,9 +5,8 @@ from uuid import uuid4
 
 import httpx
 import pytest
-from fastapi import UploadFile
-
 from app.service.service import GatewayService, GatewayServiceError
+from fastapi import UploadFile
 
 
 def task_payload() -> dict[str, object]:

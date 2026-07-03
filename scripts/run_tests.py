@@ -19,7 +19,7 @@ SUITES: list[tuple[str, list[str], list[str]]] = [
     ("model", ["services/model/tests"], ["services/model", "."]),
     ("export", ["services/export/tests"], ["services/export", "."]),
     ("notification", ["services/notification/tests"], ["services/notification", "."]),
-    ("integration", ["tests/integration"], ["."]),
+    ("integration", ["tests/integration"], ["services/orchestrator", "services/retrieval", "."]),
     ("e2e", ["tests/e2e"], ["."]),
 ]
 

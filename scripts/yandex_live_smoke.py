@@ -7,7 +7,6 @@ from typing import Any
 
 import httpx
 
-
 DEFAULT_MODEL_URL = "http://localhost:8006"
 
 
