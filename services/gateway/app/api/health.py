@@ -46,11 +46,6 @@ async def ready():
     return {"ready": True, "service": settings.service_name}
 
 
-@router.get("/metrics")
-async def metrics():
-    return {"service": settings.service_name, "version": "0.1.0"}
-
-
 @router.get("/health/all")
 async def health_all():
     results = await asyncio.gather(

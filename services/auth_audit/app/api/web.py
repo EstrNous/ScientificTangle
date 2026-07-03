@@ -8,8 +8,7 @@ from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, FastAPI, Query, Request, Response, status
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, PlainTextResponse
-from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, Counter, generate_latest
+from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.base import RequestResponseEndpoint
@@ -47,6 +46,7 @@ from ..service.service import (
     TokenPairResult,
     UserNotFoundError,
 )
+from shared.metrics import build_metrics_router, setup_metrics
 
 REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
 AuthServiceDependency = Annotated[AuthService, Depends(get_auth_service)]
@@ -109,14 +109,7 @@ def create_app(
     app.state.key_store = key_store
     app.state.password_manager = password_manager
     app.state.token_manager = token_manager
-    registry = CollectorRegistry()
-    request_counter = Counter(
-        "auth_http_requests_total",
-        "Количество HTTP-запросов к сервису аутентификации",
-        ["method", "path", "status"],
-        registry=registry,
-    )
-    app.state.metrics_registry = registry
+    setup_metrics(app, resolved_settings.service_name)
 
     @app.middleware("http")
     async def request_metadata(request: Request, call_next: RequestResponseEndpoint) -> Response:
@@ -128,12 +121,10 @@ def create_app(
         )
         response = await call_next(request)
         response.headers["x-request-id"] = request.state.request_id
-        route = request.scope.get("route")
-        path = getattr(route, "path", "unmatched")
-        request_counter.labels(request.method, path, str(response.status_code)).inc()
         return response
 
     register_error_handlers(app)
+    app.include_router(build_metrics_router())
     app.include_router(build_router())
     return app
 
@@ -367,11 +358,6 @@ def build_router() -> APIRouter:
         except Exception:
             return JSONResponse(status_code=503, content={"status": "unavailable"})
         return JSONResponse(content=HealthResponse().model_dump())
-
-    @router.get("/metrics", response_class=PlainTextResponse)
-    async def metrics(request: Request) -> PlainTextResponse:
-        content = generate_latest(request.app.state.metrics_registry)
-        return PlainTextResponse(content=content, media_type=CONTENT_TYPE_LATEST)
 
     return router
 

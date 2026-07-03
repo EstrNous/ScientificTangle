@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.core.logging import setup_logging
 from app.service.service import IngestionService
 from app.service.storage import SourceStorage
+from shared.metrics import build_metrics_router, setup_metrics
 from shared.security import JWKSValidator
 from shared.web import install_error_handlers, request_id_middleware
 
@@ -54,6 +55,8 @@ app = FastAPI(
 )
 
 app.middleware("http")(request_id_middleware)
+setup_metrics(app, settings.service_name)
 install_error_handlers(app)
+app.include_router(build_metrics_router())
 app.include_router(health_router)
 app.include_router(ingestion_router)
