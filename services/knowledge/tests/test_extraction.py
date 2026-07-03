@@ -2,9 +2,9 @@ from unittest.mock import AsyncMock
 
 import httpx
 import pytest
+from app.main import app
 from fastapi.testclient import TestClient
 
-from app.main import app
 from shared.contracts import NormalizedDocument, SourceSpan
 
 

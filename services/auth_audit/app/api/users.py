@@ -1,8 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request, status
-
+from fastapi import APIRouter, Depends, Query, Request
 from infra.postgres.auth_audit_db import (
     AdminUserUpdateRequest,
     Role,
@@ -10,9 +9,10 @@ from infra.postgres.auth_audit_db import (
     UserListResponse,
     UserResponse,
 )
+from shared.web import ServiceError
+
 from ..core.dependencies import get_auth_service, get_request_context, require_roles
 from ..service.service import AuthService, RequestContext, UserNotFoundError
-from shared.web import ServiceError
 from .auth import validate_origin
 
 router = APIRouter()

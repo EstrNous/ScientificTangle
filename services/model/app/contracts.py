@@ -3,8 +3,15 @@ from typing import Any, Literal, Self
 
 from pydantic import BaseModel, Field, model_validator
 
-from shared.contracts import AccessPolicy, AnswerPayload, EvidenceBundle, EvidenceItem, NormalizedDocument, QueryIR, SourceSpan
-
+from shared.contracts import (
+    AccessPolicy,
+    AnswerPayload,
+    EvidenceBundle,
+    EvidenceItem,
+    NormalizedDocument,
+    QueryIR,
+    SourceSpan,
+)
 
 CONFIRMED_MIN_CONFIDENCE = 0.72
 

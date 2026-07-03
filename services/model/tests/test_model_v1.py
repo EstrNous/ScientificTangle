@@ -1,12 +1,18 @@
 import pytest
+from app import services
+from app.contracts import ExtractionArtifact
+from app.main import app
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
-from app.contracts import ExtractionArtifact
-from app.main import app
-from app import services
-from shared.contracts import EvidenceBundle, EvidenceItem, NormalizedDocument, QueryIR, SourceSpan, TableBlock
-
+from shared.contracts import (
+    EvidenceBundle,
+    EvidenceItem,
+    NormalizedDocument,
+    QueryIR,
+    SourceSpan,
+    TableBlock,
+)
 
 client = TestClient(app)
 

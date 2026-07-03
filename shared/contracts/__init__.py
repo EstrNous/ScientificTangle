@@ -1,7 +1,7 @@
 from shared.contracts.models import (
     AccessPolicy,
-    ApiError,
     AnswerPayload,
+    ApiError,
     Claim,
     EvidenceBundle,
     EvidenceItem,
@@ -30,8 +30,8 @@ from shared.contracts.models import (
     SearchResultsPayload,
     ServiceInfo,
     SourceSpan,
-    StoredSource,
     StorageWriteResult,
+    StoredSource,
     TableBlock,
     UserRole,
 )

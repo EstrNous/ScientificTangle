@@ -2,7 +2,6 @@ from pathlib import Path
 
 from pydantic import SecretStr
 from pydantic_settings import SettingsConfigDict
-
 from shared.config.settings import ServiceSettings
 
 

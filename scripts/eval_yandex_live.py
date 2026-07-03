@@ -6,7 +6,6 @@ from typing import Any
 
 import httpx
 
-
 DEFAULT_GATEWAY_URL = "http://localhost:8000"
 DEFAULT_AUTH_URL = "http://localhost:8001"
 DEFAULT_GOLD_PATH = "eval/gold_questions.json"

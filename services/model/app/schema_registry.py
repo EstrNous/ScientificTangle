@@ -1,4 +1,3 @@
-from typing import Type
 
 from pydantic import BaseModel
 
@@ -16,8 +15,7 @@ from .contracts import (
     UserInterestExtractionResponse,
 )
 
-
-SCHEMA_MODELS: dict[str, tuple[str, Type[BaseModel]]] = {
+SCHEMA_MODELS: dict[str, tuple[str, type[BaseModel]]] = {
     "embeddings": ("embeddings.v1", EmbeddingResponse),
     "structured_extraction": ("structured_extraction.v1", StructuredExtractionResponse),
     "query_ir": ("query_ir.v1", QueryIRBuildResponse),

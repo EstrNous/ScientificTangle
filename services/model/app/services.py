@@ -12,7 +12,14 @@ except ImportError:
     fuzz = None
     process = None
 
-from shared.contracts import AccessPolicy, AnswerPayload, EvidenceBundle, EvidenceItem, GeoContext, NormalizedDocument, Quantity, QueryIR, SourceSpan
+from shared.contracts import (
+    AnswerPayload,
+    GeoContext,
+    NormalizedDocument,
+    Quantity,
+    QueryIR,
+    SourceSpan,
+)
 
 from .contracts import (
     CONFIRMED_MIN_CONFIDENCE,
@@ -49,7 +56,6 @@ from .contracts import (
 )
 from .core.config import settings
 from .yandex_client import YandexModelClient
-
 
 DEGRADED_WARNING = "LLM API is not configured; deterministic degraded extraction is active"
 NUMERIC_PATTERN = re.compile(
@@ -291,7 +297,7 @@ def hash_embedding(text: str, dimensions: int) -> list[float]:
     values = []
     counter = 0
     while len(values) < dimensions:
-        digest = hashlib.sha256(f"{counter}:{text}".encode("utf-8")).digest()
+        digest = hashlib.sha256(f"{counter}:{text}".encode()).digest()
         values.extend((byte / 127.5) - 1.0 for byte in digest)
         counter += 1
     vector = values[:dimensions]

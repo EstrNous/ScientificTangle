@@ -3,10 +3,9 @@ from io import BytesIO
 from uuid import uuid4
 
 import pytest
+from app.service.storage import InvalidUploadError, SourceStorage, StorageOperationError
 from fastapi import UploadFile
 from starlette.datastructures import Headers
-
-from app.service.storage import InvalidUploadError, SourceStorage, StorageOperationError
 
 
 class FakeMinio:

@@ -1,10 +1,5 @@
-[tool.ruff]
 line-length = 100
 target-version = "py312"
 
-[tool.ruff.lint]
-select = ["E", "F", "I", "UP"]
-
-[tool.ruff.lint.per-file-ignores]
-"services/*/tests/*" = ["E402"]
-"tests/*" = ["E402"]
+[lint]
+select = ["E4", "E7", "E9", "F", "I", "UP"]

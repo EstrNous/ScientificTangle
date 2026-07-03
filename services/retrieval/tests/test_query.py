@@ -1,4 +1,5 @@
 from app.api.query import build_points, collect_evidence_items, payload_allowed, source_span_id
+
 from shared.contracts import AccessPolicy, NormalizedDocument, QueryIR, SourceSpan
 
 

@@ -2,7 +2,6 @@ from pathlib import Path
 
 from .contracts import PromptEntry
 
-
 PROMPT_FILES = {
     "embeddings": ("embeddings.v1", "embeddings_v1.md"),
     "structured_extraction": ("structured_extraction.v1", "structured_extraction_v1.md"),

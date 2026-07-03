@@ -9,12 +9,12 @@ from uuid import UUID, uuid4
 import jwt
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey, RSAPublicKey
+from infra.postgres.auth_audit_db import Role
 from jwt.algorithms import RSAAlgorithm
 from pwdlib import PasswordHash
 from pydantic import BaseModel, ConfigDict
 
 from ..core.config import Settings
-from infra.postgres.auth_audit_db import Role
 
 
 class InvalidAccessTokenError(Exception):

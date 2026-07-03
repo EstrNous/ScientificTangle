@@ -3,11 +3,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Header, Request
 from pydantic import BaseModel, Field
 
-from ..core.dependencies import get_gateway_service
-from ..service.service import GatewayService, GatewayServiceError
 from shared.contracts import NormalizedDocument, QueryRunResponse
 from shared.security import AuthenticatedPrincipal
 from shared.web import ServiceError, require_principal
+
+from ..core.dependencies import get_gateway_service
+from ..service.service import GatewayService, GatewayServiceError
 
 router = APIRouter(tags=["query"])
 
