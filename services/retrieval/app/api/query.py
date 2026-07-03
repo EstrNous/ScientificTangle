@@ -7,7 +7,17 @@ import httpx
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 
-from shared.contracts import AccessPolicy, EvidenceBundle, EvidenceItem, NormalizedDocument, QueryIR, SourceSpan
+from shared.contracts import (
+    AccessPolicy,
+    EvidenceBundle,
+    EvidenceItem,
+    NormalizedDocument,
+    QueryIR,
+    RetrievalIndexRequest,
+    RetrievalIndexResponse,
+    SourceSpan,
+    StorageWriteResult,
+)
 from shared.utils.source_span import compute_source_span_id as source_span_id
 
 from ..core.config import settings
@@ -35,10 +45,20 @@ class RetrievalQueryResponse(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
-class IndexDocumentsRequest(BaseModel):
-    documents: list[NormalizedDocument] = Field(min_length=1)
+class IndexDocumentsRequest(RetrievalIndexRequest):
     claim_ids: list[str] = Field(default_factory=list)
     graph_entity_ids: list[str] = Field(default_factory=list)
+
+
+def collect_index_links(request: RetrievalIndexRequest) -> tuple[list[str], list[str]]:
+    claim_ids = list(getattr(request, "claim_ids", []) or [])
+    graph_entity_ids = list(getattr(request, "graph_entity_ids", []) or [])
+    for result in request.knowledge_results:
+        claim_ids.extend(result.graph_write.claim_ids)
+        graph_entity_ids.extend(result.graph_write.graph_entity_ids)
+    return list(dict.fromkeys(item for item in claim_ids if item)), list(
+        dict.fromkeys(item for item in graph_entity_ids if item)
+    )
 
 
 class IndexDocumentsResponse(BaseModel):
@@ -83,14 +103,26 @@ async def reset_index(app_request: Request) -> ResetIndexResponse:
     return ResetIndexResponse(collection=COLLECTION_NAME, deleted=deleted, bootstrapped=bootstrapped)
 
 
-@router.post("/documents/index", response_model=IndexDocumentsResponse)
-async def index_documents(request: IndexDocumentsRequest, app_request: Request) -> IndexDocumentsResponse:
+@router.post("/documents/index", response_model=RetrievalIndexResponse)
+async def index_documents(request: RetrievalIndexRequest, app_request: Request) -> RetrievalIndexResponse:
     client: httpx.AsyncClient = app_request.app.state.http_client
     bootstrap = await ensure_collection(client)
-    points = build_points(request.documents, request.claim_ids, request.graph_entity_ids)
+    claim_ids, graph_entity_ids = collect_index_links(request)
+    points = build_points(request.documents, claim_ids, graph_entity_ids)
     warnings = [*bootstrap.warnings]
+    document_ids = [document.id for document in request.documents]
     if not points:
-        return IndexDocumentsResponse(collection=COLLECTION_NAME, documents_count=len(request.documents), points_count=0, warnings=warnings)
+        return RetrievalIndexResponse(
+            vector_write=StorageWriteResult(
+                backend="qdrant",
+                mode="live",
+                document_ids=document_ids,
+                records_count=0,
+                claim_ids=claim_ids,
+                graph_entity_ids=graph_entity_ids,
+            ),
+            warnings=warnings,
+        )
     vectors_response = await build_embeddings(client, [point["payload"]["text"] for point in points], "document")
     for point, vector in zip(points, vectors_response["vectors"], strict=True):
         point["vector"] = vector
@@ -101,10 +133,15 @@ async def index_documents(request: IndexDocumentsRequest, app_request: Request) 
         json={"points": points},
     )
     response.raise_for_status()
-    return IndexDocumentsResponse(
-        collection=COLLECTION_NAME,
-        documents_count=len(request.documents),
-        points_count=len(points),
+    return RetrievalIndexResponse(
+        vector_write=StorageWriteResult(
+            backend="qdrant",
+            mode="live",
+            document_ids=document_ids,
+            records_count=len(points),
+            claim_ids=claim_ids,
+            graph_entity_ids=graph_entity_ids,
+        ),
         warnings=warnings,
     )
 

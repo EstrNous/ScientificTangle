@@ -132,9 +132,9 @@ quantity_types:
   - name: length
     units: [m, mm, cm, μm]
   - name: concentration
-    units: [%, ppm, g/t, mol/L]
+    units: ["%", ppm, g/t, mol/L]
   - name: recovery_rate
-    units: [%, fraction]
+    units: ["%", fraction]
   - name: hardness
     units: [HB, HRC, HV, MPa]
   - name: tensile_strength

@@ -48,6 +48,7 @@ class ClaimDTO(BaseModel):
     measurement_ids: list[str] = Field(default_factory=list)
     geo_ids: list[str] = Field(default_factory=list)
     semantic_relations: list[dict[str, str]] = Field(default_factory=list)
+    observation_id: str | None = None
 
 
 class EntityDTO(BaseModel):
@@ -94,6 +95,21 @@ class GeographyDTO(BaseModel):
     precision: str = "unknown"
 
 
+class ObservationDTO(BaseModel):
+    observation_id: str
+    description: str
+    context_raw: str = ""
+
+
+class ReviewDecisionDTO(BaseModel):
+    decision_id: str
+    reviewer_id: str = "system"
+    status: str = "pending"
+    comment: str = ""
+    decided_at: str | None = None
+    claim_id: str | None = None
+
+
 class ClaimsBundleDTO(BaseModel):
     claims: list[ClaimDTO] = Field(default_factory=list)
     spans: list[SourceSpanDTO] = Field(default_factory=list)
@@ -102,8 +118,11 @@ class ClaimsBundleDTO(BaseModel):
     measurements: list[MeasurementDTO] = Field(default_factory=list)
     documents: list[DocumentDTO] = Field(default_factory=list)
     geographies: list[GeographyDTO] = Field(default_factory=list)
+    observations: list[ObservationDTO] = Field(default_factory=list)
     candidate_entities: list[dict[str, Any]] = Field(default_factory=list)
     candidate_relations: list[dict[str, Any]] = Field(default_factory=list)
+    candidate_classes: list[dict[str, Any]] = Field(default_factory=list)
+    review_decisions: list[ReviewDecisionDTO] = Field(default_factory=list)
 
 
 class ConflictDTO(BaseModel):

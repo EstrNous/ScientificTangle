@@ -27,6 +27,7 @@ def node_to_graph_node(node: Any, node_type: str) -> GraphNodeDTO:
         or props.get("document_id")
         or props.get("measurement_id")
         or props.get("alias_id")
+        or props.get("observation_id")
         or str(node.element_id)
     )
     label = (
@@ -35,9 +36,55 @@ def node_to_graph_node(node: Any, node_type: str) -> GraphNodeDTO:
         or props.get("raw_text")
         or props.get("title")
         or props.get("name")
+        or props.get("description")
         or node_type
     )
     return GraphNodeDTO(id=str(node_id), label=str(label)[:200], node_type=node_type, properties=props)
+
+
+def node_id_from_graph_node(node: Any) -> str:
+    props = dict(node)
+    return str(
+        props.get("entity_id")
+        or props.get("claim_id")
+        or props.get("source_span_id")
+        or props.get("document_id")
+        or props.get("measurement_id")
+        or props.get("observation_id")
+        or node.element_id
+    )
+
+
+def add_edge(
+    edges: dict[str, GraphEdgeDTO],
+    source_id: str,
+    target_id: str,
+    edge_type: str,
+) -> None:
+    if not source_id or not target_id or source_id == target_id:
+        return
+    edge_key = f"{source_id}:{edge_type}:{target_id}"
+    if edge_key in edges:
+        return
+    edges[edge_key] = GraphEdgeDTO(
+        id=edge_key,
+        source=source_id,
+        target=target_id,
+        edge_type=edge_type,
+    )
+
+
+async def write_semantic_relation(
+    tx: AsyncTransaction,
+    claim_id: str,
+    target_id: str,
+    rel_type: str,
+) -> None:
+    query = queries.SEMANTIC_RELATION_QUERIES.get(rel_type, queries.WRITE_SEMANTIC_RELATION_SIMPLE)
+    if query is queries.WRITE_SEMANTIC_RELATION_SIMPLE:
+        await tx.run(query, claim_id=claim_id, target_id=target_id, rel_type=rel_type)
+    else:
+        await tx.run(query, claim_id=claim_id, target_id=target_id)
 
 
 async def write_bundle_tx(tx: AsyncTransaction, bundle: ClaimsBundleDTO) -> int:
@@ -60,8 +107,20 @@ async def write_bundle_tx(tx: AsyncTransaction, bundle: ClaimsBundleDTO) -> int:
     for geography in bundle.geographies:
         await tx.run(queries.WRITE_GEOGRAPHY, **geography.model_dump())
         written += 1
+    for observation in bundle.observations:
+        await tx.run(queries.WRITE_OBSERVATION, **observation.model_dump())
+        written += 1
     for candidate in bundle.candidate_entities:
         await tx.run(queries.WRITE_CANDIDATE_ENTITY, **candidate)
+        written += 1
+    for candidate in bundle.candidate_relations:
+        await tx.run(queries.WRITE_CANDIDATE_RELATION, **candidate)
+        written += 1
+    for candidate in bundle.candidate_classes:
+        await tx.run(queries.WRITE_CANDIDATE_CLASS, **candidate)
+        written += 1
+    for decision in bundle.review_decisions:
+        await tx.run(queries.WRITE_REVIEW_DECISION, **decision.model_dump())
         written += 1
     for claim in bundle.claims:
         await tx.run(queries.WRITE_CLAIM, **claim.model_dump())
@@ -71,12 +130,18 @@ async def write_bundle_tx(tx: AsyncTransaction, bundle: ClaimsBundleDTO) -> int:
             claim_id=claim.claim_id,
             recorded_at=claim.claim_last_updated_at,
         )
-        for relation in claim.semantic_relations:
+        if claim.observation_id:
             await tx.run(
-                queries.WRITE_SEMANTIC_RELATION_SIMPLE,
+                queries.LINK_CLAIM_OBSERVATION,
                 claim_id=claim.claim_id,
-                target_id=relation["target_id"],
-                rel_type=relation["type"],
+                observation_id=claim.observation_id,
+            )
+        for relation in claim.semantic_relations:
+            await write_semantic_relation(
+                tx,
+                claim.claim_id,
+                relation["target_id"],
+                relation["type"],
             )
         written += 1
     return written
@@ -84,40 +149,52 @@ async def write_bundle_tx(tx: AsyncTransaction, bundle: ClaimsBundleDTO) -> int:
 
 def records_to_subgraph(records: list[Any]) -> GraphSubgraphDTO:
     nodes: dict[str, GraphNodeDTO] = {}
-    edges: list[GraphEdgeDTO] = []
+    edges: dict[str, GraphEdgeDTO] = {}
     claim_ids: list[str] = []
     source_span_ids: list[str] = []
     for record in records:
-        for key, node_type in (
-            ("e", "Entity"),
-            ("c", "Claim"),
-            ("s", "SourceSpan"),
-            ("d", "Document"),
-            ("m", "Measurement"),
-            ("g", "Geography"),
-        ):
-            value = record.get(key)
-            if value is not None:
-                graph_node = node_to_graph_node(value, node_type)
-                nodes[graph_node.id] = graph_node
-                if node_type == "Claim":
-                    claim_ids.append(graph_node.id)
-                if node_type == "SourceSpan":
-                    source_span_ids.append(graph_node.id)
-    node_list = list(nodes.values())
-    for index, left in enumerate(node_list):
-        for right in node_list[index + 1 :]:
-            edges.append(
-                GraphEdgeDTO(
-                    id=f"{left.id}->{right.id}",
-                    source=left.id,
-                    target=right.id,
-                    edge_type="CO_OCCURS",
-                )
-            )
+        entity = record.get("e")
+        claim = record.get("c")
+        span = record.get("s")
+        document = record.get("d")
+        measurement = record.get("m")
+        geography = record.get("g")
+        observation = record.get("o")
+        typed_nodes = (
+            (entity, "Entity"),
+            (claim, "Claim"),
+            (span, "SourceSpan"),
+            (document, "Document"),
+            (measurement, "Measurement"),
+            (geography, "Geography"),
+            (observation, "Observation"),
+        )
+        node_ids: dict[str, str] = {}
+        for value, node_type in typed_nodes:
+            if value is None:
+                continue
+            graph_node = node_to_graph_node(value, node_type)
+            nodes[graph_node.id] = graph_node
+            node_ids[node_type] = graph_node.id
+            if node_type == "Claim":
+                claim_ids.append(graph_node.id)
+            if node_type == "SourceSpan":
+                source_span_ids.append(graph_node.id)
+        if claim is not None and span is not None:
+            add_edge(edges, node_ids.get("Claim", ""), node_ids.get("SourceSpan", ""), "DESCRIBED_IN")
+        if span is not None and document is not None:
+            add_edge(edges, node_ids.get("SourceSpan", ""), node_ids.get("Document", ""), "PART_OF")
+        if claim is not None and entity is not None:
+            add_edge(edges, node_ids.get("Claim", ""), node_ids.get("Entity", ""), "VALIDATED_BY")
+        if claim is not None and measurement is not None:
+            add_edge(edges, node_ids.get("Claim", ""), node_ids.get("Measurement", ""), "QUANTIFIED_BY")
+        if claim is not None and geography is not None:
+            add_edge(edges, node_ids.get("Claim", ""), node_ids.get("Geography", ""), "APPLIED_IN_GEOGRAPHY")
+        if claim is not None and observation is not None:
+            add_edge(edges, node_ids.get("Claim", ""), node_ids.get("Observation", ""), "DEGRADED_TO")
     return GraphSubgraphDTO(
-        nodes=node_list,
-        edges=edges,
+        nodes=list(nodes.values()),
+        edges=list(edges.values()),
         claim_ids=list(dict.fromkeys(claim_ids)),
         source_span_ids=list(dict.fromkeys(source_span_ids)),
     )
@@ -136,8 +213,8 @@ def path_records_to_neighborhood(entity_id: str, depth: int, records: list[Any])
             graph_node = node_to_graph_node(node, node_type)
             nodes[graph_node.id] = graph_node
         for rel in path.relationships:
-            start = str(rel.start_node.get("entity_id") or rel.start_node.get("claim_id") or rel.start_node.element_id)
-            end = str(rel.end_node.get("entity_id") or rel.end_node.get("claim_id") or rel.end_node.element_id)
+            start = node_id_from_graph_node(rel.start_node)
+            end = node_id_from_graph_node(rel.end_node)
             edges.append(
                 GraphEdgeDTO(
                     id=str(rel.element_id),
@@ -216,7 +293,7 @@ def neighbor_query_for_depth(depth: int) -> str:
     return f"""
 MATCH (center:Entity {{entity_id: $entity_id}})
 MATCH path = (center)-[*1..{hop}]-(neighbor)
-WHERE neighbor:Entity OR neighbor:Claim OR neighbor:Measurement OR neighbor:SourceSpan OR neighbor:Document
+WHERE neighbor:Entity OR neighbor:Claim OR neighbor:Measurement OR neighbor:SourceSpan OR neighbor:Document OR neighbor:Observation
 RETURN path
 LIMIT $limit
 """

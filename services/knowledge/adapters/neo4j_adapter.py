@@ -38,12 +38,8 @@ class Neo4jKnowledgeAdapter:
     def __init__(self, driver: AsyncDriver) -> None:
         self._driver = driver
 
-    def _metadata(self, request_id: str | None) -> dict[str, str] | None:
-        return {"request_id": request_id} if request_id else None
-
     async def ping(self, request_id: str | None = None) -> bool:
-        metadata = self._metadata(request_id)
-        async with self._driver.session(metadata=metadata) as session:
+        async with self._driver.session() as session:
             result = await session.run(queries.PING)
             record = await result.single()
             return bool(record and record.get("ok") == 1)
@@ -60,12 +56,10 @@ class Neo4jKnowledgeAdapter:
             payload.claims = claims
         if spans and not payload.spans:
             payload.spans = spans
-        metadata = self._metadata(request_id)
-
         async def _write(tx: Any) -> int:
             return await write_bundle_tx(tx, payload)
 
-        async with self._driver.session(metadata=metadata) as session:
+        async with self._driver.session() as session:
             written = await session.execute_write(_write)
             return written > 0
 
@@ -73,11 +67,10 @@ class Neo4jKnowledgeAdapter:
         return await self.write_claims_bundle(bundle.claims, bundle.spans, bundle=bundle, request_id=request_id)
 
     async def resolve_aliases(self, mention: str, request_id: str | None = None, limit: int = 10) -> list[EntityID]:
-        metadata = self._metadata(request_id)
         normalized = mention.strip()
         if not normalized:
             return []
-        async with self._driver.session(metadata=metadata) as session:
+        async with self._driver.session() as session:
             try:
                 result = await session.run(
                     queries.RESOLVE_ALIAS_FULLTEXT,
@@ -95,8 +88,7 @@ class Neo4jKnowledgeAdapter:
         return list(dict.fromkeys(entity_ids))
 
     async def find_conflicts(self, entity_id: str, request_id: str | None = None) -> list[ConflictDTO]:
-        metadata = self._metadata(request_id)
-        async with self._driver.session(metadata=metadata) as session:
+        async with self._driver.session() as session:
             result = await session.run(queries.FIND_CONFLICTS, entity_id=entity_id)
             records = [record async for record in result]
         conflicts: list[ConflictDTO] = []
@@ -114,8 +106,7 @@ class Neo4jKnowledgeAdapter:
         return conflicts
 
     async def find_missing_edges(self, domain_profile: str, request_id: str | None = None) -> list[GapDTO]:
-        metadata = self._metadata(request_id)
-        async with self._driver.session(metadata=metadata) as session:
+        async with self._driver.session() as session:
             result = await session.run(queries.FIND_MISSING_EDGES)
             records = [record async for record in result]
         gaps: list[GapDTO] = []
@@ -140,8 +131,7 @@ class Neo4jKnowledgeAdapter:
     ) -> GraphSubgraphDTO:
         plan = compile_query_ir(query_ir, access_levels=access_levels)
         entity_ids = await self.resolve_aliases(" ".join(plan.entity_hints), request_id=request_id) if plan.entity_hints else []
-        metadata = self._metadata(request_id)
-        async with self._driver.session(metadata=metadata) as session:
+        async with self._driver.session() as session:
             result = await session.run(
                 queries.BUILD_SUBGRAPH,
                 entity_ids=entity_ids,
@@ -159,9 +149,8 @@ class Neo4jKnowledgeAdapter:
         request_id: str | None = None,
         limit: int = 80,
     ) -> GraphNeighborhood:
-        metadata = self._metadata(request_id)
         query = neighbor_query_for_depth(depth)
-        async with self._driver.session(metadata=metadata) as session:
+        async with self._driver.session() as session:
             result = await session.run(query, entity_id=entity_id, limit=limit)
             records = [record async for record in result]
         return path_records_to_neighborhood(entity_id, depth, records)
@@ -173,8 +162,7 @@ class Neo4jKnowledgeAdapter:
         limit: int = 50,
         request_id: str | None = None,
     ) -> list[EntityID]:
-        metadata = self._metadata(request_id)
-        async with self._driver.session(metadata=metadata) as session:
+        async with self._driver.session() as session:
             result = await session.run(
                 queries.FIND_ENTITIES,
                 name=name,
@@ -193,8 +181,7 @@ class Neo4jKnowledgeAdapter:
         plan = compile_query_ir(query_ir, access_levels=access_levels)
         numeric = query_ir.numeric_filter
         time_constraints = query_ir.filters.get("time_constraints", {}) if isinstance(query_ir.filters, dict) else {}
-        metadata = self._metadata(request_id)
-        async with self._driver.session(metadata=metadata) as session:
+        async with self._driver.session() as session:
             result = await session.run(
                 queries.FILTER_BY_CONSTRAINTS,
                 access_levels=plan.access_levels,
@@ -215,8 +202,7 @@ class Neo4jKnowledgeAdapter:
         entity_id: str | None = None,
         request_id: str | None = None,
     ) -> list[MeasurementAggregateDTO]:
-        metadata = self._metadata(request_id)
-        async with self._driver.session(metadata=metadata) as session:
+        async with self._driver.session() as session:
             result = await session.run(queries.AGGREGATE_MEASUREMENTS, entity_id=entity_id)
             records = [record async for record in result]
         aggregates: list[MeasurementAggregateDTO] = []
@@ -239,8 +225,7 @@ class Neo4jKnowledgeAdapter:
         group_b_key: str,
         request_id: str | None = None,
     ) -> GroupComparisonDTO:
-        metadata = self._metadata(request_id)
-        async with self._driver.session(metadata=metadata) as session:
+        async with self._driver.session() as session:
             result = await session.run(
                 queries.COMPARE_GROUPS,
                 group_a_key=group_a_key,
@@ -275,8 +260,7 @@ class Neo4jKnowledgeAdapter:
         request_id: str | None = None,
     ) -> list[EvidenceRecordDTO]:
         plan = compile_query_ir(query_ir, access_levels=access_levels)
-        metadata = self._metadata(request_id)
-        async with self._driver.session(metadata=metadata) as session:
+        async with self._driver.session() as session:
             result = await session.run(
                 queries.RETRIEVE_EVIDENCE,
                 access_levels=plan.access_levels,
@@ -293,8 +277,7 @@ class Neo4jKnowledgeAdapter:
         request_id: str | None = None,
         limit: int = 20,
     ) -> list[RankedClaimDTO]:
-        metadata = self._metadata(request_id)
-        async with self._driver.session(metadata=metadata) as session:
+        async with self._driver.session() as session:
             result = await session.run(queries.RANK_CLAIMS, claim_ids=claim_ids)
             records = [record async for record in result]
         effective_limit = query_ir.limit if query_ir else limit

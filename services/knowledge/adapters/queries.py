@@ -83,17 +83,17 @@ FOREACH (span_id IN $source_span_ids |
 )
 WITH c
 FOREACH (measurement_id IN $measurement_ids |
-    MATCH (m:Measurement {measurement_id: measurement_id})
+    MERGE (m:Measurement {measurement_id: measurement_id})
     MERGE (c)-[:QUANTIFIED_BY]->(m)
 )
 WITH c
 FOREACH (geo_id IN $geo_ids |
-    MATCH (g:Geography {geo_id: geo_id})
+    MERGE (g:Geography {geo_id: geo_id})
     MERGE (c)-[:APPLIED_IN_GEOGRAPHY]->(g)
 )
 WITH c
 FOREACH (entity_id IN $entity_ids |
-    MATCH (e:Entity {entity_id: entity_id})
+    MERGE (e:Entity {entity_id: entity_id})
     MERGE (c)-[:VALIDATED_BY]->(e)
 )
 """
@@ -123,6 +123,51 @@ MERGE (c)-[r:RELATED_TO]->(e)
 SET r.semantic_type = $rel_type
 """
 
+WRITE_SEMANTIC_USES_MATERIAL = """
+MATCH (c:Claim {claim_id: $claim_id})
+MATCH (e:Entity {entity_id: $target_id})
+MERGE (c)-[:USES_MATERIAL]->(e)
+"""
+
+WRITE_SEMANTIC_OPERATES_AT_CONDITION = """
+MATCH (c:Claim {claim_id: $claim_id})
+MATCH (e:Entity {entity_id: $target_id})
+MERGE (c)-[:OPERATES_AT_CONDITION]->(e)
+"""
+
+WRITE_SEMANTIC_PRODUCES_OUTPUT = """
+MATCH (c:Claim {claim_id: $claim_id})
+MATCH (e:Entity {entity_id: $target_id})
+MERGE (c)-[:PRODUCES_OUTPUT]->(e)
+"""
+
+WRITE_SEMANTIC_USES_EQUIPMENT = """
+MATCH (c:Claim {claim_id: $claim_id})
+MATCH (e:Entity {entity_id: $target_id})
+MERGE (c)-[:USES_EQUIPMENT]->(e)
+"""
+
+WRITE_SEMANTIC_EXPERT_IN = """
+MATCH (c:Claim {claim_id: $claim_id})
+MATCH (e:Entity {entity_id: $target_id})
+MERGE (c)-[:EXPERT_IN]->(e)
+"""
+
+WRITE_SEMANTIC_APPLIED_IN_GEOGRAPHY_ENTITY = """
+MATCH (c:Claim {claim_id: $claim_id})
+MATCH (e:Entity {entity_id: $target_id})
+MERGE (c)-[:APPLIED_IN_GEOGRAPHY]->(e)
+"""
+
+SEMANTIC_RELATION_QUERIES = {
+    "USES_MATERIAL": WRITE_SEMANTIC_USES_MATERIAL,
+    "OPERATES_AT_CONDITION": WRITE_SEMANTIC_OPERATES_AT_CONDITION,
+    "PRODUCES_OUTPUT": WRITE_SEMANTIC_PRODUCES_OUTPUT,
+    "USES_EQUIPMENT": WRITE_SEMANTIC_USES_EQUIPMENT,
+    "EXPERT_IN": WRITE_SEMANTIC_EXPERT_IN,
+    "APPLIED_IN_GEOGRAPHY": WRITE_SEMANTIC_APPLIED_IN_GEOGRAPHY_ENTITY,
+}
+
 WRITE_FACT_VERSION = """
 MATCH (c:Claim {claim_id: $claim_id})
 CREATE (fv:FactVersion {
@@ -139,6 +184,45 @@ WRITE_CANDIDATE_ENTITY = """
 MERGE (ce:CandidateEntity {candidate_id: $candidate_id})
 SET ce.raw_data = $raw_data,
     ce.extracted_at = $extracted_at
+"""
+
+WRITE_CANDIDATE_RELATION = """
+MERGE (cr:CandidateRelation {candidate_id: $candidate_id})
+SET cr.raw_data = $raw_data,
+    cr.extracted_at = $extracted_at,
+    cr.relation_type = $relation_type
+"""
+
+WRITE_CANDIDATE_CLASS = """
+MERGE (cc:CandidateClass {candidate_id: $candidate_id})
+SET cc.raw_data = $raw_data,
+    cc.extracted_at = $extracted_at
+"""
+
+WRITE_OBSERVATION = """
+MERGE (o:Observation {observation_id: $observation_id})
+SET o.description = $description,
+    o.context_raw = $context_raw
+"""
+
+LINK_CLAIM_OBSERVATION = """
+MATCH (c:Claim {claim_id: $claim_id})
+MATCH (o:Observation {observation_id: $observation_id})
+MERGE (c)-[:DEGRADED_TO]->(o)
+"""
+
+WRITE_EXPERIMENT = """
+MERGE (ex:Experiment {experiment_id: $experiment_id})
+SET ex.description = $description,
+    ex.performed_at = $performed_at
+"""
+
+WRITE_REVIEW_DECISION = """
+MERGE (rd:ReviewDecision {decision_id: $decision_id})
+SET rd.reviewer_id = $reviewer_id,
+    rd.status = $status,
+    rd.comment = $comment,
+    rd.decided_at = $decided_at
 """
 
 RESOLVE_ALIAS_FULLTEXT = """
@@ -163,16 +247,23 @@ LIMIT $limit
 """
 
 FIND_CONFLICTS = """
-MATCH (e:Entity {entity_id: $entity_id})<-[:VALIDATED_BY|RELATED_TO]-(c:Claim)-[:QUANTIFIED_BY]->(m:Measurement)
-MATCH (e)<-[:VALIDATED_BY|RELATED_TO]-(c2:Claim)-[:QUANTIFIED_BY]->(m2:Measurement)
+MATCH (e:Entity {entity_id: $entity_id})<-[:VALIDATED_BY|RELATED_TO|OPERATES_AT_CONDITION|USES_MATERIAL]-(c:Claim)
+OPTIONAL MATCH (c)-[:QUANTIFIED_BY]->(m:Measurement)
+WITH e, c, collect(m) AS measurements
+MATCH (e)<-[:VALIDATED_BY|RELATED_TO|OPERATES_AT_CONDITION|USES_MATERIAL]-(c2:Claim)
 WHERE c.claim_id < c2.claim_id
-  AND (
-    EXISTS { (c)-[:CONTRADICTS]->(c2) }
-    OR (m.value IS NOT NULL AND m2.value IS NOT NULL AND m.unit = m2.unit AND m.value <> m2.value)
-    OR (m.min IS NOT NULL AND m2.max IS NOT NULL AND m.min > m2.max)
-  )
+OPTIONAL MATCH (c2)-[:QUANTIFIED_BY]->(m2:Measurement)
+WITH c, c2, collect(m2) AS measurements2
+WHERE EXISTS { (c)-[:CONTRADICTS]->(c2) }
+   OR EXISTS {
+       MATCH (c)-[:QUANTIFIED_BY]->(m:Measurement)
+       MATCH (c2)-[:QUANTIFIED_BY]->(m2:Measurement)
+       WHERE m.unit = m2.unit
+         AND m.value IS NOT NULL AND m2.value IS NOT NULL
+         AND m.value <> m2.value
+   }
 RETURN c.claim_id AS claim_id_a, c2.claim_id AS claim_id_b,
-       collect(DISTINCT m.measurement_id) + collect(DISTINCT m2.measurement_id) AS measurement_ids,
+       [] AS measurement_ids,
        'measurement_mismatch' AS reason
 LIMIT 50
 """

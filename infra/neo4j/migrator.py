@@ -53,9 +53,8 @@ async def record_schema_version(session: AsyncSession, version: str, status: str
 
 async def migrate_schema(driver: AsyncDriver, request_id: str | None = None) -> dict[str, int | str]:
     base_dir = infra_neo4j_dir()
-    metadata = {"request_id": request_id} if request_id else None
     applied: dict[str, int] = {}
-    async with driver.session(metadata=metadata) as session:
+    async with driver.session() as session:
         for filename in CYTHER_FILES:
             applied[filename] = await apply_cypher_file(session, base_dir / filename)
         await record_schema_version(session, SCHEMA_VERSION, "applied")
@@ -63,6 +62,5 @@ async def migrate_schema(driver: AsyncDriver, request_id: str | None = None) -> 
 
 
 async def reset_graph(driver: AsyncDriver, request_id: str | None = None) -> None:
-    metadata = {"request_id": request_id} if request_id else None
-    async with driver.session(metadata=metadata) as session:
+    async with driver.session() as session:
         await session.run("MATCH (n) DETACH DELETE n")

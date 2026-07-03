@@ -118,7 +118,7 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 - `infra/nginx/Dockerfile` — nginx с basic auth для `/grafana/`.
 - `infra/docker/Dockerfile.python-service` — multistage Dockerfile для Python-сервисов (deps + runtime, shared).
 - `infra/scripts/` — скрипты эксплуатации.
-- `scripts/` — локальные MVP smoke/eval/seed scripts: demo seed, Yandex live smoke, official eval, performance smoke.
+- `scripts/` — локальные MVP smoke/eval/seed scripts: demo seed, Yandex live smoke, official eval, performance smoke, `neo4j_smoke.py`.
 
 ### Онтология (`ontology/`)
 
@@ -153,7 +153,7 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 ### Тесты (`tests/`)
 
 - `tests/e2e/` — сквозные тесты.
-- `tests/integration/` — интеграционные тесты.
+- `tests/integration/` — интеграционные тесты; `test_neo4j_smoke.py` — opt-in smoke Neo4j (`RUN_NEO4J_INTEGRATION=1`, `make test-neo4j-integration`).
 - `tests/performance/` — нагрузочные тесты.
 
 ## Сервисы
@@ -174,7 +174,7 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 
 - `services/ingestion/app/api/documents.py` — internal text/table fallback normalization endpoint; task pipeline дополнительно нормализует сохранённые PDF, DOCX, PPTX, DOC и ZIP через реестр parser-адаптеров.
 - `services/knowledge/app/api/extraction.py` — internal handoff `NormalizedDocument` → model structured extraction → `Neo4jKnowledgeAdapter.write_bundle`.
-- `services/knowledge/app/api/graph.py` — bootstrap/reset/subgraph/neighbors/aliases/conflicts/gaps.
+- `services/knowledge/app/api/graph.py` — bootstrap/reset/subgraph/neighbors/aliases/conflicts/gaps/entities/filter/measurements/evidence/claims-rank.
 - `services/knowledge/adapters/` — `Neo4jKnowledgeAdapter`, DTO, mapper, Query IR compiler, graph operations.
 - `services/retrieval/app/api/indexing.py` — legacy internal mock boundary индексации документов, не подключается в FastAPI app.
 - `services/retrieval/app/api/query.py` — internal Query IR, Qdrant bootstrap/index/reset, Qdrant-first evidence retrieval, lexical fallback и model rerank; переданные `NormalizedDocument` остаются in-memory fallback.

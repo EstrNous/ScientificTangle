@@ -31,8 +31,12 @@ async def extract_document(
     warnings: list[str] = []
     adapter: Neo4jKnowledgeAdapter | None = getattr(app_request.app.state, "neo4j_adapter", None)
     mode: str = "adapter_pending"
+    claim_ids: list[str] = []
+    graph_entity_ids: list[str] = []
     if adapter is not None:
         bundle = artifacts_to_bundle(request.document, extraction)
+        claim_ids = [claim.claim_id for claim in bundle.claims]
+        graph_entity_ids = [entity.entity_id for entity in bundle.entities]
         try:
             written = await adapter.write_bundle(bundle, request_id=request_id)
             if written:
@@ -52,6 +56,8 @@ async def extract_document(
             document_ids=[request.document.id],
             records_count=records_count,
             confirmed_count=confirmed_count,
+            claim_ids=claim_ids,
+            graph_entity_ids=graph_entity_ids,
             warnings=warnings,
         ),
         warnings=warnings,

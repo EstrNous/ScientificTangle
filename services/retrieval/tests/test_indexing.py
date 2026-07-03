@@ -1,24 +1,16 @@
 import asyncio
 
-from app.api.indexing import index_documents
+from app.api.query import collect_index_links
 from shared.contracts import (
     KnowledgeIngestionResponse,
     NormalizedDocument,
     RetrievalIndexRequest,
     SourceSpan,
     StorageWriteResult,
-    TableBlock,
 )
 
 
-def test_indexing_returns_explicit_qdrant_mock_counts() -> None:
-    table = TableBlock(
-        id="table-1",
-        document_id="document-1",
-        page=1,
-        headers=["parameter", "value"],
-        rows=[["recovery", "82 %"]],
-    )
+def test_collect_index_links_from_knowledge_results() -> None:
     document = NormalizedDocument(
         id="document-1",
         source_type="docx",
@@ -34,7 +26,6 @@ def test_indexing_returns_explicit_qdrant_mock_counts() -> None:
                 source_type="text",
             )
         ],
-        table_blocks=[table],
     )
     request = RetrievalIndexRequest(
         documents=[document],
@@ -43,16 +34,14 @@ def test_indexing_returns_explicit_qdrant_mock_counts() -> None:
                 document_id=document.id,
                 graph_write=StorageWriteResult(
                     backend="neo4j",
+                    mode="live",
                     document_ids=[document.id],
-                    warnings=["neo4j_adapter_pending"],
+                    claim_ids=["claim-1", "claim-2"],
+                    graph_entity_ids=["entity-1"],
                 ),
             )
         ],
     )
-
-    result = asyncio.run(index_documents(request))
-
-    assert result.vector_write.backend == "qdrant"
-    assert result.vector_write.mode == "mock"
-    assert result.vector_write.records_count == 3
-    assert result.warnings == ["qdrant_adapter_pending"]
+    claim_ids, entity_ids = collect_index_links(request)
+    assert claim_ids == ["claim-1", "claim-2"]
+    assert entity_ids == ["entity-1"]

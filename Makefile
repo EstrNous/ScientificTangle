@@ -1,4 +1,4 @@
-.PHONY: bootstrap up down build logs seed ingest-demo e2e eval eval-yandex-live perf-smoke reset-demo lint test test-yandex-live export-demo
+.PHONY: bootstrap up down build logs seed ingest-demo e2e eval eval-yandex-live perf-smoke reset-demo lint test test-neo4j-integration test-yandex-live export-demo
 
 bootstrap:
 	python scripts/generate_auth_keys.py
@@ -49,6 +49,9 @@ test:
 	python -m pytest services/ingestion/tests
 	python -m pytest services/orchestrator/tests
 	python -m pytest tests/integration/test_eval_runner.py
+
+test-neo4j-integration:
+	RUN_NEO4J_INTEGRATION=1 python -m pytest tests/integration/test_neo4j_smoke.py -v -c tests/integration/pytest.ini
 
 test-yandex-live:
 	python scripts/yandex_live_smoke.py

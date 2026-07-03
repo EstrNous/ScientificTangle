@@ -128,6 +128,8 @@ class StorageWriteResult(BaseModel):
     document_ids: list[str] = Field(default_factory=list)
     records_count: int = Field(default=0, ge=0)
     confirmed_count: int = Field(default=0, ge=0)
+    claim_ids: list[str] = Field(default_factory=list)
+    graph_entity_ids: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
 
 

@@ -17,6 +17,8 @@ from .dto import (
     EntityDTO,
     GeographyDTO,
     MeasurementDTO,
+    ObservationDTO,
+    ReviewDecisionDTO,
     SourceSpanDTO,
 )
 
@@ -131,6 +133,53 @@ def artifacts_to_bundle(document: NormalizedDocument, extraction: dict[str, Any]
         source_span_ids = [str(item) for item in artifact.get("source_span_ids", [])]
         metadata = artifact.get("metadata", {}) if isinstance(artifact.get("metadata"), dict) else {}
         artifact_id = str(artifact.get("id", uuid.uuid4().hex))
+
+        if kind == "relation":
+            bundle.candidate_relations.append(
+                {
+                    "candidate_id": artifact_id[:16],
+                    "raw_data": value,
+                    "extracted_at": timestamp,
+                    "relation_type": str(metadata.get("relation_type", "unknown")),
+                }
+            )
+            continue
+
+        if kind == "review_decision":
+            bundle.review_decisions.append(
+                ReviewDecisionDTO(
+                    decision_id=artifact_id[:16],
+                    reviewer_id=str(metadata.get("reviewer_id", "system")),
+                    status=str(metadata.get("status", artifact.get("status", "pending"))),
+                    comment=str(metadata.get("comment", value)),
+                    decided_at=timestamp,
+                    claim_id=str(metadata.get("claim_id")) if metadata.get("claim_id") else None,
+                )
+            )
+            continue
+
+        if kind in {"conclusion", "recommendation"} and str(artifact.get("status", "candidate")) != "confirmed":
+            observation_id = artifact_id[:16]
+            bundle.observations.append(
+                ObservationDTO(
+                    observation_id=observation_id,
+                    description=value,
+                    context_raw=str(metadata.get("context_raw", "")),
+                )
+            )
+            bundle.claims.append(
+                ClaimDTO(
+                    claim_id=uuid.uuid4().hex[:16],
+                    status="candidate",
+                    confidence=float(artifact.get("confidence", 0.0)),
+                    statement=value,
+                    claim_extracted_at=timestamp,
+                    claim_last_updated_at=timestamp,
+                    source_span_ids=source_span_ids,
+                    observation_id=observation_id,
+                )
+            )
+            continue
 
         if kind == "alias":
             target_name = str(metadata.get("canonical", value))

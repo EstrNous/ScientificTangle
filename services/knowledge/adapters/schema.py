@@ -34,8 +34,7 @@ async def seed_schema_registry(driver: AsyncDriver, request_id: str | None = Non
     relation_types = 0
     validation_rules = 0
     aliases = 0
-    metadata = {"request_id": request_id} if request_id else None
-    async with driver.session(metadata=metadata) as session:
+    async with driver.session() as session:
         core_path = root / "ontology" / "core_schema.yaml"
         if core_path.exists():
             core = yaml.safe_load(core_path.read_text(encoding="utf-8"))
