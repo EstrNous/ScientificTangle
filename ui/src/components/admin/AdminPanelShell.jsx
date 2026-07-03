@@ -12,10 +12,8 @@ export default function AdminPanelShell({
   const { t } = useTranslation();
 
   return (
-    <div
-      className={`nn-card flex min-h-0 flex-col p-4 ${expanded ? 'min-h-0 flex-1' : ''} ${className}`}
-    >
-      <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-2">
+    <div className={`nn-card flex min-h-0 flex-1 flex-col p-4 ${className}`}>
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{title}</p>
         <div className="flex items-center gap-2">
           {toolbar}
@@ -32,9 +30,7 @@ export default function AdminPanelShell({
           )}
         </div>
       </div>
-      <div
-        className={`min-h-0 ${expanded ? 'scrollbar-thin scrollbar-thumb-nn-border dark:scrollbar-thumb-slate-600 flex-1 overflow-auto' : ''}`}
-      >
+      <div className="scrollbar-thin scrollbar-thumb-nn-border dark:scrollbar-thumb-slate-600 min-h-0 flex-1 overflow-auto pt-3">
         {children}
       </div>
     </div>

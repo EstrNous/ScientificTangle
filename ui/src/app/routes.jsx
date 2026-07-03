@@ -2,8 +2,10 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import ChatPage from '../pages/ChatPage.jsx';
 import GraphPage from '../pages/GraphPage.jsx';
-import StrategicPage from '../pages/StrategicPage.jsx';
-import LabPage from '../pages/LabPage.jsx';
+import StrategicCoveragePage from '../pages/StrategicCoveragePage.jsx';
+import StrategicQualityPage from '../pages/StrategicQualityPage.jsx';
+import LabMatrixPage from '../pages/LabMatrixPage.jsx';
+import LabInsightsPage from '../pages/LabInsightsPage.jsx';
 import AdminPage from '../pages/AdminPage.jsx';
 import AdminStatsPage from '../pages/AdminStatsPage.jsx';
 import AdminAuditPage from '../pages/AdminAuditPage.jsx';
@@ -31,17 +33,41 @@ export const routes = [
   },
   {
     path: '/strategic',
+    element: <Navigate to="/strategic/coverage" replace />,
+  },
+  {
+    path: '/strategic/coverage',
     element: (
       <RoleRoute paths={['strategic']}>
-        <StrategicPage />
+        <StrategicCoveragePage />
+      </RoleRoute>
+    ),
+  },
+  {
+    path: '/strategic/quality',
+    element: (
+      <RoleRoute paths={['strategic']}>
+        <StrategicQualityPage />
       </RoleRoute>
     ),
   },
   {
     path: '/lab',
+    element: <Navigate to="/lab/matrix" replace />,
+  },
+  {
+    path: '/lab/matrix',
     element: (
       <RoleRoute paths={['lab']}>
-        <LabPage />
+        <LabMatrixPage />
+      </RoleRoute>
+    ),
+  },
+  {
+    path: '/lab/insights',
+    element: (
+      <RoleRoute paths={['lab']}>
+        <LabInsightsPage />
       </RoleRoute>
     ),
   },

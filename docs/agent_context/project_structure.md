@@ -104,7 +104,8 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 
 ### Инфраструктура (`infra/`)
 
-- `infra/postgres/*_db/` — модели, репозитории, миграции и seed-модули PostgreSQL; схемами владеют сервисные миграции, общий init SQL не используется.
+- `infra/postgres/` — DB-per-service слои (auth_audit_db, orchestrator_db, chat_ui_db, export_db, notification_db); миграции через Alembic в `services/<name>/storage/` или `infra/postgres/<db>/storage/`.
+
 - `infra/orchestrator_db/` — модели и миграции Orchestrator (база `orchestrator_db`): IngestionTask, QueryRun, ExportJob. SQLAlchemy 2.0 async, Alembic.
 - `infra/chat_ui_db/` — модели и миграции Gateway/BFF (база `chat_ui_db`): ChatSession, ChatMessage, AdminSetting, ServiceState. SQLAlchemy 2.0 async, Alembic.
 - `infra/notification_db/` — модели и миграции Notification (база `notification_db`): UserInterest, Notification. SQLAlchemy 2.0 async, Alembic.

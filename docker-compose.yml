@@ -119,9 +119,11 @@ services:
       - "8000:8000"
     env_file: .env
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
+        condition: service_healthy
+      auth_audit:
+        condition: service_healthy
+      orchestrator:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -165,6 +167,14 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      auth_audit:
+        condition: service_healthy
+      ingestion:
+        condition: service_healthy
+      retrieval:
+        condition: service_healthy
+      model:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - st-net
@@ -182,11 +192,11 @@ services:
       - "8003:8003"
     env_file: .env
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
+      auth_audit:
         condition: service_healthy
       minio:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -204,7 +214,7 @@ services:
       - "8004:8004"
     env_file: .env
     depends_on:
-      postgres:
+      model:
         condition: service_healthy
       neo4j:
         condition: service_healthy
@@ -226,9 +236,11 @@ services:
       - "8005:8005"
     env_file: .env
     depends_on:
-      postgres:
+      model:
         condition: service_healthy
       qdrant:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -246,8 +258,6 @@ services:
       - "8006:8006"
     env_file: .env
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     restart: unless-stopped
@@ -269,6 +279,8 @@ services:
       postgres:
         condition: service_healthy
       minio:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -343,7 +355,7 @@ services:
       - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       gateway:
-        condition: service_started
+        condition: service_healthy
       auth_audit:
         condition: service_healthy
       ui:

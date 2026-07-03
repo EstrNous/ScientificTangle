@@ -1,3 +1,5 @@
+import { renderPdfImage } from './captureElement.js';
+
 function escapeHtml(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -68,7 +70,26 @@ function stamp() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export async function exportStrategicPdf({ manager, evaluation, t, language }) {
+function renderCoverageBarsHtml(directions) {
+  if (!directions?.length) return '';
+  const rows = directions
+    .map((d) => {
+      const pct = Math.round(d.coverage * 100);
+      return `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:11px;">
+          <span style="width:120px;flex-shrink:0;color:#111827;">${escapeHtml(d.name)}</span>
+          <div style="flex:1;height:8px;background:#F3F4F6;border-radius:4px;overflow:hidden;">
+            <div style="width:${pct}%;height:100%;background:#0057B8;border-radius:4px;"></div>
+          </div>
+          <span style="width:36px;text-align:right;color:#6B7280;">${pct}%</span>
+        </div>
+      `;
+    })
+    .join('');
+  return `<div style="margin-bottom:12px;">${rows}</div>`;
+}
+
+export async function exportStrategicCoveragePdf({ manager, t, language, chartImage = '' }) {
   const exportedAt = new Date().toLocaleString(language === 'en' ? 'en-GB' : 'ru-RU');
   const parts = [];
 
@@ -83,6 +104,12 @@ export async function exportStrategicPdf({ manager, evaluation, t, language }) {
 
   if (manager?.directions?.length) {
     parts.push(`<h2 style="${S.h2}">${escapeHtml(t('strategic.coverageTitle'))}</h2>`);
+    if (chartImage) {
+      parts.push(renderPdfImage(chartImage, 240));
+    } else {
+      parts.push(renderCoverageBarsHtml(manager.directions));
+    }
+    parts.push(`<h3 style="${S.h2}font-size:13px;">${escapeHtml(t('strategic.coverageList'))}</h3>`);
     parts.push(
       renderTable(
         [t('strategic.direction'), t('strategic.metrics.documents'), '%'],
@@ -101,8 +128,26 @@ export async function exportStrategicPdf({ manager, evaluation, t, language }) {
   parts.push(`<h2 style="${S.h2}">${escapeHtml(t('strategic.highConflict'))}</h2>`);
   parts.push(renderList(manager?.high_conflict_topics));
 
-  if (evaluation?.summary) {
+  const html = wrapPage(
+    `${t('nav.strategic')} — ${t('strategic.nav.coverage')}`,
+    t('common.exportedAt', { date: exportedAt }),
+    parts.join(''),
+  );
+  await downloadHtmlPdf(`analytics_coverage_${stamp()}.pdf`, html);
+}
+
+export async function exportStrategicQualityPdf({ evaluation, t, language, dashboardImage = '' }) {
+  const exportedAt = new Date().toLocaleString(language === 'en' ? 'en-GB' : 'ru-RU');
+  const parts = [];
+
+  if (evaluation?.summary || evaluation?.questions?.length) {
     parts.push(`<h2 style="${S.h2}">${escapeHtml(t('strategic.evaluationTitle'))}</h2>`);
+    if (dashboardImage) {
+      parts.push(renderPdfImage(dashboardImage, 480));
+    }
+  }
+
+  if (evaluation?.summary) {
     const evalRows = [
       [t('strategic.evalMetrics.citation_coverage'), `${Math.round(evaluation.summary.avg_citation_coverage * 100)}%`],
       [t('strategic.evalMetrics.numeric_correctness'), `${Math.round(evaluation.summary.avg_numeric_correctness * 100)}%`],
@@ -140,17 +185,30 @@ export async function exportStrategicPdf({ manager, evaluation, t, language }) {
     );
   }
 
-  const html = wrapPage(t('nav.strategic'), t('common.exportedAt', { date: exportedAt }), parts.join(''));
-  await downloadHtmlPdf(`analytics_${stamp()}.pdf`, html);
+  const html = wrapPage(
+    `${t('nav.strategic')} — ${t('strategic.nav.quality')}`,
+    t('common.exportedAt', { date: exportedAt }),
+    parts.join(''),
+  );
+  await downloadHtmlPdf(`analytics_quality_${stamp()}.pdf`, html);
 }
 
-export async function exportLabPdf({ labData, t, language }) {
+export async function exportLabMatrixPdf({
+  labData,
+  t,
+  language,
+  summaryImage = '',
+  matrixImage = '',
+}) {
   const exportedAt = new Date().toLocaleString(language === 'en' ? 'en-GB' : 'ru-RU');
   const parts = [];
   const summary = labData?.summary;
 
   if (summary) {
-    parts.push(`<h2 style="${S.h2}">${escapeHtml(t('lab.summary.experiments'))}</h2>`);
+    parts.push(`<h2 style="${S.h2}">${escapeHtml(t('lab.summary.links'))}</h2>`);
+    if (summaryImage) {
+      parts.push(renderPdfImage(summaryImage, 120));
+    }
     parts.push(
       renderTable(
         [t('strategic.pdfMetric'), t('strategic.pdfValue')],
@@ -158,21 +216,57 @@ export async function exportLabPdf({ labData, t, language }) {
           [t('lab.summary.gaps'), String(summary.gap_count)],
           [t('lab.summary.conflicts'), String(summary.conflict_count)],
           [t('lab.summary.sparse'), String(summary.sparse_cells)],
-          [t('lab.summary.experiments'), String(summary.experiments_total)],
+          [t('lab.summary.links'), String(summary.links_total ?? summary.experiments_total)],
         ],
       ),
     );
   }
 
-  const coverage = labData?.coverage;
-  if (coverage?.materials?.length && coverage?.processes?.length) {
-    parts.push(`<h2 style="${S.h2}">${escapeHtml(t('lab.coverageTitle'))}</h2>`);
-    const headers = ['', ...coverage.processes];
-    const rows = coverage.materials.map((material, rowIndex) => [
-      material,
-      ...coverage.matrix[rowIndex].map(String),
+  const view = labData?.matrixView ?? labData?.coverage;
+  if (view?.rows?.length && view?.cols?.length) {
+    const rowLabel = t(`lab.nodeTypes.${view.rowType}`, { defaultValue: view.rowType });
+    const colLabel = t(`lab.nodeTypes.${view.colType}`, { defaultValue: view.colType });
+    parts.push(
+      `<h2 style="${S.h2}">${escapeHtml(t('lab.matrixTitle', { row: rowLabel, col: colLabel }))}</h2>`,
+    );
+    if (matrixImage) {
+      parts.push(renderPdfImage(matrixImage, 360));
+    }
+    const headers = ['', ...view.cols];
+    const rows = view.rows.map((row, rowIndex) => [
+      row,
+      ...view.matrix[rowIndex].map(String),
     ]);
     parts.push(renderTable(headers, rows));
+  } else if (view?.materials?.length && view?.processes?.length) {
+    parts.push(`<h2 style="${S.h2}">${escapeHtml(t('lab.matrixTitle', { row: t('lab.nodeTypes.Material'), col: t('lab.nodeTypes.Process') }))}</h2>`);
+    if (matrixImage) {
+      parts.push(renderPdfImage(matrixImage, 360));
+    }
+    const headers = ['', ...view.processes];
+    const rows = view.materials.map((material, rowIndex) => [
+      material,
+      ...view.matrix[rowIndex].map(String),
+    ]);
+    parts.push(renderTable(headers, rows));
+  }
+
+  const html = wrapPage(
+    `${t('nav.lab')} — ${t('lab.nav.matrix')}`,
+    t('common.exportedAt', { date: exportedAt }),
+    parts.join(''),
+  );
+  await downloadHtmlPdf(`lab_matrix_${stamp()}.pdf`, html);
+}
+
+export async function exportLabInsightsPdf({ labData, t, language, insightsImage = '' }) {
+  const exportedAt = new Date().toLocaleString(language === 'en' ? 'en-GB' : 'ru-RU');
+  const parts = [];
+
+  if (labData?.gaps?.length || labData?.contradictions?.length) {
+    if (insightsImage) {
+      parts.push(renderPdfImage(insightsImage, 480));
+    }
   }
 
   if (labData?.gaps?.length) {
@@ -197,13 +291,27 @@ export async function exportLabPdf({ labData, t, language }) {
     );
   }
 
-  const html = wrapPage(t('nav.lab'), t('common.exportedAt', { date: exportedAt }), parts.join(''));
-  await downloadHtmlPdf(`lab_${stamp()}.pdf`, html);
+  const html = wrapPage(
+    `${t('nav.lab')} — ${t('lab.nav.insights')}`,
+    t('common.exportedAt', { date: exportedAt }),
+    parts.join(''),
+  );
+  await downloadHtmlPdf(`lab_insights_${stamp()}.pdf`, html);
 }
 
-export async function exportAdminManagementPdf({ users, policies, t, language }) {
+export async function exportAdminManagementPdf({
+  users,
+  policies,
+  t,
+  language,
+  dashboardImage = '',
+}) {
   const exportedAt = new Date().toLocaleString(language === 'en' ? 'en-GB' : 'ru-RU');
   const parts = [];
+
+  if (dashboardImage) {
+    parts.push(renderPdfImage(dashboardImage, 480));
+  }
 
   parts.push(`<h2 style="${S.h2}">${escapeHtml(t('admin.usersTitle'))}</h2>`);
   parts.push(
@@ -239,11 +347,15 @@ export async function exportAdminManagementPdf({ users, policies, t, language })
   await downloadHtmlPdf(`admin_management_${stamp()}.pdf`, html);
 }
 
-export async function exportAdminStatsPdf({ adminData, t, language }) {
+export async function exportAdminStatsPdf({ adminData, t, language, dashboardImage = '' }) {
   const exportedAt = new Date().toLocaleString(language === 'en' ? 'en-GB' : 'ru-RU');
   const parts = [];
   const summary = adminData?.summary;
   const operations = adminData?.operations;
+
+  if (dashboardImage) {
+    parts.push(renderPdfImage(dashboardImage, 480));
+  }
 
   if (summary) {
     parts.push(`<h2 style="${S.h2}">${escapeHtml(t('admin.stats.summaryTitle'))}</h2>`);
@@ -307,11 +419,14 @@ export async function exportAdminStatsPdf({ adminData, t, language }) {
   await downloadHtmlPdf(`admin_stats_${stamp()}.pdf`, html);
 }
 
-export async function exportAdminAuditPdf({ events, t, language }) {
+export async function exportAdminAuditPdf({ events, t, language, auditImage = '' }) {
   const exportedAt = new Date().toLocaleString(language === 'en' ? 'en-GB' : 'ru-RU');
   const parts = [];
 
   parts.push(`<h2 style="${S.h2}">${escapeHtml(t('admin.auditTitle'))}</h2>`);
+  if (auditImage) {
+    parts.push(renderPdfImage(auditImage, 480));
+  }
   parts.push(
     renderTable(
       [t('admin.auditTime'), t('admin.auditUser'), t('admin.auditAction'), t('admin.auditObject')],

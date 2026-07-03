@@ -6,9 +6,6 @@ bootstrap:
 up: bootstrap
 	docker compose up -d
 
-up-auth:
-	docker compose up -d auth_audit
-
 down:
 	docker compose down -v
 
@@ -26,7 +23,7 @@ ingest-demo:
 	python scripts/seed_demo.py
 
 e2e:
-	@echo "TODO: run e2e tests"
+	RUN_E2E=1 python scripts/run_tests.py
 
 eval:
 	python eval/run_eval.py --service-url $${EVAL_SERVICE_URL:-http://localhost:8000/api/query} --gold $${EVAL_GOLD:-eval/gold_questions.json} $${EVAL_DOCUMENTS:+--documents $$EVAL_DOCUMENTS} $${INGESTION_NORMALIZE_URL:+--ingestion-normalize-url $$INGESTION_NORMALIZE_URL} --auth-token-env EVAL_AUTH_TOKEN
@@ -43,7 +40,8 @@ reset-demo:
 	python scripts/seed_demo.py
 
 lint:
-	@echo "TODO: run linters"
+	ruff check shared services scripts tests
+	cd ui && npm run lint
 
 test:
 	python -m pytest services/retrieval/tests
@@ -55,4 +53,4 @@ test-yandex-live:
 	python scripts/yandex_live_smoke.py
 
 export-demo:
-	@echo "TODO: export demo"
+	@echo "export-demo: use ui ExportPanel or eval reports"

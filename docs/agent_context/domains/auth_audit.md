@@ -4,9 +4,11 @@
 
 ## Ключевые файлы
 
-- `services/auth_audit/src/models/` — User, Role, Permission, AuditEvent
-- `services/auth_audit/README.md` — обзор сервиса
+- `services/auth_audit/app/` — HTTP API, security, service layer
+- `infra/postgres/auth_audit_db/` — User, RefreshSession, репозиторий, seed
+- `services/auth_audit/storage/` — Alembic-миграции
+- `services/auth_audit/SERVICE_OVERVIEW.md` — обзор сервиса
 
 ## Архитектура
 
-DB-per-Service: auth_db и audit_db в одном PostgreSQL-инстансе.
+PostgreSQL (`scientific_tangle`), JWT RS256, JWKS, refresh rotation, structlog audit sink.

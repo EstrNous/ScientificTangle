@@ -1,7 +1,12 @@
 import CopyButton from '../shared/CopyButton.jsx';
+import SourceLink from '../shared/SourceLink.jsx';
+import { isSourceColumnName } from '../../utils/sourceColumn.js';
 
 export default function EvidenceTable({ table }) {
   const text = [table.columns.join('\t'), ...table.rows.map((r) => r.join('\t'))].join('\n');
+  const sourceColumnIndexes = table.columns
+    .map((column, index) => (isSourceColumnName(column) ? index : -1))
+    .filter((index) => index >= 0);
 
   return (
     <div className="overflow-auto">
@@ -26,7 +31,11 @@ export default function EvidenceTable({ table }) {
             <tr key={i}>
               {row.map((cell, j) => (
                 <td key={j} className="border border-nn-border px-2 py-1 text-gray-900 dark:border-slate-600 dark:text-slate-100">
-                  {cell}
+                  {sourceColumnIndexes.includes(j) ? (
+                    <SourceLink sourceRef={cell}>{cell}</SourceLink>
+                  ) : (
+                    cell
+                  )}
                 </td>
               ))}
             </tr>

@@ -3,8 +3,7 @@ import { useTranslation } from 'react-i18next';
 import PageShell from '../components/shared/PageShell.jsx';
 import Loader from '../components/shared/Loader.jsx';
 import { ChatSidebar, ChatWindow, ChatInput } from '../components/chat/index.js';
-import { apiGet } from '../api/client.js';
-import { runMockChatQuery } from '../api/mock/chatQuery.js';
+import { apiGet, submitChatQuery } from '../api/client.js';
 
 export default function ChatPage() {
   const { t } = useTranslation();
@@ -52,12 +51,11 @@ export default function ChatPage() {
     setRetrievalTrace({ steps: [], activeStepId: null });
 
     try {
-      const reply = await runMockChatQuery(
+      const reply = await submitChatQuery(
         { text, files },
         {
           t,
           onStep: setRetrievalTrace,
-          stepDelayMs: 650,
         },
       );
       setRetrievalTrace(null);

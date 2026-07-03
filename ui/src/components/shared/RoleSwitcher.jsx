@@ -4,15 +4,24 @@ import { ROLES, useAuthStore } from '../../stores/authStore.js';
 
 const roleOptions = Object.values(ROLES);
 
+const PATH_PREFIX_KEYS = [
+  ['/strategic', 'strategic'],
+  ['/lab', 'lab'],
+  ['/admin', 'admin'],
+];
+
 const PATH_KEYS = {
   '/chat': 'chat',
   '/graph': 'graph',
-  '/strategic': 'strategic',
-  '/lab': 'lab',
-  '/admin': 'admin',
   '/upload': 'upload',
   '/search': 'search',
 };
+
+function resolvePageKey(pathname) {
+  const prefix = PATH_PREFIX_KEYS.find(([path]) => pathname.startsWith(path));
+  if (prefix) return prefix[1];
+  return PATH_KEYS[pathname];
+}
 
 export default function RoleSwitcher() {
   const { t } = useTranslation();
@@ -28,7 +37,7 @@ export default function RoleSwitcher() {
       onChange={(e) => {
         const nextRole = e.target.value;
         setRole(nextRole);
-        const pageKey = PATH_KEYS[pathname];
+        const pageKey = resolvePageKey(pathname);
         if (pageKey && !canAccess(pageKey, nextRole)) {
           navigate('/chat', { replace: true });
         }

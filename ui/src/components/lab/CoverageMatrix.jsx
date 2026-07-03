@@ -1,5 +1,8 @@
+import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useThemeStore } from '../../stores/themeStore.js';
+import { captureElementImage, waitForPaint } from '../../utils/captureElement.js';
+import { CollapseIcon, ExpandIcon } from '../admin/AdminIcons.jsx';
 
 const MAX_SCALE = 12;
 
@@ -40,69 +43,122 @@ function LegendSwatch({ value, isDark }) {
   );
 }
 
-export default function CoverageMatrix({ coverage }) {
+function axisLabel(t, type) {
+  return t(`lab.nodeTypes.${type}`, { defaultValue: type });
+}
+
+const CoverageMatrix = forwardRef(function CoverageMatrix(
+  { view, fill = false, showValues = false, expanded = false, onToggleExpand },
+  ref,
+) {
   const { t } = useTranslation();
   const theme = useThemeStore((s) => s.theme);
-  const isDark = theme === 'dark';
+  const captureRef = useRef(null);
+  const [exporting, setExporting] = useState(false);
+  const isDark = exporting ? false : theme === 'dark';
+  const valuesVisible = exporting || showValues;
 
-  if (!coverage) return null;
+  useImperativeHandle(ref, () => ({
+    async getExportImage() {
+      setExporting(true);
+      await waitForPaint();
+      const image = await captureElementImage(captureRef.current, { fullContent: true });
+      setExporting(false);
+      return image;
+    },
+  }));
+
+  if (!view?.rows?.length || !view?.cols?.length) return null;
+
+  const rowTypeLabel = axisLabel(t, view.rowType);
+  const colTypeLabel = axisLabel(t, view.colType);
 
   return (
-    <div className="nn-card p-4">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+    <div
+      ref={captureRef}
+      className={`nn-card bg-white p-4 dark:bg-slate-900 ${fill ? 'flex min-h-0 flex-1 flex-col overflow-hidden' : ''}`}
+    >
+      <div className="mb-2 flex shrink-0 flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
-          {t('lab.coverageTitle')}
+          {t('lab.matrixTitle', { row: rowTypeLabel, col: colTypeLabel })}
         </p>
-        <div className="flex flex-wrap gap-3 text-[10px] text-nn-gray dark:text-slate-400">
-          <span className="inline-flex items-center gap-1.5">
-            <LegendSwatch value={0} isDark={isDark} /> {t('lab.legend.none')}
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <LegendSwatch value={2} isDark={isDark} /> {t('lab.legend.low')}
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <LegendSwatch value={6} isDark={isDark} /> {t('lab.legend.mid')}
-          </span>
-          <span className="inline-flex items-center gap-1.5">
-            <LegendSwatch value={12} isDark={isDark} /> {t('lab.legend.high')}
-          </span>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap gap-2 text-[10px] text-nn-gray dark:text-slate-400">
+            <span className="inline-flex items-center gap-1">
+              <LegendSwatch value={0} isDark={isDark} /> {t('lab.legend.none')}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <LegendSwatch value={2} isDark={isDark} /> {t('lab.legend.low')}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <LegendSwatch value={6} isDark={isDark} /> {t('lab.legend.mid')}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <LegendSwatch value={12} isDark={isDark} /> {t('lab.legend.high')}
+            </span>
+          </div>
+          {onToggleExpand && (
+            <button
+              type="button"
+              onClick={onToggleExpand}
+              className="rounded-md p-1 text-nn-gray transition-colors hover:bg-nn-gray-light hover:text-gray-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+              title={expanded ? t('lab.collapseMatrix') : t('lab.expandMatrix')}
+              aria-label={expanded ? t('lab.collapseMatrix') : t('lab.expandMatrix')}
+            >
+              {expanded ? (
+                <CollapseIcon className="h-3.5 w-3.5" />
+              ) : (
+                <ExpandIcon className="h-3.5 w-3.5" />
+              )}
+            </button>
+          )}
         </div>
       </div>
-      <div className="overflow-x-auto">
+      <div className={`min-h-0 ${fill ? 'flex-1 overflow-auto' : 'overflow-x-auto'}`}>
         <table className="w-full min-w-[480px] border-separate border-spacing-1 text-xs">
           <thead>
             <tr>
-              <th className="p-2 text-left font-medium text-nn-gray dark:text-slate-400" />
-              {coverage.processes.map((process) => (
+              <th className="p-2 text-left font-medium text-nn-gray dark:text-slate-400">
+                {rowTypeLabel}
+              </th>
+              {view.cols.map((col) => (
                 <th
-                  key={process}
+                  key={col}
                   className="p-2 text-left font-medium text-gray-900 dark:text-slate-100"
                 >
-                  {process}
+                  {col}
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {coverage.materials.map((material, rowIndex) => (
-              <tr key={material}>
-                <td className="p-2 font-medium text-gray-900 dark:text-slate-100">{material}</td>
-                {coverage.matrix[rowIndex].map((value, colIndex) => {
+            {view.rows.map((row, rowIndex) => (
+              <tr key={row}>
+                <td className="p-2 font-medium text-gray-900 dark:text-slate-100">{row}</td>
+                {view.matrix[rowIndex].map((value, colIndex) => {
                   const colors = cellColors(value, isDark);
-                  const process = coverage.processes[colIndex];
+                  const col = view.cols[colIndex];
                   return (
-                    <td key={`${material}-${process}`} className="p-0.5">
+                    <td key={`${row}-${col}`} className="p-0.5">
                       <div
                         title={t('lab.cellTooltip', {
-                          material,
-                          process,
+                          row,
+                          col,
                           count: value,
                         })}
                         style={{ backgroundColor: colors.bg }}
-                        className="group flex h-10 min-w-[2.5rem] cursor-default items-center justify-center rounded-md transition-all hover:scale-105 hover:shadow-md hover:ring-2 hover:ring-nn-blue/30"
+                        className={`flex h-10 min-w-[2.5rem] items-center justify-center rounded-md ${
+                          valuesVisible
+                            ? ''
+                            : 'group cursor-default transition-all hover:scale-105 hover:shadow-md hover:ring-2 hover:ring-nn-blue/30'
+                        }`}
                       >
                         <span
-                          className="text-sm font-bold tabular-nums opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+                          className={`text-sm font-bold tabular-nums ${
+                            valuesVisible
+                              ? 'opacity-100'
+                              : 'opacity-0 transition-opacity duration-150 group-hover:opacity-100'
+                          }`}
                           style={{ color: colors.text }}
                         >
                           {value}
@@ -118,4 +174,6 @@ export default function CoverageMatrix({ coverage }) {
       </div>
     </div>
   );
-}
+});
+
+export default CoverageMatrix;

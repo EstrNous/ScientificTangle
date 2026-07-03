@@ -22,4 +22,31 @@ export async function apiPost(path, body, options = {}) {
   return data;
 }
 
+function mapQueryResponseToMessage(payload, queryText) {
+  const answer = payload?.answer ?? payload;
+  return {
+    id: `m-${Date.now()}`,
+    role: 'assistant',
+    content: answer?.summary ?? answer?.text ?? JSON.stringify(answer),
+    expanded_synonyms: answer?.expanded_synonyms ?? [],
+    confidence: answer?.confidence ?? null,
+    sources: answer?.sources ?? payload?.sources ?? [],
+    evidence_table: answer?.evidence_table ?? payload?.evidence_table,
+    retrieval_trace: payload?.retrieval_trace ?? answer?.retrieval_trace,
+  };
+}
+
+export async function submitChatQuery({ text, files }, { onStep, t } = {}) {
+  if (useMock) {
+    const { runMockChatQuery } = await import('./mock/chatQuery.js');
+    return runMockChatQuery({ text, files }, { onStep, t, stepDelayMs: 650 });
+  }
+  const response = await apiPost('/api/query', {
+    query: text,
+    documents: [],
+    limit: 20,
+  });
+  return mapQueryResponseToMessage(response, text);
+}
+
 export { useMock };

@@ -3,14 +3,18 @@ import MetricsCards from './MetricsCards.jsx';
 import CoverageChart from './CoverageChart.jsx';
 import TopicsAlerts from './TopicsAlerts.jsx';
 
-export default function ManagerDashboard({ data }) {
+export default function ManagerDashboard({ data, fill = false, coverageChartRef }) {
   const { t } = useTranslation();
 
   if (!data) return null;
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <div
+      className={
+        fill ? 'flex min-h-0 flex-1 flex-col gap-2 overflow-hidden' : 'space-y-4'
+      }
+    >
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
           {t('strategic.managerTitle')}
         </p>
@@ -23,12 +27,19 @@ export default function ManagerDashboard({ data }) {
         )}
       </div>
       <MetricsCards totals={data.totals} />
-      <div className="grid min-h-0 gap-4 xl:grid-cols-[1fr_280px]">
-        <CoverageChart directions={data.directions} />
-        <TopicsAlerts
-          lowCoverageTopics={data.low_coverage_topics}
-          highConflictTopics={data.high_conflict_topics}
-        />
+      <div
+        className={`grid min-h-0 gap-3 ${fill ? 'h-full min-h-0 flex-1 xl:grid-cols-[1fr_260px]' : 'xl:grid-cols-[1fr_280px]'}`}
+      >
+        <div className="flex h-full min-h-0 flex-col">
+          <CoverageChart ref={coverageChartRef} directions={data.directions} fill={fill} />
+        </div>
+        <div className="min-h-0">
+          <TopicsAlerts
+            lowCoverageTopics={data.low_coverage_topics}
+            highConflictTopics={data.high_conflict_topics}
+            fill={fill}
+          />
+        </div>
       </div>
     </div>
   );

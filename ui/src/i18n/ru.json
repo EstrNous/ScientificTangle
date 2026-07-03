@@ -29,6 +29,17 @@
     "downloadingPdf": "PDF…",
     "exportedAt": "Экспорт: {{date}}"
   },
+  "source": {
+    "title": "Документ-источник",
+    "download": "Скачать PDF",
+    "downloading": "PDF…",
+    "page": "Стр. {{page}}",
+    "totalPages": "всего {{count}} стр.",
+    "prevPage": "Назад",
+    "nextPage": "Вперёд",
+    "close": "Закрыть",
+    "pageEmpty": "Текст страницы недоступен"
+  },
   "chat": {
     "history": "История",
     "export": "Экспорт",
@@ -75,6 +86,14 @@
     "nodeTypeFilters": "Типы узлов",
     "selectAllTypes": "Все типы",
     "resetTypes": "Сбросить",
+    "tableView": "Таблица",
+    "graphView": "Граф",
+    "combinationsTitle": "Сочетания узлов",
+    "combinationsEmpty": "Нет сочетаний по выбранным типам узлов",
+    "combinationsNoTypes": "Выберите хотя бы один тип узла для таблицы",
+    "combinationsEditHint": "Ячейки и названия групп редактируются напрямую",
+    "combinationsAddRow": "Добавить строку",
+    "combinationsDeleteRow": "Удалить строку",
     "statsFiltered": "{{nodes}} из {{total}} узлов · {{links}} связей",
     "nodeTypes": {
       "Material": "Материалы",
@@ -109,9 +128,16 @@
     }
   },
   "strategic": {
+    "nav": {
+      "coverage": "Покрытие",
+      "quality": "Качество"
+    },
     "managerTitle": "Покрытие базы знаний",
     "updatedAt": "Обновлено {{date}}",
     "coverageTitle": "Покрытие по направлениям",
+    "coverageList": "Детализация по направлениям",
+    "expandDetails": "Развернуть детализацию",
+    "collapseDetails": "Свернуть детализацию",
     "coverageValue": "Покрытие {{value}}%",
     "documentsCount": "{{count}} документов",
     "lowCoverage": "Пробелы в знаниях",
@@ -130,10 +156,10 @@
     "metrics": {
       "documents": "Документы",
       "claims": "Утверждения",
-      "verified_claims": "Подтверждено",
-      "candidates": "Кандидаты",
-      "gaps": "Пробелы",
-      "conflicts": "Конфликты"
+      "verified_claims": "Подтверждено источниками",
+      "candidates": "Кандидаты на подтверждение",
+      "gaps": "Пробелы в знаниях",
+      "conflicts": "Конфликты между источниками"
     },
     "direction": "Направление",
     "pdfMetric": "Показатель",
@@ -163,12 +189,16 @@
       "denied24h": "Отказы доступа"
     },
     "usersTitle": "Пользователи и роли",
+    "usersHint": "Статус показывает, может ли пользователь входить в систему. Нажмите на статус, чтобы заблокировать или разблокировать вход.",
     "userName": "Имя",
     "userEmail": "Email",
     "userRole": "Роль",
-    "userStatus": "Статус",
-    "statusActive": "активен",
-    "statusInactive": "отключён",
+    "userStatus": "Доступ в системе",
+    "userStatusHint": "Разрешён ли вход пользователя в систему",
+    "statusActive": "Вход разрешён",
+    "statusInactive": "Вход заблокирован",
+    "statusActiveHint": "Нажмите, чтобы заблокировать вход",
+    "statusInactiveHint": "Нажмите, чтобы разрешить вход",
     "userActions": "Действия",
     "deleteUser": "Удалить пользователя",
     "confirmDeleteUser": "Удалить пользователя «{{name}}»?",
@@ -176,8 +206,13 @@
     "expandPanel": "Развернуть на всю страницу",
     "collapsePanel": "Свернуть",
     "accessTitle": "Политики доступа к документам",
+    "accessHint": "Уровень доступа, роли и экспорт редактируются прямо в таблице. Нажмите на роль, чтобы разрешить или запретить чтение документа.",
+    "roleAddHint": "Разрешить доступ для роли «{{role}}»",
+    "roleRemoveHint": "Запретить доступ для роли «{{role}}»",
+    "exportEnableHint": "Разрешить экспорт документа",
+    "exportDisableHint": "Запретить экспорт документа",
     "document": "Документ",
-    "accessLevel": "Уровень",
+    "accessLevel": "Уровень доступа",
     "allowedRoles": "Роли",
     "export": "Экспорт",
     "exportYes": "разрешён",
@@ -187,6 +222,12 @@
       "internal": "внутренний",
       "confidential": "конфиденциальный",
       "restricted": "ограниченный"
+    },
+    "levelDescriptions": {
+      "public": "Доступен всем авторизованным ролям, включая внешних партнёров",
+      "internal": "Только для сотрудников компании",
+      "confidential": "Ограниченный круг: руководство и администраторы",
+      "restricted": "Максимальная защита, только администраторы"
     },
     "auditTitle": "Журнал аудита",
     "auditTime": "Время",
@@ -216,11 +257,17 @@
       "service": "Сервис",
       "rps": "RPS",
       "errors": "Ошибки",
-      "status": "Статус",
+      "status": "Состояние",
+      "statusHint": "Состояние микросервиса по метрикам за последние 24 часа. Наведите на бейдж для подробностей.",
       "statuses": {
-        "ok": "норма",
-        "degraded": "деградация",
-        "down": "недоступен"
+        "ok": "Работает нормально",
+        "degraded": "Частичная деградация",
+        "down": "Недоступен"
+      },
+      "statusDescriptions": {
+        "ok": "задержки и ошибки в пределах нормы",
+        "degraded": "повышенные задержки или единичные ошибки",
+        "down": "сервис не отвечает или критический уровень ошибок"
       },
       "serviceNames": {
         "gateway": "Gateway",
@@ -236,9 +283,38 @@
     }
   },
   "lab": {
-    "coverageTitle": "Матрица «материал × процесс»",
-    "experimentsCount": "{{count}} экспериментов",
-    "cellTooltip": "{{material}} × {{process}}: {{count}} экспериментов",
+    "nav": {
+      "matrix": "Матрица связей",
+      "insights": "Пробелы и противоречия"
+    },
+    "nodeTypes": {
+      "Material": "Материалы",
+      "Process": "Процессы",
+      "Experiment": "Эксперименты",
+      "Lab": "Лаборатории",
+      "Regime": "Режимы",
+      "Author": "Авторы",
+      "Document": "Документы"
+    },
+    "matrixTitle": "Матрица «{{row}} × {{col}}»",
+    "expandMatrix": "Развернуть матрицу",
+    "collapseMatrix": "Свернуть матрицу",
+    "matrixConfig": {
+      "rowAxis": "Строки (тип узла)",
+      "colAxis": "Столбцы (тип узла)",
+      "rowFilter": "Строка: {{type}}",
+      "colFilter": "Столбец: {{type}}",
+      "display": "Числа в ячейках",
+      "allRows": "Все строки",
+      "allCols": "Все столбцы",
+      "displayHover": "При наведении",
+      "displayAlways": "Всегда",
+      "reset": "Сбросить",
+      "fullSummary": "{{rowType}} × {{colType}}: {{rows}} × {{cols}}",
+      "filteredSummary": "Фильтр: {{rowType}} × {{colType}}, {{rows}} × {{cols}}"
+    },
+    "experimentsCount": "{{count}} связей",
+    "cellTooltip": "{{row}} × {{col}}: {{count}} связей",
     "legend": {
       "none": "нет данных",
       "low": "мало",
@@ -252,10 +328,10 @@
     "experts": "Эксперты и лаборатории",
     "conflictNote": "Условия эксперимента различаются — прямой конфликт не подтверждён без сопоставления",
     "summary": {
-      "gaps": "Пробелы",
+      "gaps": "Темы без покрытия",
       "conflicts": "Конфликты",
-      "sparse": "Пустые ячейки",
-      "experiments": "Экспериментов в матрице"
+      "sparse": "Ячейки без связей",
+      "links": "Связей в матрице"
     },
     "risk": {
       "high": "высокий",

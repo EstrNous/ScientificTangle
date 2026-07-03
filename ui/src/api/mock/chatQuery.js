@@ -52,12 +52,14 @@ export function buildMockAssistantReply(query, fileNames) {
         author: 'Smith J.',
         date: '2023',
         confidence_level: 'verified',
+        source_span_id: 'span-1',
       },
       {
         title: fileNames[0] || 'nickel_report.pdf',
         author: 'Внутренний отчёт',
         date: '2024',
         confidence_level: 'internal',
+        source_span_id: fileNames[0] === 'water_desalination.docx' ? 'span-2' : 'span-1',
       },
     ],
     evidence_table: {

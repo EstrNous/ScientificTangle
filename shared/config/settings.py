@@ -16,4 +16,4 @@ class ServiceSettings(BaseSettings):
     minio_access_key: str = "minioadmin"
     minio_secret_key: str = "minioadmin123"
 
-    model_config = SettingsConfigDict(env_prefix="", env_file=".env")
+    model_config = SettingsConfigDict(env_prefix="", env_file=".env", extra="ignore")

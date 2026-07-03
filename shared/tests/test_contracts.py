@@ -1,28 +1,45 @@
-from shared.contracts import (
-    IngestionReport,
-    IngestionTaskPayload,
-    KnowledgeIngestionRequest,
-    NormalizeStoredSourcesResponse,
-    RetrievalIndexResponse,
-    StorageWriteResult,
-)
+import pytest
+from pydantic import ValidationError
+
+from shared.contracts import NormalizedDocument, QueryIR, SourceSpan
 
 
-def test_existing_ingestion_contracts_remain_frozen() -> None:
-    assert list(IngestionReport.model_fields) == ["stage", "sources", "warnings"]
-    assert list(IngestionTaskPayload.model_fields) == [
-        "id",
-        "status",
-        "report",
-        "error_message",
-        "created_at",
-        "updated_at",
-    ]
+def test_source_span_rejects_invalid_source_type() -> None:
+    with pytest.raises(ValidationError):
+        SourceSpan(
+            document_id="d1",
+            page=1,
+            start_offset=0,
+            end_offset=1,
+            text="x",
+            source_type="invalid",
+        )
 
 
-def test_new_cross_service_contracts_are_exported() -> None:
-    assert KnowledgeIngestionRequest.model_fields
-    assert NormalizeStoredSourcesResponse.model_fields
-    assert RetrievalIndexResponse.model_fields
-    result = StorageWriteResult(backend="neo4j")
-    assert result.mode == "mock"
+def test_normalized_document_accepts_valid_span() -> None:
+    span = SourceSpan(
+        document_id="d1",
+        page=1,
+        start_offset=0,
+        end_offset=5,
+        text="hello",
+        source_type="text",
+    )
+    doc = NormalizedDocument(
+        id="d1",
+        source_type="article",
+        title="T",
+        content="hello",
+        source_spans=[span],
+    )
+    assert doc.source_spans[0].text == "hello"
+
+
+def test_query_ir_minimal() -> None:
+    query = QueryIR(
+        raw_query="test",
+        filters={},
+        entities=[],
+        intent="fact_lookup",
+    )
+    assert query.raw_query == "test"

@@ -57,7 +57,7 @@ export default function AuditLogTable({ events, selectedId, onSelect, fullHeight
       expanded={fullHeight}
       className={fullHeight ? 'min-h-0 flex-1' : 'min-h-0'}
     >
-      <div className={fullHeight ? '' : 'max-h-72 overflow-auto'}>
+      <div className={fullHeight ? 'min-h-0' : 'max-h-72 overflow-auto'}>
         <table className="w-full min-w-[640px] border-collapse text-xs">
           <thead className="sticky top-0 bg-white dark:bg-slate-900">
             <tr className="text-left text-nn-gray dark:text-slate-400">

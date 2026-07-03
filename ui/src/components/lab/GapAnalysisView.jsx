@@ -1,14 +1,20 @@
 import { useTranslation } from 'react-i18next';
 
-export default function GapAnalysisView({ gaps }) {
+export default function GapAnalysisView({ gaps, fill = false }) {
   const { t } = useTranslation();
 
   if (!gaps?.length) return null;
 
   return (
-    <div className="nn-card flex flex-col gap-3 p-4">
-      <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{t('lab.gapsTitle')}</p>
-      <ul className="space-y-3">
+    <div
+      className={`nn-card flex flex-col gap-3 p-4 ${fill ? 'h-full min-h-0 overflow-hidden' : ''}`}
+    >
+      <p className="shrink-0 text-sm font-semibold text-gray-900 dark:text-slate-100">
+        {t('lab.gapsTitle')}
+      </p>
+      <ul
+        className={`space-y-3 ${fill ? 'scrollbar-thin scrollbar-thumb-nn-border dark:scrollbar-thumb-slate-600 min-h-0 flex-1 overflow-y-auto pr-1' : ''}`}
+      >
         {gaps.map((gap) => (
           <li
             key={gap.id}

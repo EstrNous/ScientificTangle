@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import AdminPanelShell from './AdminPanelShell.jsx';
 
 const STATUS_STYLES = {
   ok: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
@@ -13,7 +14,13 @@ function formatRps(value) {
   });
 }
 
-export default function ServiceMetricsTable({ services, compact = false, fill = false }) {
+export default function ServiceMetricsTable({
+  services,
+  compact = false,
+  fill = false,
+  expanded = false,
+  onToggleExpand,
+}) {
   const { t } = useTranslation();
 
   if (!services?.length) return null;
@@ -22,19 +29,16 @@ export default function ServiceMetricsTable({ services, compact = false, fill = 
   const headPad = compact ? 'px-2 py-1.5' : 'px-2 py-2';
 
   return (
-    <div
-      className={`nn-card flex min-h-0 flex-col ${compact ? 'p-3' : 'p-4'} ${fill ? 'flex-1' : ''}`}
+    <AdminPanelShell
+      title={t('admin.ops.servicesTitle')}
+      expanded={expanded}
+      onToggleExpand={onToggleExpand}
+      className={fill ? 'min-h-0 flex-1' : ''}
     >
-      <div className={`flex shrink-0 items-center justify-between gap-2 ${compact ? 'mb-2' : 'mb-3'}`}>
-        <p
-          className={`font-semibold text-gray-900 dark:text-slate-100 ${
-            compact ? 'text-xs' : 'text-sm'
-          }`}
-        >
-          {t('admin.ops.servicesTitle')}
-        </p>
-      </div>
-      <div className={`min-h-0 ${fill ? 'flex-1 overflow-auto' : 'overflow-x-auto'}`}>
+      <p className="mb-2 text-[10px] leading-relaxed text-nn-gray dark:text-slate-400">
+        {t('admin.ops.statusHint')}
+      </p>
+      <div className={fill ? 'min-h-0' : 'overflow-x-auto'}>
         <table className="w-full min-w-[640px] border-collapse text-xs">
           <thead className={fill ? 'sticky top-0 z-10 bg-white dark:bg-slate-900' : ''}>
             <tr className="text-left text-nn-gray dark:text-slate-400">
@@ -94,7 +98,8 @@ export default function ServiceMetricsTable({ services, compact = false, fill = 
                 </td>
                 <td className={`border-b border-nn-border dark:border-slate-700 ${cellPad}`}>
                   <span
-                    className={`inline-block rounded-full px-1.5 py-px text-[9px] font-semibold uppercase tracking-wide ${
+                    title={t(`admin.ops.statusDescriptions.${service.status}`)}
+                    className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold ${
                       STATUS_STYLES[service.status] ?? STATUS_STYLES.ok
                     }`}
                   >
@@ -106,6 +111,16 @@ export default function ServiceMetricsTable({ services, compact = false, fill = 
           </tbody>
         </table>
       </div>
-    </div>
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-nn-gray dark:text-slate-400">
+        {['ok', 'degraded', 'down'].map((status) => (
+          <span key={status}>
+            <span className="font-medium text-gray-800 dark:text-slate-200">
+              {t(`admin.ops.statuses.${status}`)}:
+            </span>{' '}
+            {t(`admin.ops.statusDescriptions.${status}`)}
+          </span>
+        ))}
+      </div>
+    </AdminPanelShell>
   );
 }

@@ -24,16 +24,16 @@ export default function MetricsCards({ totals }) {
   if (!totals) return null;
 
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+    <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
       {METRIC_KEYS.map((key) => (
         <div
           key={key}
-          className="nn-card rounded-xl border border-nn-border p-3 dark:border-slate-700"
+          className="nn-card shrink-0 rounded-xl border border-nn-border p-2.5 dark:border-slate-700"
         >
-          <p className="text-[11px] font-medium uppercase tracking-wide text-nn-gray dark:text-slate-400">
+          <p className="text-[10px] font-medium uppercase leading-tight tracking-wide text-nn-gray dark:text-slate-400">
             {t(`strategic.metrics.${key}`)}
           </p>
-          <p className={`mt-1 text-2xl font-bold tabular-nums ${ACCENT[key]}`}>
+          <p className={`mt-0.5 text-xl font-bold tabular-nums leading-none ${ACCENT[key]}`}>
             {totals[key]?.toLocaleString('ru-RU') ?? '—'}
           </p>
         </div>
