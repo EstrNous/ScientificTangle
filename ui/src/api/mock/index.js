@@ -24,6 +24,8 @@ export async function mockFetch(resource, options = {}) {
   if (resource === 'search' || resource === 'lab/search') {
     throw new Error('Search API requires backend connection');
   }
+  if (resource === 'strategic/metrics' || resource === 'strategic/evaluation' || resource.startsWith('strategic/')) {
+    throw new Error('Strategic API requires backend connection');
   if (resource === 'lab/coverage' || resource.startsWith('lab/')) {
     throw new Error('Lab API requires backend connection');
   }
@@ -33,8 +35,11 @@ export async function mockFetch(resource, options = {}) {
   if (resource === 'strategic/metrics') {
     return strategic.manager;
   }
-  if (resource === 'strategic/evaluation') {
-    return strategic.evaluation;
+  if (resource === 'lab/coverage' || resource.startsWith('lab/')) {
+    throw new Error('Lab API requires backend connection');
+  }
+  if (resource === 'ingestion/tasks') {
+    return ingestion.tasks;
   }
   if (resource === 'audit/events') {
     return audit.events;

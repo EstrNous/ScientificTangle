@@ -9,7 +9,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { getDirectionSources } from '../../api/mock/sourceBindings.js';
+import { collectSourceRefs } from '../../utils/sourceRefs.js';
 import { useSourceRefsPopover } from '../../hooks/useSourceRefsPopover.js';
 import { captureElementImage, waitForPaint } from '../../utils/captureElement.js';
 import { CollapseIcon, ExpandIcon } from '../admin/AdminIcons.jsx';
@@ -64,10 +64,12 @@ const CoverageChart = forwardRef(function CoverageChart({ directions, fill = fal
   }));
 
   const openDirectionSources = (event, direction) => {
+    const sources = collectSourceRefs(direction, direction.documents);
+    if (!sources.length) return;
     openPopover(event, {
       title: direction.name,
       subtitle: t('strategic.coverageValue', { value: Math.round(direction.coverage * 100) }),
-      sources: getDirectionSources(direction.id, direction.documents),
+      sources,
     });
   };
 

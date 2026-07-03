@@ -1,6 +1,6 @@
 import { forwardRef, useImperativeHandle, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getQuestionSources } from '../../api/mock/sourceBindings.js';
+import { collectSourceRefs } from '../../utils/sourceRefs.js';
 import { useSourceRefsPopover } from '../../hooks/useSourceRefsPopover.js';
 import { captureElementImage, waitForPaint } from '../../utils/captureElement.js';
 import SourceRefsPopover from '../shared/SourceRefsPopover.jsx';
@@ -98,21 +98,25 @@ const EvaluationDashboard = forwardRef(function EvaluationDashboard({ data, fill
   const summary = data.summary ?? {};
 
   const openQuestionSources = (event, question) => {
+    const sources = collectSourceRefs(question, question.actual_sources);
+    if (!sources.length) return;
     openPopover(event, {
       title: question.text,
       subtitle: t('strategic.sourcesLine', {
         actual: question.actual_sources,
         expected: question.expected_sources,
       }),
-      sources: getQuestionSources(question.id, question.actual_sources),
+      sources,
     });
   };
 
   const openMetricSources = (event, question, metricKey, value) => {
+    const sources = collectSourceRefs(question, Math.max(1, Math.round((value ?? 0) * 4)));
+    if (!sources.length) return;
     openPopover(event, {
       title: question.text,
       subtitle: t(`strategic.evalMetrics.${metricKey}`),
-      sources: getQuestionSources(question.id, Math.max(1, Math.round((value ?? 0) * 4))),
+      sources,
     });
   };
 
