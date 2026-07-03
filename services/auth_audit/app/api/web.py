@@ -16,16 +16,16 @@ from starlette.middleware.base import RequestResponseEndpoint
 
 from ..core.audit import AuthAuditSink, LoggingAuthAuditSink
 from ..core.config import Settings
-from ..db.database import create_database
+from infra.postgres.auth_audit_db import create_database
 from ..core.dependencies import (
     get_auth_service,
     get_current_user,
     get_request_context,
     require_roles,
 )
-from ..db.models import Role, User
-from ..db.repository import AuthRepository, IdentityConflictError
-from ..db.schemas import (
+from infra.postgres.auth_audit_db import Role, User
+from infra.postgres.auth_audit_db import AuthRepository, IdentityConflictError
+from infra.postgres.auth_audit_db import (
     AdminUserUpdateRequest,
     ErrorDetails,
     ErrorResponse,

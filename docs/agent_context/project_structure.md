@@ -121,16 +121,25 @@
 
 Микросервис аутентификации, авторизации (RBAC) и аудита.
 
-- `src/models/base.py` — общий `DeclarativeBase` (SQLAlchemy 2.0 Async) и `TimestampMixin` для auth_audit.
-- `src/models/auth.py` — модели RBAC: `User`, `Role`, `Permission`, `UserRole`, `RolePermission`. База `auth_db`.
-- `src/models/audit.py` — модель `AuditEvent`. База `audit_db`.
-- `README.md` — описание сервиса, стек, схема баз, индексы.
+- `app/` — FastAPI-приложение, бизнес-логика, security, зависимости.
+- `storage/` — Alembic-миграции для БД auth_audit (metadata из `infra.postgres.auth_audit_db`).
+- Слой PostgreSQL: `infra/postgres/auth_audit_db/` (модели, репозиторий, схемы, seed).
 
-Архитектура: DB-per-Service — каждая база (auth_db, audit_db) физически отдельная БД внутри одного PostgreSQL-инстанса.
+## Базы данных (DB-per-Service в infra/postgres/)
 
-## Базы данных (DB-per-Service в infra/)
+### infra/postgres/auth_audit_db/
 
-### infra/orchestrator_db/
+База данных auth_audit (база `scientific_tangle`). Пользователи, роли, refresh-сессии.
+
+- `models.py` — модели: `User`, `RefreshSession`, enum `Role`.
+- `database.py` — фабрика `create_database()` (async engine + sessionmaker).
+- `repository.py` — `AuthRepository`, `SqlAlchemyAuthRepository`.
+- `schemas.py` — Pydantic-схемы запросов и ответов API.
+- `seed.py` — сидирование пользователей из env (`AUTH_SEED_*`).
+- `config.py` — `AuthAuditDbSettings` (env prefix `AUTH_AUDIT_`).
+- `alembic.ini` — конфигурация Alembic (миграции пока в `services/auth_audit/storage/`).
+
+### infra/postgres/orchestrator_db/
 
 База данных оркестратора (база `orchestrator_db`). Управление задачами ингеста, запусками запросов и экспортом.
 
@@ -141,7 +150,7 @@
 - `storage/env.py` — окружение Alembic (async engine from config).
 - `storage/versions/0001_create_orchestrator_tables.py` — стартовая миграция.
 
-### infra/chat_ui_db/
+### infra/postgres/chat_ui_db/
 
 База данных шлюза/BFF (база `chat_ui_db`). История чатов, системные настройки, состояние сервисов.
 
@@ -152,7 +161,7 @@
 - `storage/env.py` — окружение Alembic (async engine from config).
 - `storage/versions/0001_create_chat_ui_tables.py` — стартовая миграция.
 
-### infra/notification_db/
+### infra/postgres/notification_db/
 
 База данных уведомлений (база `notification_db`). Профили интересов пользователей и уведомления.
 

@@ -14,7 +14,7 @@ from pwdlib import PasswordHash
 from pydantic import BaseModel, ConfigDict
 
 from app.core.config import Settings
-from app.db.models import Role
+from infra.postgres.auth_audit_db import Role
 
 
 class InvalidAccessTokenError(Exception):

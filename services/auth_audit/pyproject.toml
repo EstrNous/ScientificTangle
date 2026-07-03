@@ -34,7 +34,7 @@ dev = [
 ]
 
 [project.scripts]
-auth-seed-users = "app.db.seed:main"
+auth-seed-users = "infra.postgres.auth_audit_db.seed:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]

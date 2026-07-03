@@ -8,7 +8,7 @@ from httpx import ASGITransport, AsyncClient
 
 from app.api.web import create_app
 from app.core.dependencies import require_roles
-from app.db.models import Role, User
+from infra.postgres.auth_audit_db import Role, User
 from app.service.security import hash_refresh_token
 
 AdminUserDependency = Annotated[User, Depends(require_roles(Role.ADMIN))]
