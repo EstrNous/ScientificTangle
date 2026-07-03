@@ -22,7 +22,7 @@
 - `.zed/rules/project.md` — правила для Zed Agent.
 - `docker-compose.yml` — полная локальная среда (сервисы + PostgreSQL + Neo4j + Qdrant + MinIO + Redis + nginx), включая запуск миграций `auth_audit` и `orchestrator`, а также подключение внешних RSA-секретов.
 - `docker-compose.prod.yml` — production-оверрайды (ресурсы, логирование, реплики).
-- `Makefile` — цели сборки и управления: up, up-auth, down, build, logs, seed, e2e, eval, test и др.
+- `Makefile` — цели сборки и управления: bootstrap, up, up-auth, down, build, logs, seed, ingest-demo, eval, eval-yandex-live, perf-smoke, test, test-yandex-live и др.
 - `.env.example` — шаблон переменных окружения для копирования в `.env`.
 
 ### Документация
@@ -97,26 +97,30 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 - `ui/src/stores/` — authStore, localeStore, notificationStore, themeStore (Zustand).
 - `ui/src/i18n/` — ru/en, synonyms.json.
 - `ui/src/api/client.js` — mock/real переключатель.
+- `ui/src/api/auth.js`, `ui/src/api/chat.js`, `ui/src/api/graph.js` — реальные API чата и графа.
 - `ui/src/api/contracts/` — имена DTO (зеркало shared/contracts).
-- `ui/src/api/mock/` — JSON demo-данные для экрана чата.
+- `ui/src/api/mock/` — JSON demo-данные для экранов без backend.
+- `ui/src/utils/graphFilters.js`, `ui/src/utils/graphSearch.js` — клиентская фильтрация графа.
 - `ui/src/hooks/` — useRoleAccess.
 - `ui/src/utils/reportExport.js` — экспорт MD/JSON/PDF.
 
 ### Инфраструктура (`infra/`)
 
-- `infra/postgres/*_db/` — модели, репозитории, миграции и seed-модули PostgreSQL; схемами владеют сервисные миграции, общий init SQL не используется.
+- `infra/postgres/` — DB-per-service слои (auth_audit_db, orchestrator_db, chat_ui_db, export_db, notification_db); миграции через Alembic в `services/<name>/storage/` или `infra/postgres/<db>/storage/`.
+
 - `infra/orchestrator_db/` — модели и миграции Orchestrator (база `orchestrator_db`): IngestionTask, QueryRun, ExportJob. SQLAlchemy 2.0 async, Alembic.
 - `infra/chat_ui_db/` — модели и миграции Gateway/BFF (база `chat_ui_db`): ChatSession, ChatMessage, AdminSetting, ServiceState. SQLAlchemy 2.0 async, Alembic.
 - `infra/notification_db/` — модели и миграции Notification (база `notification_db`): UserInterest, Notification. SQLAlchemy 2.0 async, Alembic.
 - `infra/neo4j/` — конфигурация Neo4j.
-- `infra/qdrant/` — конфигурация Qdrant.
+- `infra/qdrant/` — описание Qdrant collection `st_evidence_v1`, payload indexes и access-aware retrieval.
 - `infra/minio/buckets.txt` — список бакетов MinIO.
 - `infra/nginx/nginx.conf` — reverse proxy (порт 80), маршрутизирует `/api/auth/` и JWKS в `auth_audit`, остальные внешние API — в Gateway.
 - `infra/monitoring/prometheus.yml` — конфигурация Prometheus для сбора /metrics со всех сервисов.
 - `infra/monitoring/grafana/` — provisioning datasource и SRE-дашборды Grafana.
 - `infra/nginx/Dockerfile` — nginx с basic auth для `/grafana/`.
 - `infra/docker/Dockerfile.python-service` — multistage Dockerfile для Python-сервисов (deps + runtime, shared).
-- `infra/scripts/` — скрипты эксплуатации (seed, reset-demo — в разработке).
+- `infra/scripts/` — скрипты эксплуатации.
+- `scripts/` — локальные MVP smoke/eval/seed scripts: demo seed, Yandex live smoke, official eval, performance smoke.
 
 ### Онтология (`ontology/`)
 
@@ -126,6 +130,7 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 
 ### Справочники (`dictionaries/`)
 
+- `dictionaries/aliases_mvp.json` — MVP-словарь алиасов для demo/eval.
 - `dictionaries/materials/` — материалы (руды, минералы, сплавы).
 - `dictionaries/equipment/` — оборудование (печи, мельницы, реакторы).
 - `dictionaries/properties/` — свойства материалов.
@@ -143,7 +148,7 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 
 ### Демо (`demo/`)
 
-- `demo/seed_data/` — исходные файлы для загрузки в систему.
+- `demo/seed_data/` — исходные файлы для загрузки в систему, включая `mvp_normalized_documents.json`.
 - `demo/official_questions.md` — официальные вопросы для демонстрации.
 - `demo/screenshots/` — скриншоты интерфейса.
 
@@ -173,7 +178,9 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 - `services/knowledge/app/storage.py` и `services/retrieval/app/storage.py` — интерфейсы реальных Neo4j/Qdrant-адаптеров; pending-реализации закрывают readiness и ingestion до подключения БД.
 - `services/knowledge/app/api/graph.py` — построение локального графа только по evidence ID.
 - `services/retrieval/app/api/indexing.py` и `query.py` — индексация и access-aware поиск по корпусу без документов в query-запросе.
-- `services/orchestrator/app/api/query.py` и `services/gateway/app/api/query.py` — query run, source, локальный graph и search API.
+- `services/knowledge/app/api/extraction.py` — internal handoff `NormalizedDocument` → model structured extraction с явным mock boundary для будущей записи в Neo4j.
+- `services/retrieval/app/api/query.py` — internal Query IR, Qdrant bootstrap/index/reset, Qdrant-first evidence retrieval, lexical fallback и model rerank; переданные `NormalizedDocument` остаются in-memory fallback.
+- `services/orchestrator/app/api/query.py` и `services/gateway/app/api/query.py` — тонкий query run/proxy path для eval-compatible ответа через `EvidenceBundle` и answer synthesis.
 
 ### services/auth_audit/
 
@@ -231,7 +238,10 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 
 ### services/gateway/
 
-Внешний API для загрузки документов и чтения статуса ingestion-задач. Проверяет JWT через JWKS, создаёт или принимает `request_id`, нормализует ошибки и передаёт запросы в Orchestrator.
+Внешний API для загрузки документов, чтения статуса ingestion-задач, чата, графа знаний и поиска. Проверяет JWT через JWKS, создаёт или принимает `request_id`, нормализует ошибки и передаёт запросы в Orchestrator.
+
+- `app/api/graph.py` — `GET /graph`, `GET /search`.
+- `app/service/graph_service.py` — отдача GraphPayload и SearchResultsPayload (пока пустые структуры до подключения Neo4j).
 
 ### services/orchestrator/
 

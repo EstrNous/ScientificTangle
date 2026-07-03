@@ -6,12 +6,12 @@
 |--------|------|
 | gateway | `gateway.md` |
 | auth_audit | `auth_audit.md` |
-| orchestrator | см. `project_structure.md` § services/orchestrator |
+| orchestrator | `orchestrator.md` |
 | ingestion | `ingestion.md` |
 | knowledge | `knowledge.md` |
 | retrieval | `retrieval.md` |
 | model | `model.md` |
-| export | см. `project_structure.md` § services/export |
-| notification | см. `project_structure.md` § services/notification |
+| export | `export.md` |
+| notification | `notification.md` |
 
 При значимых изменениях сервиса обнови соответствующий domain-файл в том же коммите.

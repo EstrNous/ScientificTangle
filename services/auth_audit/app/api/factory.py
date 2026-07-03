@@ -1,22 +1,19 @@
 import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from uuid import uuid4
 
-from fastapi import FastAPI, Request, Response
-from starlette.middleware.base import RequestResponseEndpoint
+from fastapi import FastAPI
 
-from infra.postgres.auth_audit_db import AuthRepository, ErrorResponse, create_database
+from infra.postgres.auth_audit_db import AuthRepository, create_database
+from shared.contracts import ApiError
 from shared.metrics import build_metrics_router, setup_metrics
+from shared.web import install_error_handlers, request_id_middleware
 from ..core.audit import AuthAuditSink, LoggingAuthAuditSink
 from ..core.config import Settings
 from ..service.security import KeyStore, PasswordManager, TokenManager
 from .auth import router as auth_router
-from .errors import register_error_handlers
 from .health import router as health_router
 from .users import router as users_router
-
-REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
 
 
 def create_app(
@@ -44,11 +41,11 @@ def create_app(
         version="0.1.0",
         lifespan=lifespan,
         responses={
-            401: {"model": ErrorResponse},
-            403: {"model": ErrorResponse},
-            404: {"model": ErrorResponse},
-            409: {"model": ErrorResponse},
-            422: {"model": ErrorResponse},
+            401: {"model": ApiError},
+            403: {"model": ApiError},
+            404: {"model": ApiError},
+            409: {"model": ApiError},
+            422: {"model": ApiError},
         },
     )
     app.state.settings = resolved_settings
@@ -57,21 +54,9 @@ def create_app(
     app.state.key_store = key_store
     app.state.password_manager = password_manager
     app.state.token_manager = token_manager
+    app.middleware("http")(request_id_middleware)
     setup_metrics(app, resolved_settings.service_name)
-
-    @app.middleware("http")
-    async def request_metadata(request: Request, call_next: RequestResponseEndpoint) -> Response:
-        supplied_request_id = request.headers.get("x-request-id", "")
-        request.state.request_id = (
-            supplied_request_id
-            if REQUEST_ID_PATTERN.fullmatch(supplied_request_id)
-            else str(uuid4())
-        )
-        response = await call_next(request)
-        response.headers["x-request-id"] = request.state.request_id
-        return response
-
-    register_error_handlers(app)
+    install_error_handlers(app)
     app.include_router(build_metrics_router())
     app.include_router(auth_router)
     app.include_router(users_router)

@@ -48,7 +48,7 @@ async def test_invalid_login_is_generic_and_does_not_leak_credentials(client: As
     )
 
     assert response.status_code == 401
-    assert response.json()["error"]["code"] == "UNAUTHORIZED"
+    assert response.json()["code"] == "unauthorized"
     assert "missing" not in response.text
     assert "do-not-leak-this" not in response.text
     assert response.headers["www-authenticate"] == "Bearer"
@@ -128,7 +128,7 @@ async def test_refresh_rejects_untrusted_origin(client: AsyncClient) -> None:
     )
 
     assert response.status_code == 403
-    assert response.json()["error"]["code"] == "FORBIDDEN"
+    assert response.json()["code"] == "forbidden"
 
 
 async def test_role_dependency_denies_by_default(settings, repository: FakeAuthRepository) -> None:
@@ -167,8 +167,8 @@ async def test_validation_error_is_normalized(client: AsyncClient) -> None:
     response = await client.post("/api/auth/login", json={"identifier": ""})
 
     assert response.status_code == 422
-    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
-    assert response.headers["x-request-id"] == response.json()["error"]["request_id"]
+    assert response.json()["code"] == "validation_error"
+    assert response.headers["x-request-id"] == response.json()["request_id"]
 
 
 async def test_register_normalizes_identity_and_signs_in(
@@ -214,7 +214,7 @@ async def test_register_rejects_duplicates_and_role_injection(client: AsyncClien
     )
 
     assert duplicate.status_code == 409
-    assert duplicate.json()["error"]["code"] == "IDENTITY_ALREADY_EXISTS"
+    assert duplicate.json()["code"] == "identity_already_exists"
     assert injected.status_code == 422
 
 

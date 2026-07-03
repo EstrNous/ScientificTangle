@@ -21,7 +21,7 @@
 
 ## Что ещё не закрыто до полного ML MVP
 
-- Нет полноценной записи model outputs в Knowledge/Neo4j и индексации в Retrieval/Qdrant: сейчас есть adapter boundary и degraded integration slice, реальные хранилища остаются задачей DB-интеграции.
+- Нет полноценной записи model outputs в Knowledge/Neo4j: графовая часть остается задачей отдельной DB/graph-интеграции. Qdrant MVP slice добавлен в Retrieval через `st_evidence_v1`, demo seed и live Yandex targets.
 - Нет UI/evaluation dashboard; доступны Markdown/JSON eval reports.
 - Нет зафиксированного командного live eval artifact на общем demo corpus: runner готов, но результат зависит от поднятого стэка, auth token и предоставленных raw/normalized documents.
 

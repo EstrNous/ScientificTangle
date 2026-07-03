@@ -1,6 +1,5 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { captureElementImage, waitForPaint } from '../../utils/captureElement.js';
 import {
   Bar,
   BarChart,
@@ -10,7 +9,11 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
+import { getDirectionSources } from '../../api/mock/sourceBindings.js';
+import { useSourceRefsPopover } from '../../hooks/useSourceRefsPopover.js';
+import { captureElementImage, waitForPaint } from '../../utils/captureElement.js';
 import { CollapseIcon, ExpandIcon } from '../admin/AdminIcons.jsx';
+import SourceRefsPopover from '../shared/SourceRefsPopover.jsx';
 
 function CoverageTooltip({ active, payload, label }) {
   const { t } = useTranslation();
@@ -28,6 +31,7 @@ function CoverageTooltip({ active, payload, label }) {
           {t('strategic.documentsCount', { count: docs })}
         </p>
       )}
+      <p className="mt-1 text-[10px] text-nn-blue dark:text-sky-400">{t('strategic.barClickHint')}</p>
     </div>
   );
 }
@@ -36,6 +40,7 @@ const CoverageChart = forwardRef(function CoverageChart({ directions, fill = fal
   const { t } = useTranslation();
   const chartRef = useRef(null);
   const [detailsExpanded, setDetailsExpanded] = useState(false);
+  const { popover, openPopover, closePopover } = useSourceRefsPopover();
 
   useImperativeHandle(ref, () => ({
     async getChartImage() {
@@ -51,11 +56,27 @@ const CoverageChart = forwardRef(function CoverageChart({ directions, fill = fal
   if (!directions?.length) return null;
 
   const chartData = directions.map((item) => ({
+    id: item.id,
     name: item.name,
     coverage: item.coverage,
     documents: item.documents,
     coveragePct: Math.round(item.coverage * 100),
   }));
+
+  const openDirectionSources = (event, direction) => {
+    openPopover(event, {
+      title: direction.name,
+      subtitle: t('strategic.coverageValue', { value: Math.round(direction.coverage * 100) }),
+      sources: getDirectionSources(direction.id, direction.documents),
+    });
+  };
+
+  const handleBarClick = (data, _index, event) => {
+    if (!data?.id) return;
+    const direction = directions.find((item) => item.id === data.id);
+    if (!direction) return;
+    openDirectionSources(event, direction);
+  };
 
   return (
     <div
@@ -88,7 +109,14 @@ const CoverageChart = forwardRef(function CoverageChart({ directions, fill = fal
                 width={32}
               />
               <Tooltip content={<CoverageTooltip />} />
-              <Bar dataKey="coveragePct" fill="#0057B8" radius={[4, 4, 0, 0]} maxBarSize={32} />
+              <Bar
+                dataKey="coveragePct"
+                fill="#0057B8"
+                radius={[4, 4, 0, 0]}
+                maxBarSize={32}
+                cursor="pointer"
+                onClick={handleBarClick}
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -130,22 +158,28 @@ const CoverageChart = forwardRef(function CoverageChart({ directions, fill = fal
         >
           <ul className="scrollbar-thin scrollbar-thumb-nn-border dark:scrollbar-thumb-slate-600 h-full max-h-full space-y-0.5 overflow-y-auto pr-1">
             {directions.map((direction) => (
-              <li key={direction.id} className="flex items-center gap-2 text-[11px]">
-                <span
-                  className="w-28 shrink-0 truncate text-gray-900 dark:text-slate-100"
-                  title={direction.name}
+              <li key={direction.id}>
+                <button
+                  type="button"
+                  onClick={(event) => openDirectionSources(event, direction)}
+                  className="flex w-full items-center gap-2 rounded-md px-1 py-0.5 text-left text-[11px] transition-colors hover:bg-nn-blue-light dark:hover:bg-slate-800"
                 >
-                  {direction.name}
-                </span>
-                <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-nn-gray-light dark:bg-slate-800">
-                  <div
-                    className="h-full rounded-full bg-nn-blue"
-                    style={{ width: `${direction.coverage * 100}%` }}
-                  />
-                </div>
-                <span className="w-8 shrink-0 text-right tabular-nums text-nn-gray dark:text-slate-400">
-                  {Math.round(direction.coverage * 100)}%
-                </span>
+                  <span
+                    className="w-28 shrink-0 truncate text-gray-900 dark:text-slate-100"
+                    title={direction.name}
+                  >
+                    {direction.name}
+                  </span>
+                  <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-nn-gray-light dark:bg-slate-800">
+                    <div
+                      className="h-full rounded-full bg-nn-blue"
+                      style={{ width: `${direction.coverage * 100}%` }}
+                    />
+                  </div>
+                  <span className="w-8 shrink-0 text-right tabular-nums text-nn-gray dark:text-slate-400">
+                    {Math.round(direction.coverage * 100)}%
+                  </span>
+                </button>
               </li>
             ))}
           </ul>
@@ -158,10 +192,11 @@ const CoverageChart = forwardRef(function CoverageChart({ directions, fill = fal
         </div>
         {!detailsExpanded && (
           <p className="mt-0.5 shrink-0 text-center text-[9px] text-nn-gray dark:text-slate-500">
-            {t('graph.scrollHint')}
+            {t('strategic.barClickHint')}
           </p>
         )}
       </div>
+      <SourceRefsPopover state={popover} onClose={closePopover} />
     </div>
   );
 });

@@ -25,24 +25,24 @@ export default function AdminSummaryCards({ summary, compact = false }) {
   ];
 
   return (
-    <div className={`grid grid-cols-2 gap-2 ${compact ? 'md:grid-cols-4' : 'gap-3 md:grid-cols-4'}`}>
+    <div className={`grid grid-cols-2 gap-1.5 ${compact ? 'md:grid-cols-4' : 'gap-3 md:grid-cols-4'}`}>
       {items.map(({ key, label, accent }) => (
         <div
           key={key}
           className={`nn-card rounded-lg border border-nn-border dark:border-slate-700 ${
-            compact ? 'px-2.5 py-2' : 'rounded-xl p-3'
+            compact ? 'px-2 py-1.5' : 'rounded-xl p-3'
           }`}
         >
           <p
             className={`font-medium uppercase tracking-wide text-nn-gray dark:text-slate-400 ${
-              compact ? 'text-[10px] leading-tight' : 'text-[11px]'
+              compact ? 'text-[9px] leading-tight' : 'text-[11px]'
             }`}
           >
             {label}
           </p>
           <p
             className={`font-bold tabular-nums ${accent} ${
-              compact ? 'mt-0.5 text-lg leading-none' : 'mt-1 text-2xl'
+              compact ? 'mt-0.5 text-base leading-none' : 'mt-1 text-2xl'
             }`}
           >
             {summary[key]?.toLocaleString('ru-RU') ?? '—'}

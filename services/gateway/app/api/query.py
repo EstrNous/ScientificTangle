@@ -75,7 +75,9 @@ async def get_source(
     try:
         return SourcePayload.model_validate(
             await service.get_source(
-                source_span_id, authorization, request.state.request_id
+                source_span_id,
+                authorization,
+                request.state.request_id,
             )
         )
     except GatewayServiceError as error:

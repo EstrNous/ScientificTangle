@@ -1,10 +1,12 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { getCombinationRowSources } from '../../api/mock/sourceBindings.js';
+import { useSourceRefsPopover } from '../../hooks/useSourceRefsPopover.js';
+import { resolveSourceRef } from '../../api/mock/sourceCatalog.js';
+import { isDocumentColumnKey } from '../../utils/sourceColumn.js';
 import { DeleteIcon } from '../admin/AdminIcons.jsx';
 import SourceLink from '../shared/SourceLink.jsx';
-import { isDocumentColumnKey } from '../../utils/sourceColumn.js';
-import { resolveSourceRef } from '../../api/mock/sourceCatalog.js';
-
+import SourceRefsPopover from '../shared/SourceRefsPopover.jsx';
 export const COMBINATION_COLUMNS = [
   { key: 'Regime', type: 'Regime' },
   { key: 'Property', type: 'Property' },
@@ -37,6 +39,17 @@ export default function GraphCombinationsTable({
 }) {
   const { t } = useTranslation();
   const editable = Boolean(onCellChange);
+  const { popover, openPopover, closePopover } = useSourceRefsPopover();
+
+  const openCellSources = (event, row, col, columns) => {
+    const sources = getCombinationRowSources(row, columns, isDocumentColumnKey);
+    if (!sources.length) return;
+    openPopover(event, {
+      title: t('source.refsTitle'),
+      subtitle: `${col.key}: ${row[col.key] ?? ''}`,
+      sources,
+    });
+  };
 
   const visibleColumns = useMemo(
     () => COMBINATION_COLUMNS.filter((col) => activeTypes.includes(col.type)),
@@ -109,12 +122,14 @@ export default function GraphCombinationsTable({
                   onGroupNameChange={onGroupNameChange}
                   onAddRow={onAddRow}
                   onDeleteRow={onDeleteRow}
+                  onCellSources={openCellSources}
                 />
               ))}
             </tbody>
           </table>
         )}
       </div>
+      <SourceRefsPopover state={popover} onClose={closePopover} />
     </div>
   );
 }
@@ -127,6 +142,7 @@ function GroupRows({
   onGroupNameChange,
   onAddRow,
   onDeleteRow,
+  onCellSources,
 }) {
   const { t } = useTranslation();
   const colSpan = visibleColumns.length + (editable && onDeleteRow ? 1 : 0);
@@ -183,7 +199,14 @@ function GroupRows({
                   {isDocumentColumnKey(col.key) ? (
                     <SourceLink sourceRef={row[col.key]}>{row[col.key]}</SourceLink>
                   ) : (
-                    row[col.key] ?? ''
+                    <button
+                      type="button"
+                      onClick={(event) => onCellSources?.(event, row, col, visibleColumns)}
+                      className="block w-full rounded px-2 py-1.5 text-gray-900 transition-colors hover:bg-nn-blue-light/60 dark:text-slate-100 dark:hover:bg-slate-800/60"
+                      title={t('graph.combinationsCellHint')}
+                    >
+                      {row[col.key] ?? ''}
+                    </button>
                   )}
                 </span>
               )}

@@ -101,19 +101,13 @@ export default function AdminPage() {
 
   return (
     <PageShell>
-      <div
-        className={`flex h-full min-h-0 flex-col gap-6 ${
-          expandedPanel ? 'overflow-hidden' : 'overflow-y-auto pr-1'
-        }`}
-      >
+      <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
         <AdminSubNav action={<PdfDownloadButton onExport={handleExportPdf} />} />
 
         <div
           ref={exportRef}
-          className={`grid gap-4 ${
-            expandedPanel === PANELS.USERS || expandedPanel === PANELS.ACCESS
-              ? 'min-h-0 flex-1'
-              : 'xl:grid-cols-2'
+          className={`grid min-h-0 flex-1 gap-4 ${
+            expandedPanel ? '' : 'xl:grid-cols-2'
           }`}
         >
           {isPanelVisible(PANELS.USERS) && (

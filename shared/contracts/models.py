@@ -5,7 +5,7 @@ from enum import StrEnum
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class UserRole(StrEnum):
@@ -42,6 +42,13 @@ class IngestionReport(BaseModel):
     stage: Literal["uploaded"] = "uploaded"
     sources: list[StoredSource] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+    normalized_documents: list["NormalizedDocument"] = Field(default_factory=list)
+    documents_count: int = 0
+    source_spans_count: int = 0
+    tables_count: int = 0
+    indexed_points_count: int = 0
+    extracted_claims_count: int = 0
+    candidates_count: int = 0
 
 
 class IngestionTaskPayload(BaseModel):
@@ -219,6 +226,15 @@ class AnswerPayload(BaseModel):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
+class QueryRunResponse(BaseModel):
+    query_run_id: str
+    query_ir: QueryIR
+    evidence_bundle: EvidenceBundle
+    answer: AnswerPayload
+    unsupported_warnings: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
 class GraphNode(BaseModel):
     id: str
     label: str
@@ -273,6 +289,55 @@ class QueryRunPayload(BaseModel):
     latency_ms: int | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class GraphEntity(BaseModel):
+    id: str
+    name: str
+    type: str
+    status: str
+
+
+class GraphCandidate(BaseModel):
+    id: str
+    name: str
+    type: str
+    confidence: float = Field(ge=0.0, le=1.0)
+
+
+class NodeCombinationRow(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+
+class NodeCombinationGroup(BaseModel):
+    group: str = ""
+    rows: list[dict] = Field(default_factory=list)
+
+
+class GraphPayload(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    knowledge_graph: GraphSubgraph = Field(default_factory=GraphSubgraph, alias="knowledgeGraph")
+    subgraph: GraphSubgraph = Field(default_factory=GraphSubgraph)
+    entities: list[GraphEntity] = Field(default_factory=list)
+    candidates: list[GraphCandidate] = Field(default_factory=list)
+    node_combinations: list[NodeCombinationGroup] = Field(default_factory=list, alias="nodeCombinations")
+
+
+class SearchResultItem(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: str
+    title: str
+    material: str
+    process: str
+    year: int | None = None
+    geo: str = ""
+    geo_key: str = Field(default="", alias="geoKey")
+
+
+class SearchResultsPayload(BaseModel):
+    items: list[SearchResultItem] = Field(default_factory=list)
 
 
 class ServiceInfo(BaseModel):

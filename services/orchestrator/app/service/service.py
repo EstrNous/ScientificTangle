@@ -1,4 +1,5 @@
 import time
+from time import perf_counter
 from uuid import UUID
 
 import httpx
@@ -145,10 +146,42 @@ class OrchestratorService:
             completed_report = IngestionReport(
                 sources=report.sources,
                 warnings=list(dict.fromkeys(warnings)),
+                normalized_documents=normalized.documents,
+                documents_count=len(normalized.documents),
+                source_spans_count=sum(
+                    len(document.source_spans)
+                    for document in normalized.documents
+                ),
+                tables_count=sum(
+                    len(document.table_blocks)
+                    for document in normalized.documents
+                ),
+                indexed_points_count=retrieval_result.vector_write.records_count,
+                extracted_claims_count=sum(
+                    len(result.extraction.get("confirmed", []))
+                    for result in knowledge_results
+                    if isinstance(result.extraction, dict)
+                ),
+                candidates_count=sum(
+                    len(result.extraction.get("candidates", []))
+                    for result in knowledge_results
+                    if isinstance(result.extraction, dict)
+                ),
             )
-            return self._payload(
-                await self._repository.mark_completed(task, completed_report)
+            completed_task = await self._repository.mark_completed(task, completed_report)
+            await self._repository.record_audit_event(
+                principal.user_id,
+                "ingestion.completed",
+                "ingestion_task",
+                str(task.id),
+                {
+                    "documents_count": completed_report.documents_count,
+                    "source_spans_count": completed_report.source_spans_count,
+                    "indexed_points_count": completed_report.indexed_points_count,
+                },
+                request_id,
             )
+            return self._payload(completed_task)
         except OrchestratorServiceError as error:
             await self._repository.mark_failed(task, error.message)
             raise

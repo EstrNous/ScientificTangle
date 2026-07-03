@@ -1,5 +1,3 @@
-import chat from './chat.json';
-import graph from './graph.json';
 import ingestion from './ingestion.json';
 import strategic from './strategic.json';
 import lab from './lab.json';
@@ -8,8 +6,6 @@ import admin from './admin.json';
 import notifications from './notifications.json';
 
 export const mockData = {
-  chat,
-  graph,
   ingestion,
   strategic,
   lab,
@@ -21,17 +17,14 @@ export const mockData = {
 export async function mockFetch(resource, options = {}) {
   await delay(options.delay ?? 200);
 
-  if (resource === 'chat/sessions') {
-    return chat.sessions;
+  if (resource.startsWith('chat/')) {
+    throw new Error('Chat API requires backend connection');
   }
-  if (resource.startsWith('chat/sessions/') && resource.endsWith('/messages')) {
-    return chat.messages;
+  if (resource === 'graph' || resource.startsWith('graph/')) {
+    throw new Error('Graph API requires backend connection');
   }
-  if (resource === 'graph') {
-    return graph;
-  }
-  if (resource === 'graph/subgraph') {
-    return graph.subgraph;
+  if (resource === 'search' || resource === 'lab/search') {
+    throw new Error('Search API requires backend connection');
   }
   if (resource === 'ingestion/tasks') {
     return ingestion.tasks;
@@ -45,9 +38,6 @@ export async function mockFetch(resource, options = {}) {
   if (resource === 'lab/coverage') {
     return lab;
   }
-  if (resource === 'lab/search') {
-    return lab.searchResults;
-  }
   if (resource === 'audit/events') {
     return audit.events;
   }
@@ -56,6 +46,14 @@ export async function mockFetch(resource, options = {}) {
   }
   if (resource === 'notifications') {
     return notifications.items;
+  }
+  if (resource === 'api/query' || resource === 'query') {
+    const { runMockChatQuery } = await import('./chatQuery.js');
+    const body = options.body ?? {};
+    return runMockChatQuery(
+      { text: body.query ?? '', files: [] },
+      { t: (key, params) => key, stepDelayMs: 0 },
+    );
   }
 
   throw new Error(`Mock resource not found: ${resource}`);

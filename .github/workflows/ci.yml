@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [feat/*, dev]
+  pull_request:
+    branches: [dev]
+
+jobs:
+  lint-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Install ruff
+        run: uv tool install ruff
+      - name: Ruff check
+        run: ruff check shared services scripts tests
+
+  test-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          pip install pytest pytest-asyncio ruff
+          pip install -e shared
+          pip install -e services/auth_audit
+          pip install -e services/gateway
+          pip install -e services/ingestion
+          pip install -e services/knowledge
+          pip install -e services/model
+          pip install -e services/orchestrator
+          pip install -e services/retrieval
+          pip install -e services/export
+          pip install -e services/notification
+      - name: Pytest
+        run: python scripts/run_tests.py
+
+  test-ui:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ui
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm ci
+      - run: npm test

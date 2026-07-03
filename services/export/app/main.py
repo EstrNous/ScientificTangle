@@ -3,10 +3,11 @@ from contextlib import asynccontextmanager
 import structlog
 from fastapi import FastAPI
 
-from app.api.health import router as health_router
-from app.core.config import settings
-from app.core.logging import setup_logging
+from .api.health import router as health_router
+from .core.config import settings
+from .core.logging import setup_logging
 from shared.metrics import build_metrics_router, setup_metrics
+from shared.web import install_error_handlers, request_id_middleware
 
 setup_logging(settings.service_name)
 
@@ -25,6 +26,8 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.middleware("http")(request_id_middleware)
 setup_metrics(app, settings.service_name)
+install_error_handlers(app)
 app.include_router(build_metrics_router())
 app.include_router(health_router)
