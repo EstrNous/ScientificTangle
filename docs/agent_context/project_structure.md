@@ -104,7 +104,7 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 
 ### Инфраструктура (`infra/`)
 
-- `infra/postgres/init.sql` — SQL-схемы PostgreSQL: users, audit_log, ingestion_tasks, query_runs, exports, notifications, user_interests, service_state, admin_settings.
+- `infra/postgres/*_db/` — модели, репозитории, миграции и seed-модули PostgreSQL; схемами владеют сервисные миграции, общий init SQL не используется.
 - `infra/orchestrator_db/` — модели и миграции Orchestrator (база `orchestrator_db`): IngestionTask, QueryRun, ExportJob. SQLAlchemy 2.0 async, Alembic.
 - `infra/chat_ui_db/` — модели и миграции Gateway/BFF (база `chat_ui_db`): ChatSession, ChatMessage, AdminSetting, ServiceState. SQLAlchemy 2.0 async, Alembic.
 - `infra/notification_db/` — модели и миграции Notification (база `notification_db`): UserInterest, Notification. SQLAlchemy 2.0 async, Alembic.
@@ -204,7 +204,7 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 - `repository.py` — `IngestionTaskRepository` (create/get/set_report/mark_failed).
 - `database.py` — `create_database()`, `get_session()`.
 - `config.py` — `OrchestratorDbSettings` (env prefix `ORCHESTRATOR_`).
-- Alembic: `services/orchestrator/alembic.ini`, миграции в `services/orchestrator/storage/versions/` (`0001` — extend ingestion_tasks, `0002` — query_runs/export_jobs).
+- Alembic: `services/orchestrator/alembic.ini`, миграции в `services/orchestrator/storage/versions/` (`0001` — ingestion_tasks, `0002` — query_runs/export_jobs, `0003` — совместимость query_runs с прежним init SQL).
 
 ### infra/postgres/chat_ui_db/
 
