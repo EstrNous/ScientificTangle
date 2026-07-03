@@ -3,6 +3,9 @@
 up:
 	docker compose up -d
 
+up-auth:
+	docker compose --profile auth up -d
+
 down:
 	docker compose down -v
 
