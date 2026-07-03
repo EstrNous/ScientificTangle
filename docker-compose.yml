@@ -129,16 +129,24 @@ services:
       - st-net
 
   auth_audit:
-    profiles: ["auth"]
-    build: ./services/auth_audit
+    build:
+      context: .
+      dockerfile: services/auth_audit/Dockerfile
     container_name: st-auth-audit
     ports:
       - "8001:8001"
     env_file: .env
+    environment:
+      AUTH_JWT_PRIVATE_KEY_PATH: /run/secrets/auth_private.pem
+      AUTH_JWT_PUBLIC_KEY_PATH: /run/secrets/auth_public.pem
+    secrets:
+      - source: auth_jwt_private
+        target: auth_private.pem
+      - source: auth_jwt_public
+        target: auth_public.pem
+    command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8001"]
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -300,6 +308,8 @@ services:
     depends_on:
       gateway:
         condition: service_started
+      auth_audit:
+        condition: service_healthy
       ui:
         condition: service_healthy
     healthcheck:
@@ -311,6 +321,12 @@ services:
     restart: unless-stopped
     networks:
       - st-net
+
+secrets:
+  auth_jwt_private:
+    file: ${AUTH_JWT_PRIVATE_KEY_HOST_PATH:-./secrets/auth_private.pem}
+  auth_jwt_public:
+    file: ${AUTH_JWT_PUBLIC_KEY_HOST_PATH:-./secrets/auth_public.pem}
 
 volumes:
   pg_data:

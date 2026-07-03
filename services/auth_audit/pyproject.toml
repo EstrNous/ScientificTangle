@@ -18,7 +18,11 @@ dependencies = [
     "pyjwt[crypto]>=2.10,<3",
     "sqlalchemy[asyncio]>=2.0.36,<3",
     "uvicorn[standard]>=0.34,<1",
+    "scientific-tangle-shared",
 ]
+
+[tool.uv.sources]
+scientific-tangle-shared = { path = "../../shared" }
 
 [project.optional-dependencies]
 dev = [
