@@ -5,11 +5,12 @@
 ## Ключевые файлы
 
 - `services/retrieval/app/` — fusion, reranking, graph/table/vector search
+- `services/retrieval/app/storage.py` — контракт реального Qdrant-адаптера, поиск и проверка доступа
 - `shared/contracts/` — QueryIR, EvidenceBundle, EvidenceItem
 
 ## Принципы
 
-Гибридный поиск; access-aware retrieval до синтеза ответа.
+Гибридный поиск по проиндексированному корпусу; документы в query API не передаются. Проверка доступа выполняется до rerank и повторяется перед выдачей evidence.
 
 ## Текущий ingestion boundary
 

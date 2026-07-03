@@ -138,12 +138,12 @@ def test_create_task_runs_complete_ingestion_pipeline() -> None:
                     "extraction": {"confirmed": [], "candidates": []},
                     "graph_write": {
                         "backend": "neo4j",
-                        "mode": "mock",
+                        "mode": "real",
                         "document_ids": ["document-1"],
                         "records_count": 0,
-                        "warnings": ["neo4j_adapter_pending"],
+                        "warnings": [],
                     },
-                    "warnings": ["neo4j_adapter_pending"],
+                    "warnings": [],
                 },
             )
         return httpx.Response(
@@ -151,12 +151,12 @@ def test_create_task_runs_complete_ingestion_pipeline() -> None:
             json={
                 "vector_write": {
                     "backend": "qdrant",
-                    "mode": "mock",
+                    "mode": "real",
                     "document_ids": ["document-1"],
                     "records_count": 1,
-                    "warnings": ["qdrant_adapter_pending"],
+                    "warnings": [],
                 },
-                "warnings": ["qdrant_adapter_pending"],
+                "warnings": [],
             },
         )
 
@@ -170,11 +170,7 @@ def test_create_task_runs_complete_ingestion_pipeline() -> None:
             )
             assert result.status.value == "completed"
             assert result.report is not None
-            assert result.report.warnings == [
-                "parser_warning",
-                "neo4j_adapter_pending",
-                "qdrant_adapter_pending",
-            ]
+            assert result.report.warnings == ["parser_warning"]
 
     asyncio.run(run())
     assert repository.transitions == ["pending", "processing", "completed"]
@@ -234,6 +230,48 @@ def test_empty_normalization_marks_task_failed() -> None:
                     "request-1",
                 )
             assert error.value.code == "normalization_empty"
+
+    asyncio.run(run())
+    assert repository.transitions == ["pending", "processing", "failed"]
+
+
+def test_mock_storage_adapter_marks_task_failed() -> None:
+    repository = FakeRepository()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/sources"):
+            return httpx.Response(201, json=report_payload())
+        if request.url.path.endswith("/normalize"):
+            return httpx.Response(
+                200,
+                json={"documents": [document_payload()], "warnings": []},
+            )
+        return httpx.Response(
+            200,
+            json={
+                "document_id": "document-1",
+                "extraction": {},
+                "graph_write": {
+                    "backend": "neo4j",
+                    "mode": "mock",
+                    "document_ids": ["document-1"],
+                    "records_count": 0,
+                    "warnings": ["neo4j_adapter_pending"],
+                },
+                "warnings": ["neo4j_adapter_pending"],
+            },
+        )
+
+    async def run() -> None:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            with pytest.raises(OrchestratorServiceError) as error:
+                await service(repository, client).create_task(
+                    principal(),
+                    [UploadFile(file=BytesIO(b"data"), filename="file.docx")],
+                    "Bearer token",
+                    "request-1",
+                )
+            assert error.value.code == "storage_adapter_not_ready"
 
     asyncio.run(run())
     assert repository.transitions == ["pending", "processing", "failed"]

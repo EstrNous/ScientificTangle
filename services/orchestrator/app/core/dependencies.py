@@ -4,7 +4,11 @@ from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .config import settings
-from infra.postgres.orchestrator_db import get_session, IngestionTaskRepository
+from infra.postgres.orchestrator_db import (
+    IngestionTaskRepository,
+    QueryRunRepository,
+    get_session,
+)
 from ..service.service import OrchestratorService
 
 
@@ -19,4 +23,5 @@ def get_orchestrator_service(
         knowledge_url=settings.knowledge_url,
         retrieval_url=settings.retrieval_url,
         model_url=settings.model_url,
+        query_repository=QueryRunRepository(session),
     )

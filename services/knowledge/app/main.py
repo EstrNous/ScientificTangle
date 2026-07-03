@@ -5,9 +5,11 @@ import httpx
 from fastapi import FastAPI
 
 from .api.extraction import router as extraction_router
+from .api.graph import router as graph_router
 from .api.health import router as health_router
 from .core.config import settings
 from .core.logging import setup_logging
+from .storage import PendingKnowledgeStorageAdapter
 from shared.metrics import build_metrics_router, setup_metrics
 
 setup_logging(settings.service_name)
@@ -18,6 +20,7 @@ async def lifespan(app: FastAPI):
     logger = structlog.get_logger()
     http_client = httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=5.0))
     app.state.http_client = http_client
+    app.state.storage_adapter = PendingKnowledgeStorageAdapter()
     logger.info("service_started", service=settings.service_name, port=settings.port)
     yield
     await http_client.aclose()
@@ -34,3 +37,4 @@ setup_metrics(app, settings.service_name)
 app.include_router(build_metrics_router())
 app.include_router(health_router)
 app.include_router(extraction_router)
+app.include_router(graph_router)

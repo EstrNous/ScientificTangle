@@ -1,58 +1,56 @@
 import asyncio
+from types import SimpleNamespace
+
+from fastapi import Response
 
 from app.api.indexing import index_documents
-from shared.contracts import (
-    KnowledgeIngestionResponse,
-    NormalizedDocument,
-    RetrievalIndexRequest,
-    SourceSpan,
-    StorageWriteResult,
-    TableBlock,
-)
+from app.api.health import ready
+from app.storage import PendingRetrievalStorageAdapter
+from shared.contracts import NormalizedDocument, RetrievalIndexRequest, StorageWriteResult
 
 
-def test_indexing_returns_explicit_qdrant_mock_counts() -> None:
-    table = TableBlock(
-        id="table-1",
-        document_id="document-1",
-        page=1,
-        headers=["parameter", "value"],
-        rows=[["recovery", "82 %"]],
-    )
-    document = NormalizedDocument(
-        id="document-1",
-        source_type="docx",
-        title="report.docx",
-        content="Nickel recovery 82 %",
-        source_spans=[
-            SourceSpan(
-                document_id="document-1",
-                page=1,
-                start_offset=0,
-                end_offset=20,
-                text="Nickel recovery 82 %",
-                source_type="text",
-            )
-        ],
-        table_blocks=[table],
-    )
+class FakeStorageAdapter:
+    is_ready = True
+
+    async def index(self, request: RetrievalIndexRequest) -> StorageWriteResult:
+        return StorageWriteResult(
+            backend="qdrant",
+            mode="real",
+            document_ids=[document.id for document in request.documents],
+            records_count=sum(len(document.source_spans) for document in request.documents),
+        )
+
+
+def test_indexing_uses_real_qdrant_adapter() -> None:
     request = RetrievalIndexRequest(
-        documents=[document],
-        knowledge_results=[
-            KnowledgeIngestionResponse(
-                document_id=document.id,
-                graph_write=StorageWriteResult(
-                    backend="neo4j",
-                    document_ids=[document.id],
-                    warnings=["neo4j_adapter_pending"],
-                ),
+        documents=[
+            NormalizedDocument(
+                id="document-1",
+                source_type="docx",
+                title="report.docx",
+                content="Nickel recovery 82 %",
             )
-        ],
+        ]
+    )
+    app_request = SimpleNamespace(
+        app=SimpleNamespace(state=SimpleNamespace(storage_adapter=FakeStorageAdapter()))
     )
 
-    result = asyncio.run(index_documents(request))
+    result = asyncio.run(index_documents(request, app_request))
 
-    assert result.vector_write.backend == "qdrant"
-    assert result.vector_write.mode == "mock"
-    assert result.vector_write.records_count == 3
-    assert result.warnings == ["qdrant_adapter_pending"]
+    assert result.vector_write.mode == "real"
+    assert result.vector_write.document_ids == ["document-1"]
+
+
+def test_readiness_is_closed_for_pending_adapter() -> None:
+    request = SimpleNamespace(
+        app=SimpleNamespace(
+            state=SimpleNamespace(storage_adapter=PendingRetrievalStorageAdapter())
+        )
+    )
+    response = Response()
+
+    result = asyncio.run(ready(request, response))
+
+    assert response.status_code == 503
+    assert result["ready"] is False

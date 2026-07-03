@@ -1,19 +1,26 @@
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from shared.contracts import EvidenceBundle, EvidenceItem, NormalizedDocument, QueryIR
+from shared.contracts import (
+    EvidenceBundle,
+    EvidenceItem,
+    QueryIR,
+    SearchResultPayload,
+    SourcePayload,
+)
 
 from ..core.config import settings
+from ..storage import RetrievalStorageAdapter, StorageAdapterNotReady, access_allowed
 
 router = APIRouter(prefix="/v1", tags=["retrieval"])
 
 
 class RetrievalQueryRequest(BaseModel):
-    query: str = Field(min_length=1)
-    documents: list[NormalizedDocument] = Field(default_factory=list)
+    question: str = Field(min_length=1)
+    filters: dict[str, Any] = Field(default_factory=dict)
     access_roles: list[str] = Field(default_factory=list)
     limit: int = Field(default=20, ge=1, le=100)
 
@@ -21,19 +28,60 @@ class RetrievalQueryRequest(BaseModel):
 class RetrievalQueryResponse(BaseModel):
     query_ir: QueryIR
     evidence_bundle: EvidenceBundle
+    retrieval_trace: dict = Field(default_factory=dict)
     warnings: list[str] = Field(default_factory=list)
 
 
+class RetrievalSearchRequest(BaseModel):
+    question: str = ""
+    filters: dict[str, Any] = Field(default_factory=dict)
+    access_roles: list[str] = Field(default_factory=list)
+    limit: int = Field(default=20, ge=1, le=100)
+
+
+class SourceResolveRequest(BaseModel):
+    access_roles: list[str] = Field(default_factory=list)
+
+
 @router.post("/query", response_model=RetrievalQueryResponse)
-async def run_query(request: RetrievalQueryRequest, app_request: Request) -> RetrievalQueryResponse:
+async def run_query(
+    request: RetrievalQueryRequest,
+    app_request: Request,
+) -> RetrievalQueryResponse:
     client: httpx.AsyncClient = app_request.app.state.http_client
+    adapter: RetrievalStorageAdapter = app_request.app.state.storage_adapter
     query_ir_response = await client.post(
         f"{settings.model_url.rstrip('/')}/v1/query-ir",
-        json={"raw_query": request.query, "limit": request.limit},
+        json={"raw_query": request.question, "limit": request.limit},
     )
     query_ir_response.raise_for_status()
     query_ir = QueryIR.model_validate(query_ir_response.json()["query_ir"])
-    evidence_items = collect_evidence_items(query_ir, request.documents, request.access_roles)
+    query_ir.filters = {**query_ir.filters, **request.filters}
+    query_ir.limit = request.limit
+    try:
+        results = await adapter.search(
+            request.question,
+            query_ir.filters,
+            request.access_roles,
+            request.limit,
+        )
+    except StorageAdapterNotReady as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    allowed = [
+        item
+        for item in results.items
+        if access_allowed(item.source.access_policy, request.access_roles)
+    ]
+    evidence_items = [
+        EvidenceItem(
+            source_span=item.source.source_span,
+            relevance_score=item.relevance_score,
+            claim_ids=item.claim_ids,
+            entity_ids=item.entity_ids,
+            extraction_method="semantic",
+        )
+        for item in allowed
+    ]
     rerank_response = await client.post(
         f"{settings.model_url.rstrip('/')}/v1/rerank",
         json={
@@ -43,11 +91,13 @@ async def run_query(request: RetrievalQueryRequest, app_request: Request) -> Ret
         },
     )
     rerank_response.raise_for_status()
-    scored = rerank_response.json().get("scored_items", [])
+    allowed_ids = {item.source_span.id for item in evidence_items}
     ranked_items = [
         EvidenceItem.model_validate(item["evidence_item"])
-        for item in scored
-        if isinstance(item, dict) and item.get("evidence_item")
+        for item in rerank_response.json().get("scored_items", [])
+        if isinstance(item, dict)
+        and item.get("evidence_item")
+        and item["evidence_item"].get("source_span", {}).get("id") in allowed_ids
     ]
     evidence_bundle = EvidenceBundle(
         query_ir=query_ir,
@@ -59,51 +109,54 @@ async def run_query(request: RetrievalQueryRequest, app_request: Request) -> Ret
     return RetrievalQueryResponse(
         query_ir=query_ir,
         evidence_bundle=evidence_bundle,
-        warnings=query_ir_response.json().get("warnings", []),
+        retrieval_trace={
+            "storage": "qdrant",
+            "retrieved": len(results.items),
+            "accessible": len(evidence_items),
+            "reranked": len(ranked_items),
+        },
+        warnings=[*query_ir_response.json().get("warnings", []), *results.warnings],
     )
 
 
-def collect_evidence_items(query_ir: QueryIR, documents: list[NormalizedDocument], access_roles: list[str]) -> list[EvidenceItem]:
-    query_tokens = normalized_tokens(query_ir.raw_query)
-    items = []
-    for document in documents:
-        if not access_allowed(document, access_roles):
-            continue
-        for span in document.source_spans:
-            text_tokens = normalized_tokens(span.text)
-            if not (query_tokens & text_tokens) and not constraints_match(query_ir.filters, span.text):
-                continue
-            items.append(
-                EvidenceItem(
-                    source_span=span,
-                    relevance_score=evidence_score(query_tokens, text_tokens, query_ir.filters, span.text),
-                    extraction_method="semantic",
-                )
-            )
-    return items
+@router.post("/search", response_model=SearchResultPayload)
+async def search(
+    request: RetrievalSearchRequest,
+    app_request: Request,
+) -> SearchResultPayload:
+    adapter: RetrievalStorageAdapter = app_request.app.state.storage_adapter
+    try:
+        result = await adapter.search(
+            request.question,
+            request.filters,
+            request.access_roles,
+            request.limit,
+        )
+    except StorageAdapterNotReady as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    items = [
+        item
+        for item in result.items
+        if access_allowed(item.source.access_policy, request.access_roles)
+    ][: request.limit]
+    return SearchResultPayload(
+        items=items,
+        total_found=len(items),
+        warnings=result.warnings,
+    )
 
 
-def access_allowed(document: NormalizedDocument, access_roles: list[str]) -> bool:
-    policy = document.access_policy
-    if policy.level == "public" or not policy.allowed_roles:
-        return True
-    return bool(set(policy.allowed_roles) & set(access_roles))
-
-
-def constraints_match(filters: dict[str, Any], text: str) -> bool:
-    lowered = text.lower()
-    geo = [str(value).lower() for value in filters.get("geo_constraints", [])]
-    if geo and any(value in lowered for value in geo):
-        return True
-    numeric = filters.get("numeric_constraints", [])
-    return bool(numeric and any(char.isdigit() for char in text))
-
-
-def evidence_score(query_tokens: set[str], text_tokens: set[str], filters: dict[str, Any], text: str) -> float:
-    overlap = len(query_tokens & text_tokens) / max(len(query_tokens), 1)
-    constraint_bonus = 0.25 if constraints_match(filters, text) else 0.0
-    return min(1.0, round(overlap + constraint_bonus, 6))
-
-
-def normalized_tokens(text: str) -> set[str]:
-    return {token.strip(".,;:()[]{}").lower() for token in text.split() if len(token.strip(".,;:()[]{}")) >= 2}
+@router.post("/sources/{source_span_id}/resolve", response_model=SourcePayload)
+async def resolve_source(
+    source_span_id: str,
+    request: SourceResolveRequest,
+    app_request: Request,
+) -> SourcePayload:
+    adapter: RetrievalStorageAdapter = app_request.app.state.storage_adapter
+    try:
+        source = await adapter.get_source(source_span_id, request.access_roles)
+    except StorageAdapterNotReady as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    if source is None or not access_allowed(source.access_policy, request.access_roles):
+        raise HTTPException(status_code=404, detail="source_not_found")
+    return source

@@ -1,4 +1,5 @@
 import structlog
+from uuid import UUID
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -9,10 +10,17 @@ from shared.utils import generate_request_id
 
 
 class ServiceError(Exception):
-    def __init__(self, status_code: int, code: str, message: str) -> None:
+    def __init__(
+        self,
+        status_code: int,
+        code: str,
+        message: str,
+        query_run_id: UUID | None = None,
+    ) -> None:
         self.status_code = status_code
         self.code = code
         self.message = message
+        self.query_run_id = query_run_id
         super().__init__(message)
 
 
@@ -27,13 +35,33 @@ def _request_id(request: Request) -> str:
     return getattr(request.state, "request_id", generate_request_id())
 
 
-def _response(request: Request, status_code: int, code: str, message: str) -> JSONResponse:
-    payload = ApiError(code=code, message=message, request_id=_request_id(request))
-    return JSONResponse(status_code=status_code, content=payload.model_dump(mode="json"))
+def _response(
+    request: Request,
+    status_code: int,
+    code: str,
+    message: str,
+    query_run_id: UUID | None = None,
+) -> JSONResponse:
+    payload = ApiError(
+        code=code,
+        message=message,
+        request_id=_request_id(request),
+        query_run_id=query_run_id,
+    )
+    return JSONResponse(
+        status_code=status_code,
+        content=payload.model_dump(mode="json", exclude_none=True),
+    )
 
 
 async def _service_error(request: Request, error: ServiceError) -> JSONResponse:
-    return _response(request, error.status_code, error.code, error.message)
+    return _response(
+        request,
+        error.status_code,
+        error.code,
+        error.message,
+        error.query_run_id,
+    )
 
 
 async def _validation_error(request: Request, error: RequestValidationError) -> JSONResponse:

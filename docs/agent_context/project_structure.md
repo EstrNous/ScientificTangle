@@ -46,7 +46,7 @@
 ### Общий код (`shared/`)
 
 - `shared/pyproject.toml` — пакет `scientific-tangle-shared`, подключается как path dependency из каждого сервиса.
-- `shared/contracts/` — Pydantic-модели DTO, включая NormalizedDocument, SourceSpan, QueryIR, EvidenceBundle, AnswerPayload, UserRole, ingestion task, нормализацию сохранённых источников и типизированные mock-результаты Neo4j/Qdrant.
+- `shared/contracts/` — Pydantic-модели DTO, включая стабильный SourceSpan ID, QueryIR, EvidenceBundle, QueryRunPayload, SourcePayload, GraphSubgraph, SearchResultPayload и результаты записи Neo4j/Qdrant.
 - `shared/utils/` — утилиты (generate_request_id).
 - `shared/logging/` — единая конфигурация structlog (JSON, контекст сервиса).
 - `shared/config/` — базовый класс ServiceSettings с подключениями ко всем хранилищам.
@@ -170,10 +170,10 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 ### ML integration slice
 
 - `services/ingestion/app/api/documents.py` — internal text/table fallback normalization endpoint; task pipeline дополнительно нормализует сохранённые PDF, DOCX, PPTX, DOC и ZIP через реестр parser-адаптеров.
-- `services/knowledge/app/api/extraction.py` — internal handoff `NormalizedDocument` → model structured extraction с явным mock boundary для будущей записи в Neo4j.
-- `services/retrieval/app/api/indexing.py` — internal mock boundary индексации документов в Qdrant без сохранения данных.
-- `services/retrieval/app/api/query.py` — internal Query IR + evidence collection + model rerank поверх переданных `NormalizedDocument`, с access-aware фильтрацией.
-- `services/orchestrator/app/api/query.py` и `services/gateway/app/api/query.py` — тонкий query run/proxy path для eval-compatible ответа через `EvidenceBundle` и answer synthesis.
+- `services/knowledge/app/storage.py` и `services/retrieval/app/storage.py` — интерфейсы реальных Neo4j/Qdrant-адаптеров; pending-реализации закрывают readiness и ingestion до подключения БД.
+- `services/knowledge/app/api/graph.py` — построение локального графа только по evidence ID.
+- `services/retrieval/app/api/indexing.py` и `query.py` — индексация и access-aware поиск по корпусу без документов в query-запросе.
+- `services/orchestrator/app/api/query.py` и `services/gateway/app/api/query.py` — query run, source, локальный graph и search API.
 
 ### services/auth_audit/
 
@@ -205,7 +205,7 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 - `repository.py` — `IngestionTaskRepository` (create/get/set_report/mark_failed).
 - `database.py` — `create_database()`, `get_session()`.
 - `config.py` — `OrchestratorDbSettings` (env prefix `ORCHESTRATOR_`).
-- Alembic: `services/orchestrator/alembic.ini`, миграции в `services/orchestrator/storage/versions/` (`0001` — ingestion_tasks, `0002` — query_runs/export_jobs, `0003` — совместимость query_runs с прежним init SQL).
+- Alembic: `services/orchestrator/alembic.ini`, миграции в `services/orchestrator/storage/versions/` (`0001` — ingestion_tasks, `0002` — query_runs/export_jobs, `0003` — совместимость query_runs с прежним init SQL, `0004` — полный сохраняемый результат query run).
 
 ### infra/postgres/chat_ui_db/
 

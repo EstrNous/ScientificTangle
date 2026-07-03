@@ -5,12 +5,14 @@
 ## Ключевые файлы
 
 - `services/knowledge/app/` — schema registry, entities, claims
+- `services/knowledge/app/storage.py` — контракт реального Neo4j-адаптера
+- `services/knowledge/app/api/graph.py` — локальный граф по claim/entity/SourceSpan ID из evidence
 - `ontology/` — core_schema, domain packs, validation
 - Neo4j adapters
 
 ## Принципы
 
-Claim-based знание; не абсолютная истина без provenance.
+Claim-based знание; не абсолютная истина без provenance. Локальный граф ограничен идентификаторами доказательств конкретного query run.
 
 ## Текущий ingestion boundary
 

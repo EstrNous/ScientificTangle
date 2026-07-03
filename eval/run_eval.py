@@ -26,23 +26,22 @@ async def run_evaluation(
     gold = load_gold_questions(gold_questions_path)
     results = []
     async with httpx.AsyncClient(timeout=30.0) as client:
-        documents = await load_eval_documents(client, documents_path, ingestion_normalize_url)
         for question in gold:
             started_at = time.perf_counter()
             try:
                 response = await client.post(
                     service_url,
-                    json={"query": question["text"], "documents": documents},
+                    json={"question": question["text"]},
                     headers=auth_headers(auth_token),
                 )
                 elapsed_ms = round((time.perf_counter() - started_at) * 1000, 2)
                 data = response.json() if response.headers.get("content-type", "").startswith("application/json") else {}
                 result = evaluate_response(question, response.status_code, data, elapsed_ms)
-                result["input_documents_count"] = len(documents)
+                result["input_documents_count"] = 0
             except httpx.HTTPError as exc:
                 elapsed_ms = round((time.perf_counter() - started_at) * 1000, 2)
                 result = evaluate_response(question, 0, {"error": str(exc)}, elapsed_ms)
-                result["input_documents_count"] = len(documents)
+                result["input_documents_count"] = 0
             results.append(result)
 
     report = build_report(results)
