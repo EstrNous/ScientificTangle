@@ -4,7 +4,6 @@ from uuid import UUID, uuid4
 
 import httpx
 from app.service.service import OrchestratorService
-
 from infra.postgres.orchestrator_db import QueryRun
 from shared.contracts import NormalizedDocument, SourceSpan, UserRole
 from shared.security import AuthenticatedPrincipal
@@ -26,37 +25,32 @@ class FakeRepository:
     async def mark_failed(self, task, message):
         return task
 
-    async def create_query_run(self, user_id: UUID, raw_query: str) -> QueryRun:
+    async def create_query_run(self, user_id, raw_query: str) -> QueryRun:
         now = datetime.now(UTC)
-        self.query_run = QueryRun(
+        return QueryRun(
             id=uuid4(),
             user_id=user_id,
-            raw_query=raw_query,
             status="processing",
+            raw_query=raw_query,
             created_at=now,
             updated_at=now,
         )
-        return self.query_run
 
-    async def complete_query_run(
-        self,
-        run: QueryRun,
-        query_ir: dict,
-        retrieval_trace: dict,
-        answer_payload: dict,
-        latency_ms: int,
-    ) -> QueryRun:
+    async def complete_query_run(self, run, query_ir, retrieval_trace, answer_payload, latency_ms):
+        run.status = "completed"
+        run.query_ir = query_ir
+        run.retrieval_trace = retrieval_trace
+        run.answer_payload = answer_payload
+        run.latency_ms = latency_ms
         return run
 
-    async def record_audit_event(
-        self,
-        user_id: UUID | None,
-        action: str,
-        resource_type: str,
-        resource_id: str,
-        details: dict,
-        request_id: str,
-    ) -> None:
+    async def fail_query_run(self, run, message, latency_ms):
+        run.status = "failed"
+        run.error_message = message
+        run.latency_ms = latency_ms
+        return run
+
+    async def record_audit_event(self, user_id, action, resource_type, resource_id, details, request_id):
         return None
 
 

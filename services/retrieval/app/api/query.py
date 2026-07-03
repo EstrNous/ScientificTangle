@@ -21,6 +21,7 @@ from shared.contracts import (
     TableBlock,
 )
 
+from shared.utils.source_span import compute_source_span_id as source_span_id
 from ..core.config import settings
 
 router = APIRouter(prefix="/v1", tags=["retrieval"])
@@ -43,6 +44,29 @@ class RetrievalQueryRequest(BaseModel):
 class RetrievalQueryResponse(BaseModel):
     query_ir: QueryIR
     evidence_bundle: EvidenceBundle
+    warnings: list[str] = Field(default_factory=list)
+
+
+class IndexDocumentsRequest(RetrievalIndexRequest):
+    claim_ids: list[str] = Field(default_factory=list)
+    graph_entity_ids: list[str] = Field(default_factory=list)
+
+
+def collect_index_links(request: RetrievalIndexRequest) -> tuple[list[str], list[str]]:
+    claim_ids = list(getattr(request, "claim_ids", []) or [])
+    graph_entity_ids = list(getattr(request, "graph_entity_ids", []) or [])
+    for result in request.knowledge_results:
+        claim_ids.extend(result.graph_write.claim_ids)
+        graph_entity_ids.extend(result.graph_write.graph_entity_ids)
+    return list(dict.fromkeys(item for item in claim_ids if item)), list(
+        dict.fromkeys(item for item in graph_entity_ids if item)
+    )
+
+
+class IndexDocumentsResponse(BaseModel):
+    collection: str
+    documents_count: int
+    points_count: int
     warnings: list[str] = Field(default_factory=list)
 
 
@@ -114,17 +138,19 @@ def dedupe_mapping(mapping: dict[str, list[str]]) -> dict[str, list[str]]:
 async def index_documents(request: RetrievalIndexRequest, app_request: Request) -> RetrievalIndexResponse:
     client: httpx.AsyncClient = app_request.app.state.http_client
     bootstrap = await ensure_collection(client)
-    claim_ids_by_span, graph_entity_ids_by_span = knowledge_index_metadata(request.knowledge_results)
-    points = build_points(request.documents, claim_ids_by_span, graph_entity_ids_by_span)
+    claim_ids, graph_entity_ids = collect_index_links(request)
+    points = build_points(request.documents, claim_ids, graph_entity_ids)
     warnings = [*bootstrap.warnings]
+    document_ids = [document.id for document in request.documents]
     if not points:
         return RetrievalIndexResponse(
             vector_write=StorageWriteResult(
                 backend="qdrant",
                 mode="live",
-                document_ids=[],
+                document_ids=document_ids,
                 records_count=0,
-                warnings=warnings,
+                claim_ids=claim_ids,
+                graph_entity_ids=graph_entity_ids,
             ),
             warnings=warnings,
         )
@@ -142,9 +168,10 @@ async def index_documents(request: RetrievalIndexRequest, app_request: Request) 
         vector_write=StorageWriteResult(
             backend="qdrant",
             mode="live",
-            document_ids=[doc.id for doc in request.documents],
+            document_ids=document_ids,
             records_count=len(points),
-            warnings=warnings,
+            claim_ids=claim_ids,
+            graph_entity_ids=graph_entity_ids,
         ),
         warnings=warnings,
     )
@@ -552,11 +579,6 @@ def payload_to_span(payload: dict[str, Any]) -> SourceSpan:
         table_block_id=str(payload.get("table_block_id") or "") or None,
         source_type=payload.get("source_type") if payload.get("source_type") in {"text", "table", "figure", "caption"} else "text",
     )
-
-
-def source_span_id(span: SourceSpan) -> str:
-    raw = f"{span.document_id}:{span.page}:{span.start_offset}:{span.end_offset}:{span.table_block_id or ''}"
-    return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
 
 
 def point_id(span_id: str) -> str:

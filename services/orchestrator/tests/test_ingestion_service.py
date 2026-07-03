@@ -159,12 +159,15 @@ def test_create_task_runs_complete_ingestion_pipeline() -> None:
                     "extraction": {"confirmed": [], "candidates": []},
                     "graph_write": {
                         "backend": "neo4j",
-                        "mode": "mock",
+                        "mode": "live",
                         "document_ids": ["document-1"],
                         "records_count": 0,
-                        "warnings": ["neo4j_adapter_pending"],
+                        "confirmed_count": 0,
+                        "claim_ids": [],
+                        "graph_entity_ids": [],
+                        "warnings": [],
                     },
-                    "warnings": ["neo4j_adapter_pending"],
+                    "warnings": [],
                 },
             )
         return httpx.Response(
@@ -172,21 +175,22 @@ def test_create_task_runs_complete_ingestion_pipeline() -> None:
             json={
                 "vector_write": {
                     "backend": "qdrant",
-                    "mode": "mock",
+                    "mode": "live",
                     "document_ids": ["document-1"],
                     "records_count": 1,
-                    "warnings": ["qdrant_adapter_pending"],
+                    "confirmed_count": 0,
+                    "claim_ids": [],
+                    "graph_entity_ids": [],
+                    "warnings": [],
                 },
-                "warnings": ["qdrant_adapter_pending"],
+                "warnings": [],
             },
         )
 
     async def run() -> None:
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            service = OrchestratorService(
-                repository, client, "http://ingestion", "http://knowledge", "http://retrieval", "http://model"
-            )
-            result = await service.create_task(
+            orchestrator = service(repository, client)
+            result = await orchestrator.create_task(
                 principal(),
                 [UploadFile(file=BytesIO(b"data"), filename="file.docx")],
                 "Bearer token",
@@ -194,11 +198,7 @@ def test_create_task_runs_complete_ingestion_pipeline() -> None:
             )
             assert result.status.value == "completed"
             assert result.report is not None
-            assert result.report.warnings == [
-                "parser_warning",
-                "neo4j_adapter_pending",
-                "qdrant_adapter_pending",
-            ]
+            assert result.report.warnings == ["parser_warning"]
             assert repository.audit_events[0]["action"] == "ingestion.completed"
 
     asyncio.run(run())
@@ -225,11 +225,9 @@ def test_storage_failure_marks_task_failed() -> None:
 
     async def run() -> None:
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            service = OrchestratorService(
-                repository, client, "http://ingestion", "http://knowledge", "http://retrieval", "http://model"
-            )
+            orchestrator = service(repository, client)
             with pytest.raises(OrchestratorServiceError):
-                await service.create_task(
+                await orchestrator.create_task(
                     principal(),
                     [UploadFile(file=BytesIO(b"data"), filename="file.docx")],
                     "Bearer token",
@@ -284,12 +282,10 @@ def test_task_is_visible_only_to_owner_or_admin() -> None:
 
     async def run() -> None:
         async with httpx.AsyncClient() as client:
-            service = OrchestratorService(
-                repository, client, "http://ingestion", "http://knowledge", "http://retrieval", "http://model"
-            )
-            assert (await service.get_task(task.id, owner)).id == task.id
+            orchestrator = service(repository, client)
+            assert (await orchestrator.get_task(task.id, owner)).id == task.id
             admin = principal(UserRole.ADMIN)
-            assert (await service.get_task(task.id, admin)).id == task.id
+            assert (await orchestrator.get_task(task.id, admin)).id == task.id
             with pytest.raises(OrchestratorServiceError) as error:
                 await service.get_task(task.id, principal())
             assert error.value.status_code == 404

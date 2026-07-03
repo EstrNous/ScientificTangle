@@ -1,6 +1,5 @@
 import argparse
 import asyncio
-import hashlib
 import json
 import os
 import time
@@ -8,6 +7,8 @@ from pathlib import Path
 from typing import Any
 
 import httpx
+
+from shared.utils.source_span import compute_source_span_id_from_parts
 
 
 DEFAULT_EVAL_SERVICE_URL = "http://localhost:8000/api/query"
@@ -270,8 +271,13 @@ def stable_source_span_id(span: dict[str, Any]) -> str | None:
     required = ("document_id", "page", "start_offset", "end_offset")
     if not all(key in span for key in required):
         return None
-    raw = f"{span['document_id']}:{span['page']}:{span['start_offset']}:{span['end_offset']}:{span.get('table_block_id') or ''}"
-    return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
+    return compute_source_span_id_from_parts(
+        str(span["document_id"]),
+        int(span["page"]),
+        int(span["start_offset"]),
+        int(span["end_offset"]),
+        str(span.get("table_block_id") or "") or None,
+    )
 
 
 def query_ir_time_value(filters: dict[str, Any], key: str) -> Any:

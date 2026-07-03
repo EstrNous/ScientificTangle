@@ -19,14 +19,8 @@ except ImportError:
     fuzz = None
     process = None
 
-from shared.contracts import (
-    AnswerPayload,
-    GeoContext,
-    NormalizedDocument,
-    Quantity,
-    QueryIR,
-    SourceSpan,
-)
+from shared.contracts import AccessPolicy, AnswerPayload, EvidenceBundle, EvidenceItem, GeoContext, NormalizedDocument, Quantity, QueryIR, SourceSpan
+from shared.utils.source_span import compute_source_span_id as source_span_id
 
 from .contracts import (
     CONFIRMED_MIN_CONFIDENCE,
@@ -233,11 +227,6 @@ RU_EN_ALIASES = {
     "desalination": "обессоливание",
     "electroextraction": "электроэкстракция",
 }
-
-
-def source_span_id(span: SourceSpan) -> str:
-    raw = f"{span.document_id}:{span.page}:{span.start_offset}:{span.end_offset}:{span.table_block_id or ''}"
-    return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
 
 
 def cache_key(operation: str, version: str, model_name: str, payload: dict[str, Any]) -> str:
