@@ -44,18 +44,18 @@ export default function OpsMetricsCards({ operations, compact = false, hideTitle
   ];
 
   return (
-    <div className={compact ? 'space-y-1.5' : 'space-y-2'}>
+    <div className={compact ? 'space-y-1' : 'space-y-2'}>
       {!hideTitle && (
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-1.5">
           <p
             className={`font-semibold text-gray-900 dark:text-slate-100 ${
-              compact ? 'text-xs' : 'text-sm'
+              compact ? 'text-[11px]' : 'text-sm'
             }`}
           >
             {t('admin.ops.title')}
           </p>
           {operations.updated_at && (
-            <p className={`text-nn-gray dark:text-slate-400 ${compact ? 'text-[10px]' : 'text-xs'}`}>
+            <p className={`text-nn-gray dark:text-slate-400 ${compact ? 'text-[9px]' : 'text-xs'}`}>
               {t('admin.ops.updatedAt', {
                 date: new Date(operations.updated_at).toLocaleString(),
               })}
@@ -63,24 +63,24 @@ export default function OpsMetricsCards({ operations, compact = false, hideTitle
           )}
         </div>
       )}
-      <div className={`grid grid-cols-2 gap-2 ${compact ? 'md:grid-cols-4' : 'gap-3 md:grid-cols-4'}`}>
+      <div className={`grid grid-cols-2 gap-1.5 ${compact ? 'md:grid-cols-4' : 'gap-3 md:grid-cols-4'}`}>
         {items.map(({ key, label, value, accent }) => (
           <div
             key={key}
             className={`nn-card rounded-lg border border-nn-border dark:border-slate-700 ${
-              compact ? 'px-2.5 py-2' : 'rounded-xl p-3'
+              compact ? 'px-2 py-1.5' : 'rounded-xl p-3'
             }`}
           >
             <p
               className={`font-medium uppercase tracking-wide text-nn-gray dark:text-slate-400 ${
-                compact ? 'text-[10px] leading-tight' : 'text-[11px]'
+                compact ? 'text-[9px] leading-tight' : 'text-[11px]'
               }`}
             >
               {label}
             </p>
             <p
               className={`font-bold tabular-nums ${accent} ${
-                compact ? 'mt-0.5 text-lg leading-none' : 'mt-1 text-2xl'
+                compact ? 'mt-0.5 text-base leading-none' : 'mt-1 text-2xl'
               }`}
             >
               {value}
