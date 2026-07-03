@@ -138,6 +138,33 @@
       "recall_at_5": "Recall@5"
     }
   },
+  "lab": {
+    "coverageTitle": "Material × process matrix",
+    "experimentsCount": "{{count}} experiments",
+    "cellTooltip": "{{material}} × {{process}}: {{count}} experiments",
+    "legend": {
+      "none": "no data",
+      "low": "low",
+      "mid": "medium",
+      "high": "high"
+    },
+    "gapsTitle": "Knowledge gaps",
+    "conflictsTitle": "Data contradictions",
+    "relatedCases": "Related cases",
+    "experts": "Experts and labs",
+    "conflictNote": "Experiment conditions differ — not a direct conflict without comparison",
+    "summary": {
+      "gaps": "Gaps",
+      "conflicts": "Conflicts",
+      "sparse": "Empty cells",
+      "experiments": "Matrix experiments"
+    },
+    "risk": {
+      "high": "high",
+      "medium": "medium",
+      "low": "low"
+    }
+  },
   "pages": {
     "chat": "Semantic search and reports",
     "graph": "Knowledge structure and data upload",
