@@ -1,3 +1,3 @@
-from app.api.web import create_app
+from app.api.factory import create_app
 
 app = create_app()

@@ -3,8 +3,8 @@ from uuid import UUID
 import httpx
 from fastapi import UploadFile, status
 
-from app.db.models import IngestionTask
-from app.db.repository import IngestionTaskRepository
+from infra.postgres.orchestrator_db import IngestionTask
+from infra.postgres.orchestrator_db import IngestionTaskRepository
 from shared.contracts import (
     ApiError,
     AnswerPayload,
