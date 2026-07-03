@@ -109,6 +109,19 @@
 - `tests/integration/` — интеграционные тесты.
 - `tests/performance/` — нагрузочные тесты.
 
+## Сервисы
+
+### services/auth_audit/
+
+Микросервис аутентификации, авторизации (RBAC) и аудита.
+
+- `src/models/base.py` — общий `DeclarativeBase` (SQLAlchemy 2.0 Async) и `TimestampMixin` для auth_audit.
+- `src/models/auth.py` — модели RBAC: `User`, `Role`, `Permission`, `UserRole`, `RolePermission`. База `auth_db`.
+- `src/models/audit.py` — модель `AuditEvent`. База `audit_db`.
+- `README.md` — описание сервиса, стек, схема баз, индексы.
+
+Архитектура: DB-per-Service — каждая база (auth_db, audit_db) физически отдельная БД внутри одного PostgreSQL-инстанса.
+
 ## Как поддерживать файл
 
 - Пиши на русском.
