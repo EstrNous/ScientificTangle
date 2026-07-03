@@ -1,6 +1,6 @@
 # Структура проекта для агентов
 
-Этот файл — общий навигационный контекст для Codex, Claude, Cursor, Antigravity, ZCode/Zed и других агентных систем.
+Этот файл — общий навигационный контекст для Codex, Claude, Cursor, ZCode/Zed и других агентных систем.
 
 ## Обязательное правило синхронизации
 
@@ -14,11 +14,10 @@
 
 - `README.md` — описание проекта; не менять без отдельного явного запроса.
 - `.gitignore` — правила исключения локальных, временных и секретных файлов.
-- `AGENTS.md` — главный файл правил для всех агентных систем.
-- `CLAUDE.md` — адаптер правил для Claude Code.
-- `ANTIGRAVITY.md` — адаптер правил для Antigravity.
-- `ZCODE.md` — адаптер правил для ZCode/Zed-подобных агентов.
-- `.cursor/rules/project.mdc` — always-on правила для Cursor.
+- `AGENTS.md` — hard rules (L0) для всех агентных систем.
+- `CLAUDE.md` — указатель для Claude Code.
+- `ZCODE.md` — указатель для ZCode/Zed.
+- `.cursor/rules/project.mdc` — always-on L0 для Cursor.
 - `.github/copilot-instructions.md` — инструкции для GitHub Copilot.
 - `.zed/rules/project.md` — правила для Zed Agent.
 - `docker-compose.yml` — полная локальная среда (сервисы + PostgreSQL + Neo4j + Qdrant + MinIO + Redis + nginx), включая запуск миграций `auth_audit` и подключение внешних RSA-секретов.
@@ -28,14 +27,21 @@
 
 ### Документация
 
-- `docs/nauchny_klubok_top1_tz.md` — главный план, ТЗ и продуктово-технический контекст.
+- `docs/nauchny_klubok_top1_tz.md` — полное ТЗ (читать выборочно).
+- `docs/tz/` — сжатые выдержки: `index.md`, `mvp.md`, `agent_constraints.md`, `contracts.md`.
+- `docs/agent_context/git_workflow.md` — ветки, rebase, PR, конфликты; без локального merge в `dev`.
+- `docs/agent_context/task_router.md` — маршрутизация контекста по типу задачи.
+- `docs/agent_context/rules_full.md` — расширенные правила (L1).
+- `docs/agent_context/domains/` — краткий контекст по сервисам.
 - `docs/02_architecture.md` — архитектурный документ: карта сервисов, хранилища, маршрутизация, healthcheck, структура сервиса.
+- `docs/agent_prompts/every_chat.md` — эталонная строка для каждого чата
 - `docs/agent_prompts/system.md` — системный промпт строгой работы по ТЗ.
 - `docs/agent_prompts/before_implementation.md` — чек перед имплементацией.
 - `docs/agent_prompts/new_chat.md` — промпт для переноса работы в новый чат.
 - `docs/agent_prompts/quality_gate.md` — финальная проверка качества перед завершением задачи.
 - `docs/agent_context/project_structure.md` — этот файл, карта структуры проекта для агентов.
 - `docs/agent_context/sync_rules.md` — правила синхронизации контекста между агентами.
+- `docs/agent_context/ml_mvp_status.md` — текущий статус ML MVP, открытые gaps и позиция по VL/OCR.
 
 ### Общий код (`shared/`)
 
@@ -57,7 +63,7 @@
 | `services/ingestion/` | 8003 | Ingestion — загрузка, парсинг, NormalizedDocument, классификация, метаданные |
 | `services/knowledge/` | 8004 | Knowledge — Schema Registry, сущности, entity resolution, claims, граф |
 | `services/retrieval/` | 8005 | Retrieval — Query IR, гибридный поиск, fusion, reranking, EvidenceBundle |
-| `services/model/` | 8006 | Model — LLM, embeddings, reranking, structured extraction, caching |
+| `services/model/` | 8006 | Model — embeddings, structured extraction, Query IR, reranking/scoring, answer synthesis, prompt/schema registry |
 | `services/export/` | 8007 | Export — Markdown, PDF, JSON, JSON-LD |
 | `services/notification/` | 8008 | Notification — профиль интересов, сопоставление с источниками, уведомления |
 
@@ -96,8 +102,10 @@
 
 ### Оценка качества (`eval/`)
 
-- `eval/gold_questions.json` — эталонные вопросы с ожидаемыми типами ответов и тегами.
-- `eval/run_eval.py` — скрипт для запуска оценки через API.
+- `eval/gold_questions.json` — эталонные MVP-вопросы с ожидаемыми сущностями, числовыми, географическими и временными constraints.
+- `eval/gold_mining.py` — dev-only генератор corpus-derived gold candidates из `NormalizedDocument` и `SourceSpan`.
+- `eval/yandex_disk_corpus.py` — dev-only загрузчик публичного корпуса с Яндекс.Диска в локальную ignored-директорию.
+- `eval/run_eval.py` — скрипт для запуска оценки через API, расчёта evidence-first/top-1 метрик и записи Markdown/JSON отчётов.
 - `eval/reports/` — отчёты оценки.
 
 ### Демо (`demo/`)
@@ -113,6 +121,18 @@
 - `tests/performance/` — нагрузочные тесты.
 
 ## Сервисы
+
+### services/model/
+
+Микросервис модельного слоя для evidence-first ML MVP.
+
+- `app/api/v1.py` — локальные v1 endpoints для embeddings, structured extraction, Query IR, reranking/scoring, answer synthesis, prompt registry и schema registry.
+- `app/contracts.py` — локальные Pydantic-модели model service: confirmed/candidate extraction layer, reason codes, unsupported warnings, conflict/gap/interest/notification/JSON-LD DTO и JSON Schema registry entries.
+- `app/services.py` — модельные операции с Yandex provider через `.env` и deterministic degraded fallback; confirmed outputs требуют `SourceSpan`, candidates получают reason codes.
+- `app/yandex_client.py` — HTTP-клиент Yandex AI Studio для embeddings и text generation по `YANDEX_API_KEY` и `YANDEX_FOLDER_ID`.
+- `app/prompt_registry.py` и `app/prompts/` — версионированные prompt templates для model outputs.
+- `app/schema_registry.py` — registry JSON Schema для валидируемых model outputs.
+- `tests/test_model_v1.py` — проверки evidence-first правил, Query IR constraints, candidate reason codes, answer synthesis, conflict/gap logic, interests, notifications и JSON-LD enrichment.
 
 ### services/auth_audit/
 

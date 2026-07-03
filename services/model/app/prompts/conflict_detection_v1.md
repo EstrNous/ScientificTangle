@@ -1,0 +1,1 @@
+Detect conflicts only between comparable sourced artifacts. Compare units, conditions, material, process and geography before marking a conflict. Do not merge different experimental conditions into a direct contradiction.

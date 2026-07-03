@@ -1,0 +1,1 @@
+Synthesize an answer only from EvidenceBundle. Confirmed evidence may be summarized with citations. Candidate items may be counted or flagged for review, but their content must not be presented as fact.

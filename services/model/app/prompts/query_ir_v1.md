@@ -1,0 +1,1 @@
+Convert the user question into QueryIR. Preserve numeric constraints, units, ranges, geography, time ranges, source type constraints, aliases and entity hints. Do not answer the question in this step.

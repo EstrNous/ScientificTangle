@@ -1,25 +1,3 @@
 # Инструкции для GitHub Copilot
 
-Используй обязательный контекст проекта:
-
-- `AGENTS.md`
-- `docs/nauchny_klubok_top1_tz.md`
-- `docs/agent_prompts/system.md`
-- `docs/agent_prompts/before_implementation.md`
-- `docs/agent_context/project_structure.md`
-- `docs/agent_context/sync_rules.md`
-
-Правила:
-
-- Работай строго по ТЗ: перед имплементацией продумай план, риски и проверку.
-- Перед началом работы стяни актуальный `dev`: `git fetch origin dev` и `git pull --ff-only origin dev`.
-- Работай только в `dev` или `feat/*`.
-- Новые `feat/*` ветки создавай только от актуального локального `dev`.
-- В `main` не работай, не пушь и не мержь; перенос из `dev` в `main` делает человек вручную.
-- Перед push, PR или merge создавай проверочную копию ветки.
-- В коммитах, push/PR-описаниях и публичной истории не упоминай Cursor, Codex, Claude, Antigravity, ZCode или другую агентную систему; описывай только результат работы.
-- Не добавляй комментарии в код.
-- Веди документацию на русском.
-- Обновляй общий агентный контекст при изменении структуры.
-- Не меняй `README.md` без отдельного явного запроса.
-- Коммиты должны быть в формате `feat: сделано то-то`: одна строка, русский язык, без scope.
+Следуй `AGENTS.md` и `docs/agent_context/task_router.md`. Эталон: `docs/agent_prompts/every_chat.md`. Детали: `docs/agent_context/rules_full.md`.

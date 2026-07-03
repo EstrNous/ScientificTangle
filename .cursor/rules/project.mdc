@@ -1,30 +1,8 @@
 ---
-description: Единые правила проекта ScientificTangle
+description: ScientificTangle — hard rules (L0)
 alwaysApply: true
 ---
 
-Перед работой обязательно прочитай:
+Следуй `AGENTS.md` и `docs/agent_context/task_router.md`. Эталон: `docs/agent_prompts/every_chat.md`.
 
-- `AGENTS.md`
-- `docs/nauchny_klubok_top1_tz.md`
-- `docs/agent_prompts/system.md`
-- `docs/agent_prompts/before_implementation.md`
-- `docs/agent_context/project_structure.md`
-- `docs/agent_context/sync_rules.md`
-
-Правила:
-
-- Основной контекст проекта — `docs/nauchny_klubok_top1_tz.md`.
-- Перед имплементацией сначала коротко обдумать архитектурное место изменения, план, риски и критерии проверки.
-- Перед началом работы стянуть актуальный `dev`: `git fetch origin dev` и `git pull --ff-only origin dev`.
-- Работать только в `dev` или `feat/*`.
-- Новые `feat/*` ветки создавать только от актуального локального `dev`.
-- В `main` не работать, не пушить и не мержить; перенос из `dev` в `main` делает человек вручную.
-- Перед push, PR или merge создавать проверочную копию ветки.
-- В коммитах, push/PR-описаниях и публичной истории не упоминать Cursor, Codex, Claude, Antigravity, ZCode или другую агентную систему; описывать только результат работы.
-- Комментарии в код не добавлять, кроме обязательных внешним форматом или юридическим требованием.
-- Документацию вести на русском языке.
-- При изменении структуры проекта обновлять `docs/agent_context/project_structure.md`.
-- `README.md` не трогать без отдельного явного запроса.
-- Коммиты: `feat: сделано то-то`, одна строка, русский язык, без scope.
-- Если задача стала другой задачей или контекст перегружен, предложить новый чат с промптом из `docs/agent_prompts/new_chat.md`.
+Hard rules: ветки `feat/*` (dev по запросу); не трогать `main`; не локальный merge в `dev` — только PR; `git fetch` + rebase на feat; коммиты `feat: ...` на русском; без комментариев в коде; relative imports в `services/*/app/`; confirmed claims с `SourceSpan`; `README.md` не менять без запроса.
