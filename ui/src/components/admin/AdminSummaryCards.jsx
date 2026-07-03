@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-export default function AdminSummaryCards({ summary }) {
+export default function AdminSummaryCards({ summary, compact = false }) {
   const { t } = useTranslation();
 
   if (!summary) return null;
@@ -25,16 +25,26 @@ export default function AdminSummaryCards({ summary }) {
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+    <div className={`grid grid-cols-2 gap-2 ${compact ? 'md:grid-cols-4' : 'gap-3 md:grid-cols-4'}`}>
       {items.map(({ key, label, accent }) => (
         <div
           key={key}
-          className="nn-card rounded-xl border border-nn-border p-3 dark:border-slate-700"
+          className={`nn-card rounded-lg border border-nn-border dark:border-slate-700 ${
+            compact ? 'px-2.5 py-2' : 'rounded-xl p-3'
+          }`}
         >
-          <p className="text-[11px] font-medium uppercase tracking-wide text-nn-gray dark:text-slate-400">
+          <p
+            className={`font-medium uppercase tracking-wide text-nn-gray dark:text-slate-400 ${
+              compact ? 'text-[10px] leading-tight' : 'text-[11px]'
+            }`}
+          >
             {label}
           </p>
-          <p className={`mt-1 text-2xl font-bold tabular-nums ${accent}`}>
+          <p
+            className={`font-bold tabular-nums ${accent} ${
+              compact ? 'mt-0.5 text-lg leading-none' : 'mt-1 text-2xl'
+            }`}
+          >
             {summary[key]?.toLocaleString('ru-RU') ?? '—'}
           </p>
         </div>

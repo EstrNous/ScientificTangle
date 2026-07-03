@@ -24,7 +24,10 @@
     "searchPlaceholder": "Поиск",
     "team": "Команда",
     "roleSwitcher": "Роль",
-    "profile": "Профиль"
+    "profile": "Профиль",
+    "downloadPdf": "Скачать PDF",
+    "downloadingPdf": "PDF…",
+    "exportedAt": "Экспорт: {{date}}"
   },
   "chat": {
     "history": "История",
@@ -66,6 +69,9 @@
     "edit": "Править",
     "empty": "Граф пуст — загрузите документы",
     "emptyFiltered": "Нет узлов по выбранным типам и запросу",
+    "expandPanel": "Развернуть на всю панель",
+    "collapsePanel": "Свернуть",
+    "verificationEmpty": "Нет кандидатов на верификацию",
     "nodeTypeFilters": "Типы узлов",
     "selectAllTypes": "Все типы",
     "resetTypes": "Сбросить",
@@ -129,6 +135,9 @@
       "gaps": "Пробелы",
       "conflicts": "Конфликты"
     },
+    "direction": "Направление",
+    "pdfMetric": "Показатель",
+    "pdfValue": "Значение",
     "evalMetrics": {
       "citation_coverage": "Покрытие источниками",
       "numeric_correctness": "Точность чисел",
@@ -139,6 +148,14 @@
     }
   },
   "admin": {
+    "nav": {
+      "management": "Управление",
+      "stats": "Статистика",
+      "audit": "Журнал аудита"
+    },
+    "stats": {
+      "summaryTitle": "Сводка"
+    },
     "summary": {
       "users": "Пользователи",
       "audit24h": "События за 24 ч",
@@ -152,6 +169,12 @@
     "userStatus": "Статус",
     "statusActive": "активен",
     "statusInactive": "отключён",
+    "userActions": "Действия",
+    "deleteUser": "Удалить пользователя",
+    "confirmDeleteUser": "Удалить пользователя «{{name}}»?",
+    "usersEmpty": "Нет пользователей",
+    "expandPanel": "Развернуть на всю страницу",
+    "collapsePanel": "Свернуть",
     "accessTitle": "Политики доступа к документам",
     "document": "Документ",
     "accessLevel": "Уровень",
@@ -224,6 +247,7 @@
     },
     "gapsTitle": "Пробелы в знаниях",
     "conflictsTitle": "Противоречия в данных",
+    "process": "Процесс",
     "relatedCases": "Близкие кейсы",
     "experts": "Эксперты и лаборатории",
     "conflictNote": "Условия эксперимента различаются — прямой конфликт не подтверждён без сопоставления",

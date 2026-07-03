@@ -24,7 +24,10 @@
     "searchPlaceholder": "Search",
     "team": "Team",
     "roleSwitcher": "Role",
-    "profile": "Profile"
+    "profile": "Profile",
+    "downloadPdf": "Download PDF",
+    "downloadingPdf": "PDF…",
+    "exportedAt": "Exported: {{date}}"
   },
   "chat": {
     "history": "History",
@@ -66,6 +69,9 @@
     "edit": "Edit",
     "empty": "Graph is empty — upload documents first",
     "emptyFiltered": "No nodes match the selected types and query",
+    "expandPanel": "Expand to full panel",
+    "collapsePanel": "Collapse",
+    "verificationEmpty": "No verification candidates",
     "nodeTypeFilters": "Node types",
     "selectAllTypes": "All types",
     "resetTypes": "Reset",
@@ -129,6 +135,9 @@
       "gaps": "Gaps",
       "conflicts": "Conflicts"
     },
+    "direction": "Direction",
+    "pdfMetric": "Metric",
+    "pdfValue": "Value",
     "evalMetrics": {
       "citation_coverage": "Citation coverage",
       "numeric_correctness": "Numeric correctness",
@@ -139,6 +148,14 @@
     }
   },
   "admin": {
+    "nav": {
+      "management": "Management",
+      "stats": "Statistics",
+      "audit": "Audit log"
+    },
+    "stats": {
+      "summaryTitle": "Summary"
+    },
     "summary": {
       "users": "Users",
       "audit24h": "Events (24h)",
@@ -152,6 +169,12 @@
     "userStatus": "Status",
     "statusActive": "active",
     "statusInactive": "disabled",
+    "userActions": "Actions",
+    "deleteUser": "Delete user",
+    "confirmDeleteUser": "Delete user «{{name}}»?",
+    "usersEmpty": "No users",
+    "expandPanel": "Expand to full page",
+    "collapsePanel": "Collapse",
     "accessTitle": "Document access policies",
     "document": "Document",
     "accessLevel": "Level",
@@ -224,6 +247,7 @@
     },
     "gapsTitle": "Knowledge gaps",
     "conflictsTitle": "Data contradictions",
+    "process": "Process",
     "relatedCases": "Related cases",
     "experts": "Experts and labs",
     "conflictNote": "Experiment conditions differ — not a direct conflict without comparison",

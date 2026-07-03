@@ -1,41 +1,32 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import PageShell from '../components/shared/PageShell.jsx';
 import Loader from '../components/shared/Loader.jsx';
-import {
-  AdminSummaryCards,
-  AccessPolicyTable,
-  AuditLogTable,
-  OpsMetricsCards,
-  ServiceMetricsTable,
-  SourceViewer,
-  UserRoleTable,
-} from '../components/admin/index.js';
+import { AccessPolicyTable, AdminSubNav, UserRoleTable } from '../components/admin/index.js';
+import PdfDownloadButton from '../components/shared/PdfDownloadButton.jsx';
 import { apiGet } from '../api/client.js';
+import { exportAdminManagementPdf } from '../utils/pagePdfExport.js';
+
+const PANELS = {
+  USERS: 'users',
+  ACCESS: 'access',
+};
 
 export default function AdminPage() {
+  const { t, i18n } = useTranslation();
   const [loading, setLoading] = useState(true);
   const [adminData, setAdminData] = useState(null);
-  const [auditEvents, setAuditEvents] = useState([]);
   const [users, setUsers] = useState([]);
-  const [selectedEventId, setSelectedEventId] = useState(null);
+  const [expandedPanel, setExpandedPanel] = useState(null);
 
   useEffect(() => {
-    Promise.all([apiGet('/admin'), apiGet('/audit/events')])
-      .then(([admin, events]) => {
+    apiGet('/admin')
+      .then((admin) => {
         setAdminData(admin);
         setUsers(admin.users ?? []);
-        setAuditEvents(events);
-        const withSource = events.find((event) => event.source_span_id);
-        setSelectedEventId(withSource?.id ?? events[0]?.id ?? null);
       })
       .finally(() => setLoading(false));
   }, []);
-
-  const selectedSpan = useMemo(() => {
-    const event = auditEvents.find((item) => item.id === selectedEventId);
-    if (!event?.source_span_id) return null;
-    return adminData?.source_spans?.[event.source_span_id] ?? null;
-  }, [auditEvents, selectedEventId, adminData]);
 
   const handleRoleChange = (userId, role) => {
     setUsers((prev) => prev.map((user) => (user.id === userId ? { ...user, role } : user)));
@@ -47,29 +38,68 @@ export default function AdminPage() {
     );
   };
 
+  const handleUserDelete = (userId) => {
+    const user = users.find((item) => item.id === userId);
+    if (!user) return;
+    if (!window.confirm(t('admin.confirmDeleteUser', { name: user.name }))) return;
+    setUsers((prev) => prev.filter((item) => item.id !== userId));
+  };
+
+  const togglePanel = (panel) => {
+    setExpandedPanel((prev) => (prev === panel ? null : panel));
+  };
+
+  const isPanelVisible = (panel) => !expandedPanel || expandedPanel === panel;
+  const isPanelExpanded = (panel) => expandedPanel === panel;
+
   if (loading) return <Loader />;
 
   return (
     <PageShell>
-      <div className="flex h-full min-h-0 flex-col gap-6 overflow-y-auto pr-1">
-        <AdminSummaryCards summary={adminData?.summary} />
-        <OpsMetricsCards operations={adminData?.operations} />
-        <ServiceMetricsTable services={adminData?.operations?.services} />
-        <div className="grid gap-4 xl:grid-cols-2">
-          <UserRoleTable
-            users={users}
-            onRoleChange={handleRoleChange}
-            onActiveToggle={handleActiveToggle}
-          />
-          <AccessPolicyTable policies={adminData?.access_policies} />
-        </div>
-        <div className="grid min-h-0 gap-4 xl:grid-cols-[1fr_320px]">
-          <AuditLogTable
-            events={auditEvents}
-            selectedId={selectedEventId}
-            onSelect={(event) => setSelectedEventId(event.id)}
-          />
-          <SourceViewer span={selectedSpan} />
+      <div
+        className={`flex h-full min-h-0 flex-col gap-6 ${
+          expandedPanel ? 'overflow-hidden' : 'overflow-y-auto pr-1'
+        }`}
+      >
+        <AdminSubNav
+          action={
+            <PdfDownloadButton
+              onExport={() =>
+                exportAdminManagementPdf({
+                  users,
+                  policies: adminData?.access_policies,
+                  t,
+                  language: i18n.language,
+                })
+              }
+            />
+          }
+        />
+
+        <div
+          className={`grid gap-4 ${
+            expandedPanel === PANELS.USERS || expandedPanel === PANELS.ACCESS
+              ? 'min-h-0 flex-1'
+              : 'xl:grid-cols-2'
+          }`}
+        >
+          {isPanelVisible(PANELS.USERS) && (
+            <UserRoleTable
+              users={users}
+              onRoleChange={handleRoleChange}
+              onActiveToggle={handleActiveToggle}
+              onDelete={handleUserDelete}
+              expanded={isPanelExpanded(PANELS.USERS)}
+              onToggleExpand={() => togglePanel(PANELS.USERS)}
+            />
+          )}
+          {isPanelVisible(PANELS.ACCESS) && (
+            <AccessPolicyTable
+              policies={adminData?.access_policies}
+              expanded={isPanelExpanded(PANELS.ACCESS)}
+              onToggleExpand={() => togglePanel(PANELS.ACCESS)}
+            />
+          )}
         </div>
       </div>
     </PageShell>

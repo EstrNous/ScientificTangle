@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import AdminPanelShell from './AdminPanelShell.jsx';
 
 const LEVEL_STYLES = {
   public: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300',
@@ -7,16 +8,17 @@ const LEVEL_STYLES = {
   restricted: 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300',
 };
 
-export default function AccessPolicyTable({ policies }) {
+export default function AccessPolicyTable({ policies, expanded, onToggleExpand }) {
   const { t } = useTranslation();
 
   if (!policies?.length) return null;
 
   return (
-    <div className="nn-card p-4">
-      <p className="mb-3 text-sm font-semibold text-gray-900 dark:text-slate-100">
-        {t('admin.accessTitle')}
-      </p>
+    <AdminPanelShell
+      title={t('admin.accessTitle')}
+      expanded={expanded}
+      onToggleExpand={onToggleExpand}
+    >
       <div className="overflow-x-auto">
         <table className="w-full min-w-[560px] border-collapse text-xs">
           <thead>
@@ -61,6 +63,6 @@ export default function AccessPolicyTable({ policies }) {
           </tbody>
         </table>
       </div>
-    </div>
+    </AdminPanelShell>
   );
 }

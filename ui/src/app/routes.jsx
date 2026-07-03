@@ -5,6 +5,8 @@ import GraphPage from '../pages/GraphPage.jsx';
 import StrategicPage from '../pages/StrategicPage.jsx';
 import LabPage from '../pages/LabPage.jsx';
 import AdminPage from '../pages/AdminPage.jsx';
+import AdminStatsPage from '../pages/AdminStatsPage.jsx';
+import AdminAuditPage from '../pages/AdminAuditPage.jsx';
 import UploadPage from '../pages/UploadPage.jsx';
 import SearchPage from '../pages/SearchPage.jsx';
 import RoleRoute from '../components/shared/RoleRoute.jsx';
@@ -48,6 +50,22 @@ export const routes = [
     element: (
       <RoleRoute paths={['admin']}>
         <AdminPage />
+      </RoleRoute>
+    ),
+  },
+  {
+    path: '/admin/stats',
+    element: (
+      <RoleRoute paths={['admin']}>
+        <AdminStatsPage />
+      </RoleRoute>
+    ),
+  },
+  {
+    path: '/admin/audit',
+    element: (
+      <RoleRoute paths={['admin']}>
+        <AdminAuditPage />
       </RoleRoute>
     ),
   },

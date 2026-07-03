@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import AdminPanelShell from './AdminPanelShell.jsx';
 
 const ACTION_FILTERS = [
   'all',
@@ -24,7 +25,7 @@ function formatTime(iso, locale) {
   }
 }
 
-export default function AuditLogTable({ events, selectedId, onSelect }) {
+export default function AuditLogTable({ events, selectedId, onSelect, fullHeight = false }) {
   const { t, i18n } = useTranslation();
   const [actionFilter, setActionFilter] = useState('all');
 
@@ -35,25 +36,28 @@ export default function AuditLogTable({ events, selectedId, onSelect }) {
 
   if (!events?.length) return null;
 
+  const filterSelect = (
+    <select
+      value={actionFilter}
+      onChange={(e) => setActionFilter(e.target.value)}
+      className="rounded-lg border border-nn-border bg-white px-2 py-1 text-xs text-gray-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+    >
+      {ACTION_FILTERS.map((action) => (
+        <option key={action} value={action}>
+          {action === 'all' ? t('admin.filterAll') : t(`admin.actions.${action}`)}
+        </option>
+      ))}
+    </select>
+  );
+
   return (
-    <div className="nn-card flex min-h-0 flex-col p-4">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
-          {t('admin.auditTitle')}
-        </p>
-        <select
-          value={actionFilter}
-          onChange={(e) => setActionFilter(e.target.value)}
-          className="rounded-lg border border-nn-border bg-white px-2 py-1 text-xs text-gray-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-        >
-          {ACTION_FILTERS.map((action) => (
-            <option key={action} value={action}>
-              {action === 'all' ? t('admin.filterAll') : t(`admin.actions.${action}`)}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="scrollbar-thin scrollbar-thumb-nn-border dark:scrollbar-thumb-slate-600 max-h-72 overflow-auto">
+    <AdminPanelShell
+      title={t('admin.auditTitle')}
+      toolbar={filterSelect}
+      expanded={fullHeight}
+      className={fullHeight ? 'min-h-0 flex-1' : 'min-h-0'}
+    >
+      <div className={fullHeight ? '' : 'max-h-72 overflow-auto'}>
         <table className="w-full min-w-[640px] border-collapse text-xs">
           <thead className="sticky top-0 bg-white dark:bg-slate-900">
             <tr className="text-left text-nn-gray dark:text-slate-400">
@@ -110,6 +114,6 @@ export default function AuditLogTable({ events, selectedId, onSelect }) {
           </tbody>
         </table>
       </div>
-    </div>
+    </AdminPanelShell>
   );
 }

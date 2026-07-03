@@ -15,6 +15,12 @@ import { apiGet } from '../api/client.js';
 import { filterGraphSearchResults } from '../api/mock/graphSearch.js';
 import { filterEntitiesByNodeTypes, filterSubgraphByNodeTypes } from '../api/mock/graphFilters.js';
 
+const PANELS = {
+  ENTITIES: 'entities',
+  VERIFICATION: 'verification',
+  SEARCH: 'search',
+};
+
 export default function GraphPage() {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(true);
@@ -28,6 +34,7 @@ export default function GraphPage() {
   const [selectedNodeId, setSelectedNodeId] = useState(null);
   const [activeNodeTypes, setActiveNodeTypes] = useState(ALL_GRAPH_NODE_TYPES);
   const [graphQuery, setGraphQuery] = useState('');
+  const [expandedPanel, setExpandedPanel] = useState(null);
 
   useEffect(() => {
     Promise.all([apiGet('/graph'), apiGet('/lab/search')])
@@ -83,6 +90,13 @@ export default function GraphPage() {
     [filteredSubgraph, fullGraph],
   );
 
+  const togglePanel = (panel) => {
+    setExpandedPanel((prev) => (prev === panel ? null : panel));
+  };
+
+  const isPanelVisible = (panel) => !expandedPanel || expandedPanel === panel;
+  const isPanelExpanded = (panel) => expandedPanel === panel;
+
   if (loading) return <Loader />;
 
   return (
@@ -119,14 +133,34 @@ export default function GraphPage() {
             </div>
           </div>
 
-          <aside className="flex w-80 shrink-0 min-h-0 flex-col gap-3 overflow-y-auto pr-1">
-            <SyncedEntityTable
-              entities={filteredEntities}
-              selectedId={selectedNodeId}
-              onSelect={setSelectedNodeId}
-            />
-            <VerificationInbox candidates={candidates} />
-            <GraphSearchResults results={searchResults} hasSearched={hasSearched} />
+          <aside className="flex w-96 shrink-0 min-h-0 flex-col gap-3 overflow-hidden">
+            {isPanelVisible(PANELS.ENTITIES) && (
+              <SyncedEntityTable
+                entities={filteredEntities}
+                selectedId={selectedNodeId}
+                onSelect={setSelectedNodeId}
+                expanded={isPanelExpanded(PANELS.ENTITIES)}
+                onToggleExpand={() => togglePanel(PANELS.ENTITIES)}
+                className={expandedPanel ? 'min-h-0 flex-1' : 'min-h-0 flex-[1.1]'}
+              />
+            )}
+            {isPanelVisible(PANELS.VERIFICATION) && (
+              <VerificationInbox
+                candidates={candidates}
+                expanded={isPanelExpanded(PANELS.VERIFICATION)}
+                onToggleExpand={() => togglePanel(PANELS.VERIFICATION)}
+                className={expandedPanel ? 'min-h-0 flex-1' : 'min-h-0 flex-[1.1]'}
+              />
+            )}
+            {isPanelVisible(PANELS.SEARCH) && (
+              <GraphSearchResults
+                results={searchResults}
+                hasSearched={hasSearched}
+                expanded={isPanelExpanded(PANELS.SEARCH)}
+                onToggleExpand={() => togglePanel(PANELS.SEARCH)}
+                className={expandedPanel ? 'min-h-0 flex-1' : 'min-h-0 flex-1'}
+              />
+            )}
           </aside>
         </div>
       </div>
