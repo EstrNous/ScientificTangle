@@ -10,7 +10,9 @@
 
 ## Текущая структура
 
-- `README.md` — существующее описание проекта; не менять без отдельного явного запроса.
+### Корневые файлы
+
+- `README.md` — описание проекта; не менять без отдельного явного запроса.
 - `.gitignore` — правила исключения локальных, временных и секретных файлов.
 - `AGENTS.md` — главный файл правил для всех агентных систем.
 - `CLAUDE.md` — адаптер правил для Claude Code.
@@ -19,12 +21,93 @@
 - `.cursor/rules/project.mdc` — always-on правила для Cursor.
 - `.github/copilot-instructions.md` — инструкции для GitHub Copilot.
 - `.zed/rules/project.md` — правила для Zed Agent.
-- `docs/nauchny_klubok_top1_tz.md` — главный хакатонный план, ТЗ и продуктово-технический контекст.
+- `docker-compose.yml` — полная локальная среда (сервисы + PostgreSQL + Neo4j + Qdrant + MinIO + Redis + nginx).
+- `docker-compose.prod.yml` — production-оверрайды (ресурсы, логирование, реплики).
+- `Makefile` — цели сборки и управления: up, down, build, logs, seed, e2e, eval, test и др.
+- `.env.example` — шаблон переменных окружения для копирования в `.env`.
+
+### Документация
+
+- `docs/nauchny_klubok_top1_tz.md` — главный план, ТЗ и продуктово-технический контекст.
+- `docs/02_architecture.md` — архитектурный документ: карта сервисов, хранилища, маршрутизация, healthcheck, структура сервиса.
 - `docs/agent_prompts/system.md` — системный промпт строгой работы по ТЗ.
 - `docs/agent_prompts/before_implementation.md` — чек перед имплементацией.
 - `docs/agent_prompts/new_chat.md` — промпт для переноса работы в новый чат.
 - `docs/agent_prompts/quality_gate.md` — финальная проверка качества перед завершением задачи.
 - `docs/agent_context/project_structure.md` — этот файл, карта структуры проекта для агентов.
+- `docs/agent_context/sync_rules.md` — правила синхронизации контекста между агентами.
+
+### Общий код (`shared/`)
+
+- `shared/pyproject.toml` — пакет `scientific-tangle-shared`, подключается как path dependency из каждого сервиса.
+- `shared/contracts/` — Pydantic-модели DTO: NormalizedDocument, SourceSpan, TableBlock, Quantity, GeoContext, AccessPolicy, Claim, QueryIR, EvidenceItem, EvidenceBundle, AnswerPayload, ServiceInfo.
+- `shared/utils/` — утилиты (generate_request_id).
+- `shared/logging/` — единая конфигурация structlog (JSON, контекст сервиса).
+- `shared/config/` — базовый класс ServiceSettings с подключениями ко всем хранилищам.
+
+### Микросервисы (`services/`)
+
+Каждый сервис содержит `app/` (код), `tests/` (тесты), `Dockerfile`, `pyproject.toml`.
+
+| Директория | Порт | Назначение |
+|-----------|------|-----------|
+| `services/gateway/` | 8000 | API Gateway / BFF — внешние API, валидация DTO, request_id, streaming, маршрутизация |
+| `services/auth_audit/` | 8001 | Auth / Security / Audit — роли, access policy, audit log, правила доступа |
+| `services/orchestrator/` | 8002 | Orchestrator — пайплайны, состояние задач, retries, timeouts |
+| `services/ingestion/` | 8003 | Ingestion — загрузка, парсинг, NormalizedDocument, классификация, метаданные |
+| `services/knowledge/` | 8004 | Knowledge — Schema Registry, сущности, entity resolution, claims, граф |
+| `services/retrieval/` | 8005 | Retrieval — Query IR, гибридный поиск, fusion, reranking, EvidenceBundle |
+| `services/model/` | 8006 | Model — LLM, embeddings, reranking, structured extraction, caching |
+| `services/export/` | 8007 | Export — Markdown, PDF, JSON, JSON-LD |
+| `services/notification/` | 8008 | Notification — профиль интересов, сопоставление с источниками, уведомления |
+
+### UI (`ui/`)
+
+- `ui/package.json` — заготовка для фронтенд-приложения.
+
+### Инфраструктура (`infra/`)
+
+- `infra/postgres/init.sql` — SQL-схемы PostgreSQL: users, audit_log, ingestion_tasks, query_runs, exports, notifications, user_interests, service_state, admin_settings.
+- `infra/neo4j/` — конфигурация Neo4j.
+- `infra/qdrant/` — конфигурация Qdrant.
+- `infra/minio/buckets.txt` — список бакетов MinIO.
+- `infra/nginx/nginx.conf` — reverse proxy для маршрутизации запросов к сервисам.
+- `infra/monitoring/prometheus.yml` — конфигурация Prometheus для сбора /metrics со всех сервисов.
+- `infra/docker/` — базовые Docker-образы.
+- `infra/scripts/` — скрипты эксплуатации.
+
+### Онтология (`ontology/`)
+
+- `ontology/core_schema.yaml` — базовая онтология: типы сущностей, связи, единицы измерения.
+- `ontology/domain_pack_mining_metallurgy.yaml` — доменный профиль горно-металлургии.
+- `ontology/validation_rules.yaml` — правила валидации данных.
+
+### Справочники (`dictionaries/`)
+
+- `dictionaries/materials/` — материалы (руды, минералы, сплавы).
+- `dictionaries/equipment/` — оборудование (печи, мельницы, реакторы).
+- `dictionaries/properties/` — свойства материалов.
+- `dictionaries/units/` — единицы измерения.
+- `dictionaries/experts/` — эксперты и исследователи.
+- `dictionaries/tags/` — теги классификации.
+
+### Оценка качества (`eval/`)
+
+- `eval/gold_questions.json` — эталонные вопросы с ожидаемыми типами ответов и тегами.
+- `eval/run_eval.py` — скрипт для запуска оценки через API.
+- `eval/reports/` — отчёты оценки.
+
+### Демо (`demo/`)
+
+- `demo/seed_data/` — исходные файлы для загрузки в систему.
+- `demo/official_questions.md` — официальные вопросы для демонстрации.
+- `demo/screenshots/` — скриншоты интерфейса.
+
+### Тесты (`tests/`)
+
+- `tests/e2e/` — сквозные тесты.
+- `tests/integration/` — интеграционные тесты.
+- `tests/performance/` — нагрузочные тесты.
 
 ## Как поддерживать файл
 

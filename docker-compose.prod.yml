@@ -1,0 +1,126 @@
+services:
+  gateway:
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  auth_audit:
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  orchestrator:
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  ingestion:
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  knowledge:
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  retrieval:
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  model:
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 1024m
+          cpus: "1.0"
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  export:
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  notification:
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.25"
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
