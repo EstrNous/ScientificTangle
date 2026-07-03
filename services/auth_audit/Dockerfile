@@ -15,7 +15,7 @@ FROM python:3.12-slim AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PATH="/app/services/auth_audit/.venv/bin:$PATH" \
-    PYTHONPATH=/app \
+    PYTHONPATH=/app:/app/services/auth_audit \
     SERVICE_PORT=8001
 
 WORKDIR /app/services/auth_audit

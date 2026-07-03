@@ -7,7 +7,7 @@ import httpx
 import pytest
 from fastapi import UploadFile
 
-from app.db.models import IngestionTask
+from infra.postgres.orchestrator_db import IngestionTask
 from app.service.service import OrchestratorService, OrchestratorServiceError
 from shared.contracts import IngestionReport, UserRole
 from shared.security import AuthenticatedPrincipal

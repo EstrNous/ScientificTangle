@@ -5,7 +5,8 @@ from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from infra.postgres.auth_audit_db import AuthRepository, Role, SqlAlchemyAuthRepository, User
-from app.service.service import AuthenticationError, AuthService, RequestContext
+from ..api.errors import ForbiddenError, UnauthorizedError
+from ..service.service import AuthenticationError, AuthService, RequestContext
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -47,8 +48,6 @@ async def get_current_user(
     service: Annotated[AuthService, Depends(get_auth_service)],
     context: Annotated[RequestContext, Depends(get_request_context)],
 ) -> User:
-    from app.api.web import UnauthorizedError
-
     if credentials is None or credentials.scheme.casefold() != "bearer":
         raise UnauthorizedError
 
@@ -66,8 +65,6 @@ def require_roles(
         service: Annotated[AuthService, Depends(get_auth_service)],
         context: Annotated[RequestContext, Depends(get_request_context)],
     ) -> User:
-        from app.api.web import ForbiddenError
-
         if Role(user.role) not in allowed_roles:
             await service.record_access_denied(user, context)
             raise ForbiddenError

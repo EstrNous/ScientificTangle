@@ -4,8 +4,7 @@ from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.db.database import get_session
-from app.db.repository import IngestionTaskRepository
+from infra.postgres.orchestrator_db import get_session, IngestionTaskRepository
 from app.service.service import OrchestratorService
 
 

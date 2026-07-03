@@ -6,7 +6,7 @@ from conftest import FakeAuthRepository
 from fastapi import Depends
 from httpx import ASGITransport, AsyncClient
 
-from app.api.web import create_app
+from app.api.factory import create_app
 from app.core.dependencies import require_roles
 from infra.postgres.auth_audit_db import Role, User
 from app.service.security import hash_refresh_token

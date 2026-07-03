@@ -70,7 +70,7 @@
 | `services/export/` | 8007 | Export — Markdown, PDF, JSON, JSON-LD |
 | `services/notification/` | 8008 | Notification — профиль интересов, сопоставление с источниками, уведомления |
 
-Gateway, Orchestrator и Ingestion используют слои по образцу `auth_audit`: HTTP-маршруты находятся в `app/api`, сборка зависимостей — в `app/core`, работа с БД — в `app/db`, прикладная логика — в `app/service`, миграции — в `storage`.
+Gateway, Orchestrator и Ingestion используют слои по образцу `auth_audit`: HTTP-маршруты в `app/api`, зависимости в `app/core`, прикладная логика в `app/service`. Слой PostgreSQL для `auth_audit` и `orchestrator` — в `infra/postgres/*_db/`; Alembic-миграции остаются в `services/<name>/storage/`.
 
 ### UI (`ui/`)
 
@@ -171,7 +171,7 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 
 Микросервис аутентификации, авторизации (RBAC) и аудита.
 
-- `app/` — FastAPI-приложение, бизнес-логика, security, зависимости.
+- `app/api/` — `factory.py`, `auth.py`, `users.py`, `health.py`, `errors.py`, `cookies.py`.
 - `storage/` — Alembic-миграции для БД auth_audit (metadata из `infra.postgres.auth_audit_db`).
 - Слой PostgreSQL: `infra/postgres/auth_audit_db/` (модели, репозиторий, схемы, seed).
 
@@ -191,14 +191,13 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 
 ### infra/postgres/orchestrator_db/
 
-База данных оркестратора (база `orchestrator_db`). Управление задачами ингеста, запусками запросов и экспортом.
+База данных оркестратора (база `scientific_tangle`, таблица версий `alembic_version_orchestrator`). Управление задачами ингеста, запусками запросов и экспортом.
 
-- `models.py` — модели: `IngestionTask`, `QueryRun`, `ExportJob`. Статусы через `StrEnum`. JSONB для report, query_ir, retrieval_trace.
-- `database.py` — фабрика `create_database()` (async engine + sessionmaker).
+- `models.py` — модели: `IngestionTask`, `QueryRun`, `ExportJob`.
+- `repository.py` — `IngestionTaskRepository` (create/get/set_report/mark_failed).
+- `database.py` — `create_database()`, `get_session()`.
 - `config.py` — `OrchestratorDbSettings` (env prefix `ORCHESTRATOR_`).
-- `alembic.ini` — конфигурация Alembic, `script_location = storage`.
-- `storage/env.py` — окружение Alembic (async engine from config).
-- `storage/versions/0001_create_orchestrator_tables.py` — стартовая миграция.
+- Alembic: `services/orchestrator/alembic.ini`, миграции в `services/orchestrator/storage/versions/` (`0001` — extend ingestion_tasks, `0002` — query_runs/export_jobs).
 
 ### infra/postgres/chat_ui_db/
 

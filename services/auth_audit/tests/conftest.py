@@ -18,7 +18,7 @@ for import_root in (SERVICE_DIR, REPOSITORY_ROOT):
     if import_root_text not in sys.path:
         sys.path.insert(0, import_root_text)
 
-from app.api.web import create_app
+from app.api.factory import create_app
 from app.core.config import Settings
 from infra.postgres.auth_audit_db import Role, User
 from infra.postgres.auth_audit_db import (
