@@ -2,7 +2,9 @@ import asyncio
 import argparse
 from uuid import uuid4
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-from .models import IngestionStatus, IngestionTask, QueryRun, QueryRunStatus
+from shared.contracts import IngestionTaskStatus, QueryRunStatus
+
+from .models import IngestionTask, QueryRun
 from .config import settings
 
 
@@ -14,8 +16,8 @@ async def seed_orchestrator() -> None:
     async with async_session() as session:
         # Создаем тестовые задачи Ingestion
         tasks = [
-            IngestionTask(id=uuid4(), user_id=uuid4(), status=IngestionStatus.COMPLETED.value),
-            IngestionTask(id=uuid4(), user_id=uuid4(), status=IngestionStatus.PROCESSING.value),
+            IngestionTask(id=uuid4(), user_id=uuid4(), status=IngestionTaskStatus.COMPLETED.value),
+            IngestionTask(id=uuid4(), user_id=uuid4(), status=IngestionTaskStatus.PROCESSING.value),
         ]
 
         # Создаем тестовые QueryRun
@@ -24,7 +26,9 @@ async def seed_orchestrator() -> None:
                 id=uuid4(),
                 user_id=uuid4(),
                 status=QueryRunStatus.COMPLETED.value,
-                query_ir={"goal": "desalination", "materials": ["sulfates"]}
+                raw_question="Какие методы обессоливания применимы?",
+                request_id="seed",
+                query_ir={"goal": "desalination", "materials": ["sulfates"]},
             ),
         ]
 

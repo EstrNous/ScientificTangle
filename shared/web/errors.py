@@ -1,4 +1,5 @@
 import structlog
+from uuid import UUID
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -9,10 +10,17 @@ from shared.utils import generate_request_id
 
 
 class ServiceError(Exception):
-    def __init__(self, status_code: int, code: str, message: str) -> None:
+    def __init__(
+        self,
+        status_code: int,
+        code: str,
+        message: str,
+        query_run_id: UUID | None = None,
+    ) -> None:
         self.status_code = status_code
         self.code = code
         self.message = message
+        self.query_run_id = query_run_id
         super().__init__(message)
 
 
@@ -32,17 +40,28 @@ def _response(
     status_code: int,
     code: str,
     message: str,
-    headers: dict[str, str] | None = None,
+    query_run_id: UUID | None = None,
 ) -> JSONResponse:
-    payload = ApiError(code=code, message=message, request_id=_request_id(request))
-    response_headers = dict(headers or {})
-    if status_code == 401:
-        response_headers.setdefault("WWW-Authenticate", "Bearer")
-    return JSONResponse(status_code=status_code, content=payload.model_dump(mode="json"), headers=response_headers)
+    payload = ApiError(
+        code=code,
+        message=message,
+        request_id=_request_id(request),
+        query_run_id=query_run_id,
+    )
+    return JSONResponse(
+        status_code=status_code,
+        content=payload.model_dump(mode="json", exclude_none=True),
+    )
 
 
 async def _service_error(request: Request, error: ServiceError) -> JSONResponse:
-    return _response(request, error.status_code, error.code, error.message)
+    return _response(
+        request,
+        error.status_code,
+        error.code,
+        error.message,
+        error.query_run_id,
+    )
 
 
 async def _validation_error(request: Request, error: RequestValidationError) -> JSONResponse:

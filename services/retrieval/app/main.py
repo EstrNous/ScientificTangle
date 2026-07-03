@@ -11,6 +11,7 @@ from .api.health import router as health_router
 from .api.query import router as query_router
 from .core.config import settings
 from .core.logging import setup_logging
+from .storage import PendingRetrievalStorageAdapter
 
 setup_logging(settings.service_name)
 
@@ -20,6 +21,7 @@ async def lifespan(app: FastAPI):
     logger = structlog.get_logger()
     http_client = httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=5.0))
     app.state.http_client = http_client
+    app.state.storage_adapter = PendingRetrievalStorageAdapter()
     logger.info("service_started", service=settings.service_name, port=settings.port)
     yield
     await http_client.aclose()

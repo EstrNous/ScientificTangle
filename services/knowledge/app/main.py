@@ -15,6 +15,7 @@ from .api.graph import router as graph_router
 from .api.health import router as health_router
 from .core.config import settings
 from .core.logging import setup_logging
+from .storage import PendingKnowledgeStorageAdapter
 
 setup_logging(settings.service_name)
 
@@ -24,6 +25,7 @@ async def lifespan(app: FastAPI):
     logger = structlog.get_logger()
     http_client = httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=5.0))
     app.state.http_client = http_client
+    app.state.storage_adapter = PendingKnowledgeStorageAdapter()
     driver = create_driver(settings.neo4j_url, settings.neo4j_user, settings.neo4j_password)
     app.state.neo4j_driver = driver
     adapter = Neo4jKnowledgeAdapter(driver)

@@ -268,6 +268,48 @@ def test_empty_normalization_marks_task_failed() -> None:
     assert repository.transitions == ["pending", "processing", "failed"]
 
 
+def test_mock_storage_adapter_marks_task_failed() -> None:
+    repository = FakeRepository()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/sources"):
+            return httpx.Response(201, json=report_payload())
+        if request.url.path.endswith("/normalize"):
+            return httpx.Response(
+                200,
+                json={"documents": [document_payload()], "warnings": []},
+            )
+        return httpx.Response(
+            200,
+            json={
+                "document_id": "document-1",
+                "extraction": {},
+                "graph_write": {
+                    "backend": "neo4j",
+                    "mode": "mock",
+                    "document_ids": ["document-1"],
+                    "records_count": 0,
+                    "warnings": ["neo4j_adapter_pending"],
+                },
+                "warnings": ["neo4j_adapter_pending"],
+            },
+        )
+
+    async def run() -> None:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            with pytest.raises(OrchestratorServiceError) as error:
+                await service(repository, client).create_task(
+                    principal(),
+                    [UploadFile(file=BytesIO(b"data"), filename="file.docx")],
+                    "Bearer token",
+                    "request-1",
+                )
+            assert error.value.code == "storage_adapter_not_ready"
+
+    asyncio.run(run())
+    assert repository.transitions == ["pending", "processing", "failed"]
+
+
 def test_task_is_visible_only_to_owner_or_admin() -> None:
     owner = principal()
     now = datetime.now(UTC)

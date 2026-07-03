@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, HTTPException
 from pydantic import BaseModel, Field
 
 from adapters.dto import (
@@ -12,15 +12,16 @@ from adapters.dto import (
 )
 from adapters.neo4j_adapter import Neo4jKnowledgeAdapter
 from adapters.schema import reset_database, seed_schema_registry
-from shared.contracts import QueryIR
+from shared.contracts import QueryIR,GraphSubgraph
 from shared.utils.request_id import generate_request_id
+from ..storage import KnowledgeStorageAdapter, StorageAdapterNotReady
 
 router = APIRouter(prefix="/v1/graph", tags=["graph"])
 
-
 class SubgraphRequest(BaseModel):
-    query_ir: QueryIR
-    access_levels: list[str] = Field(default_factory=lambda: ["public", "internal"])
+    claim_ids: list[str] = Field(default_factory=list)
+    entity_ids: list[str] = Field(default_factory=list)
+    source_span_ids: list[str] = Field(default_factory=list)
 
 
 class ResolveAliasRequest(BaseModel):
@@ -93,14 +94,22 @@ async def reset_graph(app_request: Request) -> ResetGraphResponse:
     await reset_database(adapter._driver, request_id=request_id)
     bootstrap = await seed_schema_registry(adapter._driver, request_id=request_id)
     return ResetGraphResponse(reset=True, bootstrap=bootstrap)
-
-
-@router.post("/subgraph", response_model=GraphSubgraphDTO)
-async def build_subgraph(request: SubgraphRequest, app_request: Request) -> GraphSubgraphDTO:
-    request_id = getattr(app_request.state, "request_id", None) or generate_request_id()
-    adapter: Neo4jKnowledgeAdapter = app_request.app.state.neo4j_adapter
-    return await adapter.build_subgraph(request.query_ir, request.access_levels, request_id=request_id)
-
+  
+@router.post("/subgraph", response_model=GraphSubgraph)
+async def build_subgraph(
+    payload: SubgraphRequest,
+    request: Request,
+) -> GraphSubgraph:
+    adapter: KnowledgeStorageAdapter = request.app.state.storage_adapter
+    try:
+        return await adapter.build_subgraph(
+            payload.claim_ids,
+            payload.entity_ids,
+            payload.source_span_ids,
+        )
+    except StorageAdapterNotReady as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+        
 
 @router.get("/neighbors/{entity_id}", response_model=GraphNeighborhood)
 async def expand_neighbors(entity_id: str, app_request: Request, depth: int = 1) -> GraphNeighborhood:

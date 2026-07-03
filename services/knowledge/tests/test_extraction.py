@@ -7,8 +7,34 @@ from fastapi.testclient import TestClient
 
 from adapters.neo4j_adapter import Neo4jKnowledgeAdapter
 from app.main import app
-from shared.contracts import NormalizedDocument, SourceSpan
 from shared.utils.source_span import compute_source_span_id
+from app.api.extraction import extract_document
+from shared.contracts import (
+    KnowledgeIngestionRequest,
+    NormalizedDocument,
+    StorageWriteResult,
+    SourceSpan
+)
+
+
+class FakeStorageAdapter:
+    is_ready = True
+
+    async def write_extraction(self, document, extraction):
+        return StorageWriteResult(
+            backend="neo4j",
+            mode="real",
+            document_ids=[document.id],
+            records_count=len(extraction.get("confirmed", [])),
+        )
+
+
+def test_extraction_uses_real_neo4j_adapter() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"confirmed": [{"artifact_type": "claim"}], "candidates": []},
+        )
 
 
 @pytest.fixture
@@ -19,20 +45,10 @@ def client() -> TestClient:
 
 def test_extract_document_writes_to_neo4j_when_adapter_available(client: TestClient) -> None:
     document = NormalizedDocument(
-        id="d1",
-        source_type="article",
-        title="T",
-        content="Ni",
-        source_spans=[
-            SourceSpan(
-                document_id="d1",
-                page=1,
-                start_offset=0,
-                end_offset=2,
-                text="Ni",
-                source_type="text",
-            )
-        ],
+        id="document-1",
+        source_type="docx",
+        title="report.docx",
+        content="Nickel recovery 82 %",
     )
     span_id = compute_source_span_id(document.source_spans[0])
     mock_response = httpx.Response(
@@ -64,6 +80,25 @@ def test_extract_document_writes_to_neo4j_when_adapter_available(client: TestCli
     assert payload["graph_write"]["confirmed_count"] == 1
     adapter.write_bundle.assert_awaited_once()
 
+    async def execute():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            request = SimpleNamespace(
+                app=SimpleNamespace(
+                    state=SimpleNamespace(
+                        http_client=client,
+                        storage_adapter=FakeStorageAdapter(),
+                    )
+                )
+            )
+            return await extract_document(
+                KnowledgeIngestionRequest(document=document),
+                request,
+            )
+
+    result = asyncio.run(execute())
+
+    assert result.graph_write.mode == "real"
+    assert result.graph_write.records_count == 1
 
 def test_health_smoke(client: TestClient) -> None:
     assert client.get("/health").status_code == 200

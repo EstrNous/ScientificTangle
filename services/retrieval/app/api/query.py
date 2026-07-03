@@ -4,11 +4,10 @@ from typing import Any
 from uuid import UUID
 
 import httpx
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.contracts import (
-    AccessPolicy,
     EvidenceBundle,
     EvidenceItem,
     KnowledgeIngestionResponse,
@@ -16,6 +15,8 @@ from shared.contracts import (
     QueryIR,
     RetrievalIndexRequest,
     RetrievalIndexResponse,
+    SearchResultPayload,
+    SourcePayload,
     SourceSpan,
     StorageWriteResult,
     TableBlock,
@@ -23,20 +24,20 @@ from shared.contracts import (
 
 from shared.utils.source_span import compute_source_span_id as source_span_id
 from ..core.config import settings
+from ..storage import RetrievalStorageAdapter, StorageAdapterNotReady, access_allowed
 
 router = APIRouter(prefix="/v1", tags=["retrieval"])
 
 COLLECTION_NAME = "st_evidence_v1"
 VECTOR_SIZE = 256
-SEARCH_PREFETCH_MULTIPLIER = 5
 TOKEN_PATTERN = re.compile(r"[\w%/.-]+", re.UNICODE)
 NUMBER_PATTERN = re.compile(r"[-+]?\d+(?:[,.]\d+)?")
 UNIT_PATTERN = re.compile(r"%|мг/л|mg/l|мг/дм3|мг/дм³|м/с|m/s|кг/т|kg/t", re.IGNORECASE)
 
 
 class RetrievalQueryRequest(BaseModel):
-    query: str = Field(min_length=1)
-    documents: list[NormalizedDocument] = Field(default_factory=list)
+    question: str = Field(min_length=1)
+    filters: dict[str, Any] = Field(default_factory=dict)
     access_roles: list[str] = Field(default_factory=list)
     limit: int = Field(default=20, ge=1, le=100)
 
@@ -44,9 +45,19 @@ class RetrievalQueryRequest(BaseModel):
 class RetrievalQueryResponse(BaseModel):
     query_ir: QueryIR
     evidence_bundle: EvidenceBundle
+    retrieval_trace: dict = Field(default_factory=dict)
     warnings: list[str] = Field(default_factory=list)
 
 
+class RetrievalSearchRequest(BaseModel):
+    question: str = ""
+    filters: dict[str, Any] = Field(default_factory=dict)
+    access_roles: list[str] = Field(default_factory=list)
+    limit: int = Field(default=20, ge=1, le=100)
+
+
+class SourceResolveRequest(BaseModel):
+    access_roles: list[str] = Field(default_factory=list)
 class IndexDocumentsRequest(RetrievalIndexRequest):
     claim_ids: list[str] = Field(default_factory=list)
     graph_entity_ids: list[str] = Field(default_factory=list)
@@ -102,7 +113,11 @@ async def reset_index(app_request: Request) -> ResetIndexResponse:
     except httpx.HTTPError:
         deleted = False
     bootstrapped = await ensure_collection(client)
-    return ResetIndexResponse(collection=COLLECTION_NAME, deleted=deleted, bootstrapped=bootstrapped)
+    return ResetIndexResponse(
+        collection=COLLECTION_NAME,
+        deleted=deleted,
+        bootstrapped=bootstrapped,
+    )
 
 
 ENTITY_ARTIFACT_KINDS = {"entity", "alias", "material", "substance", "process", "equipment", "property", "geography", "expert", "source"}
@@ -135,7 +150,10 @@ def dedupe_mapping(mapping: dict[str, list[str]]) -> dict[str, list[str]]:
 
 
 @router.post("/documents/index", response_model=RetrievalIndexResponse)
-async def index_documents(request: RetrievalIndexRequest, app_request: Request) -> RetrievalIndexResponse:
+async def index_documents(
+    request: RetrievalIndexRequest,
+    app_request: Request,
+) -> RetrievalIndexResponse:
     client: httpx.AsyncClient = app_request.app.state.http_client
     bootstrap = await ensure_collection(client)
     claim_ids, graph_entity_ids = collect_index_links(request)
@@ -154,7 +172,11 @@ async def index_documents(request: RetrievalIndexRequest, app_request: Request) 
             ),
             warnings=warnings,
         )
-    vectors_response = await build_embeddings(client, [point["payload"]["text"] for point in points], "document")
+    vectors_response = await build_embeddings(
+        client,
+        [point["payload"]["text"] for point in points],
+        "document",
+    )
     for point, vector in zip(points, vectors_response["vectors"], strict=True):
         point["vector"] = vector
     warnings.extend(vectors_response["warnings"])
@@ -167,8 +189,7 @@ async def index_documents(request: RetrievalIndexRequest, app_request: Request) 
     return RetrievalIndexResponse(
         vector_write=StorageWriteResult(
             backend="qdrant",
-            mode="live",
-            document_ids=document_ids,
+            document_ids=[document.id for document in request.documents],
             records_count=len(points),
             claim_ids=claim_ids,
             graph_entity_ids=graph_entity_ids,
@@ -178,25 +199,61 @@ async def index_documents(request: RetrievalIndexRequest, app_request: Request) 
 
 
 @router.post("/query", response_model=RetrievalQueryResponse)
-async def run_query(request: RetrievalQueryRequest, app_request: Request) -> RetrievalQueryResponse:
+async def run_query(
+    request: RetrievalQueryRequest,
+    app_request: Request,
+) -> RetrievalQueryResponse:
     client: httpx.AsyncClient = app_request.app.state.http_client
+    adapter: RetrievalStorageAdapter = app_request.app.state.storage_adapter
     query_ir_response = await client.post(
         f"{settings.model_url.rstrip('/')}/v1/query-ir",
-        json={"raw_query": request.query, "limit": request.limit},
+        json={"raw_query": request.question, "limit": request.limit},
     )
     query_ir_response.raise_for_status()
-    query_ir_payload = query_ir_response.json()
-    query_ir = QueryIR.model_validate(query_ir_payload["query_ir"])
-    warnings = [*query_ir_payload.get("warnings", [])]
-    if request.documents:
-        evidence_items = collect_evidence_items(query_ir, request.documents, request.access_roles)
-    else:
-        evidence_items, qdrant_warnings = await collect_qdrant_evidence_items(client, query_ir, request.access_roles, request.limit)
-        warnings.extend(qdrant_warnings)
-    ranked_items, rerank_warnings = await rerank_items(client, query_ir, evidence_items, request.limit)
-    warnings.extend(rerank_warnings)
-    if evidence_items and not ranked_items:
-        ranked_items = sorted(evidence_items, key=lambda item: item.relevance_score, reverse=True)[: request.limit]
+    query_ir = QueryIR.model_validate(query_ir_response.json()["query_ir"])
+    query_ir.filters = {**query_ir.filters, **request.filters}
+    query_ir.limit = request.limit
+    try:
+        results = await adapter.search(
+            request.question,
+            query_ir.filters,
+            request.access_roles,
+            request.limit,
+        )
+    except StorageAdapterNotReady as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    allowed = [
+        item
+        for item in results.items
+        if access_allowed(item.source.access_policy, request.access_roles)
+    ]
+    evidence_items = [
+        EvidenceItem(
+            source_span=item.source.source_span,
+            relevance_score=item.relevance_score,
+            claim_ids=item.claim_ids,
+            entity_ids=item.entity_ids,
+            extraction_method="semantic",
+        )
+        for item in allowed
+    ]
+    rerank_response = await client.post(
+        f"{settings.model_url.rstrip('/')}/v1/rerank",
+        json={
+            "query_ir": query_ir.model_dump(mode="json"),
+            "evidence_items": [item.model_dump(mode="json") for item in evidence_items],
+            "limit": request.limit,
+        },
+    )
+    rerank_response.raise_for_status()
+    allowed_ids = {item.source_span.id for item in evidence_items}
+    ranked_items = [
+        EvidenceItem.model_validate(item["evidence_item"])
+        for item in rerank_response.json().get("scored_items", [])
+        if isinstance(item, dict)
+        and item.get("evidence_item")
+        and item["evidence_item"].get("source_span", {}).get("id") in allowed_ids
+    ]
     evidence_bundle = EvidenceBundle(
         query_ir=query_ir,
         evidence_items=ranked_items,
@@ -204,7 +261,17 @@ async def run_query(request: RetrievalQueryRequest, app_request: Request) -> Ret
         has_gaps=not ranked_items,
         gaps=[] if ranked_items else ["missing_evidence"],
     )
-    return RetrievalQueryResponse(query_ir=query_ir, evidence_bundle=evidence_bundle, warnings=warnings)
+    return RetrievalQueryResponse(
+        query_ir=query_ir,
+        evidence_bundle=evidence_bundle,
+        retrieval_trace={
+            "storage": "qdrant",
+            "retrieved": len(results.items),
+            "accessible": len(evidence_items),
+            "reranked": len(ranked_items),
+        },
+        warnings=[*query_ir_response.json().get("warnings", []), *results.warnings],
+    )
 
 
 async def ensure_collection(client: httpx.AsyncClient) -> BootstrapIndexResponse:
@@ -229,8 +296,15 @@ async def ensure_collection(client: httpx.AsyncClient) -> BootstrapIndexResponse
         if index_response.status_code in (200, 409) or "already exists" in index_response.text.lower():
             indexed_fields.append(field_name)
         else:
-            warnings.append(f"Failed to create Qdrant payload index {field_name}: {index_response.text}")
-    return BootstrapIndexResponse(collection=COLLECTION_NAME, created=created, indexes=indexed_fields, warnings=warnings)
+            warnings.append(
+                f"Failed to create Qdrant payload index {field_name}: {index_response.text}"
+            )
+    return BootstrapIndexResponse(
+        collection=COLLECTION_NAME,
+        created=created,
+        indexes=indexed_fields,
+        warnings=warnings,
+    )
 
 
 def payload_indexes() -> dict[str, str]:
@@ -342,105 +416,18 @@ def build_payload(
     }
 
 
-async def collect_qdrant_evidence_items(
+async def build_embeddings(
     client: httpx.AsyncClient,
-    query_ir: QueryIR,
-    access_roles: list[str],
-    limit: int,
-) -> tuple[list[EvidenceItem], list[str]]:
-    warnings: list[str] = []
-    try:
-        await ensure_collection(client)
-        embeddings = await build_embeddings(client, [query_ir.raw_query], "query")
-        warnings.extend(embeddings["warnings"])
-        response = await client.post(
-            qdrant_url(f"/collections/{COLLECTION_NAME}/points/search"),
-            json={
-                "vector": embeddings["vectors"][0],
-                "limit": max(limit * SEARCH_PREFETCH_MULTIPLIER, limit),
-                "with_payload": True,
-                "with_vector": False,
-            },
-        )
-        response.raise_for_status()
-    except httpx.HTTPError as error:
-        return [], [f"Qdrant retrieval failed: {error}"]
-    results = response.json().get("result", [])
-    items = []
-    query_tokens = normalized_tokens(query_ir.raw_query)
-    for result in results:
-        payload = result.get("payload", {})
-        if not payload_allowed(payload, access_roles):
-            continue
-        text = str(payload.get("text", ""))
-        if not retrieval_match(query_tokens, query_ir.filters, text, payload):
-            continue
-        span = payload_to_span(payload)
-        score = evidence_score(query_tokens, normalized_tokens(text), query_ir.filters, text)
-        qdrant_score = float(result.get("score") or 0.0)
-        items.append(
-            EvidenceItem(
-                source_span=span,
-                relevance_score=min(1.0, round(max(score, qdrant_score), 6)),
-                claim_ids=[str(item) for item in payload.get("claim_ids", [])],
-                extraction_method="table" if payload.get("item_type") == "table_row" else "semantic",
-            )
-        )
-        if len(items) >= limit:
-            break
-    if not items:
-        fallback_items, fallback_warnings = await scroll_qdrant_evidence_items(
-            client,
-            query_ir,
-            access_roles,
-            limit,
-        )
-        warnings.extend(fallback_warnings)
-        return fallback_items, warnings
-    return items, warnings
-
-
-async def scroll_qdrant_evidence_items(
-    client: httpx.AsyncClient,
-    query_ir: QueryIR,
-    access_roles: list[str],
-    limit: int,
-) -> tuple[list[EvidenceItem], list[str]]:
-    warnings: list[str] = []
-    try:
-        response = await client.post(
-            qdrant_url(f"/collections/{COLLECTION_NAME}/points/scroll"),
-            json={"limit": max(limit * 10, 50), "with_payload": True, "with_vector": False},
-        )
-        response.raise_for_status()
-    except httpx.HTTPError as error:
-        return [], [f"Qdrant lexical fallback failed: {error}"]
-    query_tokens = normalized_tokens(query_ir.raw_query)
-    items = []
-    points = response.json().get("result", {}).get("points", [])
-    for point in points:
-        payload = point.get("payload", {})
-        if not payload_allowed(payload, access_roles):
-            continue
-        text = str(payload.get("text", ""))
-        if not retrieval_match(query_tokens, query_ir.filters, text, payload):
-            continue
-        items.append(
-            EvidenceItem(
-                source_span=payload_to_span(payload),
-                relevance_score=evidence_score(query_tokens, normalized_tokens(text), query_ir.filters, text),
-                claim_ids=[str(item) for item in payload.get("claim_ids", [])],
-                extraction_method="table" if payload.get("item_type") == "table_row" else "semantic",
-            )
-        )
-    items.sort(key=lambda item: item.relevance_score, reverse=True)
-    return items[:limit], warnings
-
-
-async def build_embeddings(client: httpx.AsyncClient, texts: list[str], input_type: str) -> dict[str, Any]:
+    texts: list[str],
+    input_type: str,
+) -> dict[str, Any]:
     response = await client.post(
         f"{settings.model_url.rstrip('/')}/v1/embeddings",
-        json={"texts": texts, "dimensions": VECTOR_SIZE, "input_type": input_type},
+        json={
+            "texts": texts,
+            "dimensions": VECTOR_SIZE,
+            "input_type": input_type,
+        },
     )
     response.raise_for_status()
     payload = response.json()
@@ -450,26 +437,54 @@ async def build_embeddings(client: httpx.AsyncClient, texts: list[str], input_ty
     return {"vectors": vectors, "warnings": payload.get("warnings", [])}
 
 
-async def rerank_items(client: httpx.AsyncClient, query_ir: QueryIR, evidence_items: list[EvidenceItem], limit: int) -> tuple[list[EvidenceItem], list[str]]:
-    response = await client.post(
-        f"{settings.model_url.rstrip('/')}/v1/rerank",
-        json={
-            "query_ir": query_ir.model_dump(mode="json"),
-            "evidence_items": [item.model_dump(mode="json") for item in evidence_items],
-            "limit": limit,
-        },
+@router.post("/search", response_model=SearchResultPayload)
+async def search(
+    request: RetrievalSearchRequest,
+    app_request: Request,
+) -> SearchResultPayload:
+    adapter: RetrievalStorageAdapter = app_request.app.state.storage_adapter
+    try:
+        result = await adapter.search(
+            request.question,
+            request.filters,
+            request.access_roles,
+            request.limit,
+        )
+    except StorageAdapterNotReady as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    items = [
+        item
+        for item in result.items
+        if access_allowed(item.source.access_policy, request.access_roles)
+    ][: request.limit]
+    return SearchResultPayload(
+        items=items,
+        total_found=len(items),
+        warnings=result.warnings,
     )
-    response.raise_for_status()
-    payload = response.json()
-    ranked_items = [
-        EvidenceItem.model_validate(item["evidence_item"])
-        for item in payload.get("scored_items", [])
-        if isinstance(item, dict) and item.get("evidence_item")
-    ]
-    return ranked_items, payload.get("warnings", [])
 
 
-def collect_evidence_items(query_ir: QueryIR, documents: list[NormalizedDocument], access_roles: list[str]) -> list[EvidenceItem]:
+@router.post("/sources/{source_span_id}/resolve", response_model=SourcePayload)
+async def resolve_source(
+    source_span_id: str,
+    request: SourceResolveRequest,
+    app_request: Request,
+) -> SourcePayload:
+    adapter: RetrievalStorageAdapter = app_request.app.state.storage_adapter
+    try:
+        source = await adapter.get_source(source_span_id, request.access_roles)
+    except StorageAdapterNotReady as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
+    if source is None or not access_allowed(source.access_policy, request.access_roles):
+        raise HTTPException(status_code=404, detail="source_not_found")
+    return source
+
+
+def collect_evidence_items(
+    query_ir: QueryIR,
+    documents: list[NormalizedDocument],
+    access_roles: list[str],
+) -> list[EvidenceItem]:
     query_tokens = normalized_tokens(query_ir.raw_query)
     items = []
     for document in documents:
@@ -482,19 +497,16 @@ def collect_evidence_items(query_ir: QueryIR, documents: list[NormalizedDocument
             items.append(
                 EvidenceItem(
                     source_span=span,
-                    relevance_score=evidence_score(query_tokens, text_tokens, query_ir.filters, span.text),
+                    relevance_score=evidence_score(
+                        query_tokens,
+                        text_tokens,
+                        query_ir.filters,
+                        span.text,
+                    ),
                     extraction_method="semantic",
                 )
             )
     return items
-
-
-def access_allowed(policy: AccessPolicy, access_roles: list[str]) -> bool:
-    if "admin" in access_roles:
-        return True
-    if policy.level == "public" or not policy.allowed_roles:
-        return True
-    return bool(set(policy.allowed_roles) & set(access_roles))
 
 
 def payload_allowed(payload: dict[str, Any], access_roles: list[str]) -> bool:
@@ -506,7 +518,12 @@ def payload_allowed(payload: dict[str, Any], access_roles: list[str]) -> bool:
     return not allowed_roles or bool(allowed_roles & set(access_roles))
 
 
-def retrieval_match(query_tokens: set[str], filters: dict[str, Any], text: str, payload: dict[str, Any]) -> bool:
+def retrieval_match(
+    query_tokens: set[str],
+    filters: dict[str, Any],
+    text: str,
+    payload: dict[str, Any],
+) -> bool:
     text_tokens = normalized_tokens(text)
     if query_tokens & text_tokens:
         return True
@@ -516,8 +533,14 @@ def retrieval_match(query_tokens: set[str], filters: dict[str, Any], text: str, 
     for constraint in filters.get("numeric_constraints", []):
         if isinstance(constraint, dict) and str(constraint.get("unit", "")).lower() in units:
             return True
-    geo_constraints = {str(value).lower() for value in filters.get("geo_constraints", [])}
-    payload_geo = {str(payload.get("geo_bucket", "")).lower(), str(payload.get("geo_country", "")).lower()}
+    geo_constraints = {
+        str(value).lower()
+        for value in filters.get("geo_constraints", [])
+    }
+    payload_geo = {
+        str(payload.get("geo_bucket", "")).lower(),
+        str(payload.get("geo_country", "")).lower(),
+    }
     return bool(geo_constraints & payload_geo)
 
 
@@ -530,14 +553,23 @@ def constraints_match(filters: dict[str, Any], text: str) -> bool:
     return bool(numeric and any(char.isdigit() for char in text))
 
 
-def evidence_score(query_tokens: set[str], text_tokens: set[str], filters: dict[str, Any], text: str) -> float:
+def evidence_score(
+    query_tokens: set[str],
+    text_tokens: set[str],
+    filters: dict[str, Any],
+    text: str,
+) -> float:
     overlap = len(query_tokens & text_tokens) / max(len(query_tokens), 1)
     constraint_bonus = 0.25 if constraints_match(filters, text) else 0.0
     return min(1.0, round(overlap + constraint_bonus, 6))
 
 
 def normalized_tokens(text: str) -> set[str]:
-    return {token.strip(".,;:()[]{}").lower() for token in TOKEN_PATTERN.findall(text) if len(token.strip(".,;:()[]{}")) >= 2}
+    return {
+        token.strip(".,;:()[]{}").lower()
+        for token in TOKEN_PATTERN.findall(text)
+        if len(token.strip(".,;:()[]{}")) >= 2
+    }
 
 
 def extract_numbers(text: str) -> list[float]:
@@ -556,7 +588,13 @@ def extract_units(text: str) -> list[str]:
 
 def normalize_unit(unit: str) -> str:
     lowered = unit.lower()
-    aliases = {"мг/л": "mg/l", "мг/дм3": "mg/dm3", "мг/дм³": "mg/dm3", "м/с": "m/s", "кг/т": "kg/t"}
+    aliases = {
+        "мг/л": "mg/l",
+        "мг/дм3": "mg/dm3",
+        "мг/дм³": "mg/dm3",
+        "м/с": "m/s",
+        "кг/т": "kg/t",
+    }
     return aliases.get(lowered, lowered)
 
 
@@ -577,8 +615,20 @@ def payload_to_span(payload: dict[str, Any]) -> SourceSpan:
         end_offset=int(payload.get("end_offset") or len(str(payload.get("text", "")))),
         text=str(payload.get("text", "")),
         table_block_id=str(payload.get("table_block_id") or "") or None,
-        source_type=payload.get("source_type") if payload.get("source_type") in {"text", "table", "figure", "caption"} else "text",
+        source_type=(
+            payload.get("source_type")
+            if payload.get("source_type") in {"text", "table", "figure", "caption"}
+            else "text"
+        ),
     )
+
+
+def source_span_id(span: SourceSpan) -> str:
+    raw = (
+        f"{span.document_id}:{span.page}:{span.start_offset}:"
+        f"{span.end_offset}:{span.table_block_id or ''}"
+    )
+    return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
 
 
 def point_id(span_id: str) -> str:

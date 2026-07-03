@@ -46,7 +46,7 @@
 ### Общий код (`shared/`)
 
 - `shared/pyproject.toml` — пакет `scientific-tangle-shared`, подключается как path dependency из каждого сервиса.
-- `shared/contracts/` — Pydantic-модели DTO, включая NormalizedDocument, SourceSpan, QueryIR, EvidenceBundle, AnswerPayload, UserRole, ingestion task, нормализацию сохранённых источников и типизированные mock-результаты Neo4j/Qdrant.
+- `shared/contracts/` — Pydantic-модели DTO, включая стабильный SourceSpan ID, QueryIR, EvidenceBundle, QueryRunPayload, SourcePayload, GraphSubgraph, SearchResultPayload и результаты записи Neo4j/Qdrant.
 - `shared/utils/` — утилиты (generate_request_id).
 - `shared/logging/` — единая конфигурация structlog (JSON, контекст сервиса).
 - `shared/config/` — базовый класс ServiceSettings с подключениями ко всем хранилищам.
@@ -212,7 +212,7 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 - `repository.py` — `IngestionTaskRepository` (create/get/set_report/mark_failed).
 - `database.py` — `create_database()`, `get_session()`.
 - `config.py` — `OrchestratorDbSettings` (env prefix `ORCHESTRATOR_`).
-- Alembic: `services/orchestrator/alembic.ini`, миграции в `services/orchestrator/storage/versions/` (`0001` — ingestion_tasks, `0002` — query_runs/export_jobs, `0003` — совместимость query_runs с прежним init SQL).
+- Alembic: `services/orchestrator/alembic.ini`, миграции в `services/orchestrator/storage/versions/` (`0001` — ingestion_tasks, `0002` — query_runs/export_jobs, `0003` — совместимость query_runs с прежним init SQL, `0004` — полный сохраняемый результат query run).
 
 ### infra/postgres/chat_ui_db/
 

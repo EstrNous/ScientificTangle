@@ -229,6 +229,9 @@ RU_EN_ALIASES = {
 }
 
 
+def source_span_id(span: SourceSpan) -> str:
+    return span.id
+
 def cache_key(operation: str, version: str, model_name: str, payload: dict[str, Any]) -> str:
     raw = json.dumps(payload, ensure_ascii=False, sort_keys=True, default=str)
     digest = hashlib.sha256(raw.encode("utf-8")).hexdigest()
