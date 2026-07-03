@@ -26,6 +26,19 @@
 - `docs/agent_prompts/quality_gate.md` — финальная проверка качества перед завершением задачи.
 - `docs/agent_context/project_structure.md` — этот файл, карта структуры проекта для агентов.
 
+## Сервисы
+
+### services/auth_audit/
+
+Микросервис аутентификации, авторизации (RBAC) и аудита.
+
+- `src/models/base.py` — общий `DeclarativeBase` (SQLAlchemy 2.0 Async) и `TimestampMixin` для auth_audit.
+- `src/models/auth.py` — модели RBAC: `User`, `Role`, `Permission`, `UserRole`, `RolePermission`. База `auth_db`.
+- `src/models/audit.py` — модель `AuditEvent`. База `audit_db`.
+- `README.md` — описание сервиса, стек, схема баз, индексы.
+
+Архитектура: DB-per-Service — каждая база (auth_db, audit_db) физически отдельная БД внутри одного PostgreSQL-инстанса.
+
 ## Как поддерживать файл
 
 - Пиши на русском.
