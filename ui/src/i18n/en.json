@@ -102,6 +102,42 @@
       "conflicting": "conflicting"
     }
   },
+  "strategic": {
+    "managerTitle": "Knowledge base coverage",
+    "updatedAt": "Updated {{date}}",
+    "coverageTitle": "Coverage by domain",
+    "coverageValue": "Coverage {{value}}%",
+    "documentsCount": "{{count}} documents",
+    "lowCoverage": "Knowledge gaps",
+    "highConflict": "Conflict zones",
+    "alertHint": "Require priority source ingestion or expert review",
+    "evaluationTitle": "Answer quality evaluation",
+    "evaluationSubtitle": "{{count}} official MVP questions",
+    "sources": "Sources",
+    "missingEvidence": "Missing evidence",
+    "unsupportedClaims": "Unsupported",
+    "latency": "Latency",
+    "status": {
+      "pass": "ok",
+      "warn": "review"
+    },
+    "metrics": {
+      "documents": "Documents",
+      "claims": "Claims",
+      "verified_claims": "Verified",
+      "candidates": "Candidates",
+      "gaps": "Gaps",
+      "conflicts": "Conflicts"
+    },
+    "evalMetrics": {
+      "citation_coverage": "Citation coverage",
+      "numeric_correctness": "Numeric correctness",
+      "latency": "Avg latency",
+      "unsupported_rate": "Unsupported rate",
+      "entity_f1": "Entity F1",
+      "recall_at_5": "Recall@5"
+    }
+  },
   "pages": {
     "chat": "Semantic search and reports",
     "graph": "Knowledge structure and data upload",

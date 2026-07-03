@@ -102,6 +102,42 @@
       "conflicting": "конфликт"
     }
   },
+  "strategic": {
+    "managerTitle": "Покрытие базы знаний",
+    "updatedAt": "Обновлено {{date}}",
+    "coverageTitle": "Покрытие по направлениям",
+    "coverageValue": "Покрытие {{value}}%",
+    "documentsCount": "{{count}} документов",
+    "lowCoverage": "Пробелы в знаниях",
+    "highConflict": "Зоны конфликтов",
+    "alertHint": "Требуют приоритетной загрузки источников или экспертной проверки",
+    "evaluationTitle": "Оценка качества ответов",
+    "evaluationSubtitle": "{{count}} официальных вопросов MVP",
+    "sources": "Источники",
+    "missingEvidence": "Без доказательств",
+    "unsupportedClaims": "Неподтверждённые",
+    "latency": "Задержка",
+    "status": {
+      "pass": "норма",
+      "warn": "внимание"
+    },
+    "metrics": {
+      "documents": "Документы",
+      "claims": "Утверждения",
+      "verified_claims": "Подтверждено",
+      "candidates": "Кандидаты",
+      "gaps": "Пробелы",
+      "conflicts": "Конфликты"
+    },
+    "evalMetrics": {
+      "citation_coverage": "Покрытие источниками",
+      "numeric_correctness": "Точность чисел",
+      "latency": "Средняя задержка",
+      "unsupported_rate": "Неподтверждённые",
+      "entity_f1": "Entity F1",
+      "recall_at_5": "Recall@5"
+    }
+  },
   "pages": {
     "chat": "Семантический поиск и отчёты",
     "graph": "Структура знаний и загрузка данных",

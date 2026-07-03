@@ -1,26 +1,34 @@
+import { useTranslation } from 'react-i18next';
+import MetricsCards from './MetricsCards.jsx';
+import CoverageChart from './CoverageChart.jsx';
+import TopicsAlerts from './TopicsAlerts.jsx';
+
 export default function ManagerDashboard({ data }) {
+  const { t } = useTranslation();
+
   if (!data) return null;
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-2 text-xs">
-        {Object.entries(data.totals).map(([k, v]) => (
-          <div key={k} className="p-2 rounded bg-slate-900 border border-slate-800">
-            <p className="text-slate-400">{k}</p>
-            <p className="text-lg font-semibold">{v}</p>
-          </div>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
+          {t('strategic.managerTitle')}
+        </p>
+        {data.updated_at && (
+          <p className="text-xs text-nn-gray dark:text-slate-400">
+            {t('strategic.updatedAt', {
+              date: new Date(data.updated_at).toLocaleString(),
+            })}
+          </p>
+        )}
       </div>
-      <div>
-        <h3 className="text-sm font-medium mb-2">Покрытие по направлениям</h3>
-        <ul className="space-y-1 text-sm">
-          {data.directions.map((d) => (
-            <li key={d.id} className="flex justify-between">
-              <span>{d.name}</span>
-              <span>{(d.coverage * 100).toFixed(0)}%</span>
-            </li>
-          ))}
-        </ul>
+      <MetricsCards totals={data.totals} />
+      <div className="grid min-h-0 gap-4 xl:grid-cols-[1fr_280px]">
+        <CoverageChart directions={data.directions} />
+        <TopicsAlerts
+          lowCoverageTopics={data.low_coverage_topics}
+          highConflictTopics={data.high_conflict_topics}
+        />
       </div>
     </div>
   );
