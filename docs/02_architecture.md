@@ -41,7 +41,8 @@
 
 nginx (порт 80) проксирует запросы по prefix:
 - `/api/` → gateway:8000
-- `/auth/` → auth_audit:8001
+- `/api/auth/` → auth_audit:8001
+- `/.well-known/jwks.json` → auth_audit:8001
 - `/orchestrator/` → orchestrator:8002
 - `/ingestion/` → ingestion:8003
 - `/knowledge/` → knowledge:8004

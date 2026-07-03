@@ -3,6 +3,9 @@
 up:
 	docker compose up -d
 
+up-auth:
+	docker compose up -d auth_audit
+
 down:
 	docker compose down -v
 

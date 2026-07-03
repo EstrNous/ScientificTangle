@@ -234,6 +234,7 @@ desktop.ini
 # Local data and artifacts
 data/
 artifacts/
+secrets/*.pem
 tmp/
 *.tmp
 *.bak

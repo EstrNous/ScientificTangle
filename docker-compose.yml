@@ -49,7 +49,7 @@ services:
     volumes:
       - qdrant_storage:/qdrant/storage
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:6333/healthz || exit 1"]
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -94,22 +94,27 @@ services:
     networks:
       - st-net
 
-  nginx:
-    image: nginx:alpine
-    container_name: st-nginx
+  ui:
+    build: ./ui
+    container_name: st-ui
     ports:
-      - "80:80"
-    volumes:
-      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    depends_on:
-      - gateway
-      - auth_audit
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3000/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
     networks:
       - st-net
 
   gateway:
-    build: ./services/gateway
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.python-service
+      args:
+        SERVICE_DIR: services/gateway
+        SERVICE_PORT: 8000
     container_name: st-gateway
     ports:
       - "8000:8000"
@@ -124,22 +129,36 @@ services:
       - st-net
 
   auth_audit:
-    build: ./services/auth_audit
+    build:
+      context: .
+      dockerfile: services/auth_audit/Dockerfile
     container_name: st-auth-audit
     ports:
       - "8001:8001"
     env_file: .env
+    environment:
+      AUTH_JWT_PRIVATE_KEY_PATH: /run/secrets/auth_private.pem
+      AUTH_JWT_PUBLIC_KEY_PATH: /run/secrets/auth_public.pem
+    secrets:
+      - source: auth_jwt_private
+        target: auth_private.pem
+      - source: auth_jwt_public
+        target: auth_public.pem
+    command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8001"]
     depends_on:
       postgres:
-        condition: service_healthy
-      redis:
         condition: service_healthy
     restart: unless-stopped
     networks:
       - st-net
 
   orchestrator:
-    build: ./services/orchestrator
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.python-service
+      args:
+        SERVICE_DIR: services/orchestrator
+        SERVICE_PORT: 8002
     container_name: st-orchestrator
     ports:
       - "8002:8002"
@@ -154,7 +173,12 @@ services:
       - st-net
 
   ingestion:
-    build: ./services/ingestion
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.python-service
+      args:
+        SERVICE_DIR: services/ingestion
+        SERVICE_PORT: 8003
     container_name: st-ingestion
     ports:
       - "8003:8003"
@@ -171,7 +195,12 @@ services:
       - st-net
 
   knowledge:
-    build: ./services/knowledge
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.python-service
+      args:
+        SERVICE_DIR: services/knowledge
+        SERVICE_PORT: 8004
     container_name: st-knowledge
     ports:
       - "8004:8004"
@@ -188,7 +217,12 @@ services:
       - st-net
 
   retrieval:
-    build: ./services/retrieval
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.python-service
+      args:
+        SERVICE_DIR: services/retrieval
+        SERVICE_PORT: 8005
     container_name: st-retrieval
     ports:
       - "8005:8005"
@@ -205,7 +239,12 @@ services:
       - st-net
 
   model:
-    build: ./services/model
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.python-service
+      args:
+        SERVICE_DIR: services/model
+        SERVICE_PORT: 8006
     container_name: st-model
     ports:
       - "8006:8006"
@@ -220,7 +259,12 @@ services:
       - st-net
 
   export:
-    build: ./services/export
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.python-service
+      args:
+        SERVICE_DIR: services/export
+        SERVICE_PORT: 8007
     container_name: st-export
     ports:
       - "8007:8007"
@@ -235,7 +279,12 @@ services:
       - st-net
 
   notification:
-    build: ./services/notification
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.python-service
+      args:
+        SERVICE_DIR: services/notification
+        SERVICE_PORT: 8008
     container_name: st-notification
     ports:
       - "8008:8008"
@@ -248,6 +297,36 @@ services:
     restart: unless-stopped
     networks:
       - st-net
+
+  nginx:
+    image: nginx:alpine
+    container_name: st-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      gateway:
+        condition: service_started
+      auth_audit:
+        condition: service_healthy
+      ui:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - st-net
+
+secrets:
+  auth_jwt_private:
+    file: ${AUTH_JWT_PRIVATE_KEY_HOST_PATH:-./secrets/auth_private.pem}
+  auth_jwt_public:
+    file: ${AUTH_JWT_PUBLIC_KEY_HOST_PATH:-./secrets/auth_public.pem}
 
 volumes:
   pg_data:
