@@ -80,7 +80,7 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 - `ui/vite.config.js` — Vite, proxy `/api` → Gateway.
 - `ui/tailwind.config.js`, `ui/postcss.config.js` — Tailwind CSS.
 - `ui/index.html` — точка входа HTML.
-- `ui/Dockerfile` — nginx-skeleton на порту 3000.
+- `ui/Dockerfile` — multi-stage: Vite build + nginx на порту 3000.
 - `ui/nginx.conf` — конфигурация nginx внутри UI-контейнера.
 - `ui/public/` — статические файлы для контейнера.
 - `ui/.env.local.example` — шаблон переменных UI.
