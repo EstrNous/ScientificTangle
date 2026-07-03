@@ -1,1 +1,1 @@
-export { filterGraphSearchResults } from '../../components/graph/graphFilterUtils.js';
+export { filterGraphSearchResults } from '../components/graph/graphFilterUtils.js';

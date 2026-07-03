@@ -26,7 +26,7 @@ export default function ManagerDashboard({ data, fill = false, coverageChartRef 
           </p>
         )}
       </div>
-      <MetricsCards totals={data.totals} />
+      <MetricsCards totals={data.totals} metricSources={data.metric_sources} />
       <div
         className={`grid min-h-0 gap-3 ${fill ? 'h-full min-h-0 flex-1 xl:grid-cols-[1fr_260px]' : 'xl:grid-cols-[1fr_280px]'}`}
       >

@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { getMetricSources } from '../../api/mock/sourceBindings.js';
+import { collectSourceRefs } from '../../utils/sourceRefs.js';
 import { useSourceRefsPopover } from '../../hooks/useSourceRefsPopover.js';
 import SourceRefsPopover from '../shared/SourceRefsPopover.jsx';
 
@@ -21,7 +21,7 @@ const ACCENT = {
   conflicts: 'text-gray-600 dark:text-slate-400',
 };
 
-export default function MetricsCards({ totals }) {
+export default function MetricsCards({ totals, metricSources }) {
   const { t } = useTranslation();
   const { popover, openPopover, closePopover } = useSourceRefsPopover();
 
@@ -30,10 +30,12 @@ export default function MetricsCards({ totals }) {
   const handleMetricClick = (event, key) => {
     const value = totals[key];
     if (!value) return;
+    const sources = collectSourceRefs(metricSources?.[key], value);
+    if (!sources.length) return;
     openPopover(event, {
       title: t(`strategic.metrics.${key}`),
       subtitle: t('strategic.metricValue', { value: value.toLocaleString('ru-RU') }),
-      sources: getMetricSources(key, value),
+      sources,
     });
   };
 

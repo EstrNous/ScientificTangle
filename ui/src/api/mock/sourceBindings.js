@@ -32,33 +32,6 @@ const COL_SOURCES = {
   'J. Hydrometallurgy, 2024': ['span-3'],
 };
 
-const DIRECTION_SOURCES = {
-  hydro: ['span-1', 'span-2', 'span-3', 'span-4', 'span-7'],
-  pyro: ['span-5', 'span-6', 'span-8'],
-  eco: ['span-2', 'span-9', 'span-10'],
-  waste: ['span-6', 'span-8', 'span-10'],
-  water: ['span-2', 'span-9'],
-  ew: ['span-1', 'span-3', 'span-4'],
-  gas: ['span-10', 'span-7'],
-};
-
-const METRIC_SOURCES = {
-  documents: ALL_SPAN_IDS,
-  claims: ['span-1', 'span-2', 'span-3', 'span-4', 'span-5', 'span-6'],
-  verified_claims: ['span-1', 'span-2', 'span-3', 'span-4'],
-  candidates: ['span-7', 'span-8', 'span-9'],
-  gaps: ['span-10'],
-  conflicts: ['span-1', 'span-4', 'span-3'],
-};
-
-const QUESTION_SOURCES = {
-  'official-001': ['span-2', 'span-9'],
-  'official-002': ['span-1', 'span-3', 'span-4'],
-  'official-003': ['span-5', 'span-6', 'span-8'],
-  'official-004': ['span-2', 'span-9', 'span-10'],
-  'official-005': ['span-4', 'span-7', 'span-10'],
-};
-
 function hashKey(value) {
   let hash = 0;
   const text = String(value);
@@ -103,23 +76,6 @@ export function getMatrixCellSources(row, col, count, rowType = '', colType = ''
   if (merged.length) return limitRefs(merged, count);
 
   return limitRefs(ALL_SPAN_IDS, Math.min(count, 4));
-}
-
-export function getDirectionSources(directionId, documentCount) {
-  const pool = DIRECTION_SOURCES[directionId] ?? ALL_SPAN_IDS;
-  const limit = Math.min(documentCount ?? pool.length, 8, pool.length);
-  return limitRefs(pool, Math.max(limit, 1));
-}
-
-export function getMetricSources(metricKey, total) {
-  const pool = METRIC_SOURCES[metricKey] ?? ALL_SPAN_IDS;
-  const limit = Math.min(total ?? pool.length, 6, pool.length);
-  return limitRefs(pool, Math.max(limit, 1));
-}
-
-export function getQuestionSources(questionId, actualSources) {
-  const pool = QUESTION_SOURCES[questionId] ?? ALL_SPAN_IDS;
-  return limitRefs(pool, Math.min(actualSources ?? pool.length, pool.length));
 }
 
 export function getEvidenceRowSources(row, columns) {
