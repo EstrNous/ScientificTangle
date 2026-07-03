@@ -111,7 +111,7 @@ class OrchestratorService:
                         )
                     )
                 )
-            if any(result.graph_write.mode != "real" for result in knowledge_results):
+            if any(result.graph_write.mode != "live" for result in knowledge_results):
                 raise OrchestratorServiceError(
                     503,
                     "storage_adapter_not_ready",
@@ -130,7 +130,7 @@ class OrchestratorService:
                     "retrieval",
                 )
             )
-            if retrieval_result.vector_write.mode != "real":
+            if retrieval_result.vector_write.mode != "live":
                 raise OrchestratorServiceError(
                     503,
                     "storage_adapter_not_ready",

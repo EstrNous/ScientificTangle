@@ -4,8 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
 
-from shared.contracts import GraphSubgraph, QueryRunPayload, SearchResultPayload, SourcePayload,NormalizedDocument, QueryRunResponse
-from shared.contracts import 
+from shared.contracts import GraphSubgraph, QueryRunPayload, SearchResultPayload, SourcePayload
 from shared.security import AuthenticatedPrincipal
 from shared.web import ServiceError, require_principal
 

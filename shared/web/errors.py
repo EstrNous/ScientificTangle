@@ -51,6 +51,7 @@ def _response(
     return JSONResponse(
         status_code=status_code,
         content=payload.model_dump(mode="json", exclude_none=True),
+        headers={"WWW-Authenticate": "Bearer"} if status_code == 401 else None,
     )
 
 
