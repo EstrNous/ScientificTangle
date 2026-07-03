@@ -3,9 +3,10 @@ from contextlib import asynccontextmanager
 import structlog
 from fastapi import FastAPI
 
-from app.api.health import router as health_router
-from app.core.config import settings
-from app.core.logging import setup_logging
+from .api.health import router as health_router
+from .api.v1 import router as v1_router
+from .core.config import settings
+from .core.logging import setup_logging
 
 setup_logging(settings.service_name)
 
@@ -25,3 +26,4 @@ app = FastAPI(
 )
 
 app.include_router(health_router)
+app.include_router(v1_router)

@@ -1,0 +1,1 @@
+Suggest gaps from QueryIR, EvidenceBundle and candidates. Mark missing evidence, missing numeric constraints, missing geography, missing time ranges, conflicts and candidate review needs. Do not invent missing facts.
