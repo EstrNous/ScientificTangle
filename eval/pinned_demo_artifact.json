@@ -14,7 +14,19 @@
       "path": "eval/gold_questions.json",
       "role": "gold_questions",
       "schema_version": "gold_questions.v2",
-      "sha256": "8f98910198215edd37de23716f02bcc1f47fdbde91e383ff5d1a05cf5d3c12a0"
+      "sha256": "0516dc61eaf4b5cb0e369ff76d8a09e5d45bffe9192b01a1c966b84f275ca05d"
+    },
+    {
+      "path": "eval/reviewed_source_fixtures.json",
+      "role": "reviewed_source_fixtures",
+      "schema_version": "reviewed_source_fixtures.v1",
+      "sha256": "2b068eacd81a5c639f6a95878a77f5d4ea9bd2f23698c445903dde5e7c469fd6"
+    },
+    {
+      "path": "eval/regression_suites.json",
+      "role": "regression_suites",
+      "schema_version": "ml_eval_suites.v1",
+      "sha256": "c4b8c502a106791cf702dba44b612f50a79d4267905ffeab99bdcc960c712b45"
     },
     {
       "path": "demo/seed_data/mvp_normalized_documents.json",

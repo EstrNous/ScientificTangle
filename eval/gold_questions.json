@@ -29,7 +29,14 @@
       ],
       "expected_geo_constraints": [],
       "expected_time_constraints": {},
-      "expected_source_span_ids": [],
+      "expected_source_span_ids": [
+        "fd41e40302889dc4"
+      ],
+      "expected_source_span_review": {
+        "status": "reviewed",
+        "fixture": "eval/reviewed_source_fixtures.json",
+        "reason_codes": []
+      },
       "answer_outline": [
         "методы",
         "применимость",
@@ -66,7 +73,14 @@
       "expected_numeric_constraints": [],
       "expected_geo_constraints": [],
       "expected_time_constraints": {},
-      "expected_source_span_ids": [],
+      "expected_source_span_ids": [
+        "5bbd52f818e388f0"
+      ],
+      "expected_source_span_review": {
+        "status": "reviewed",
+        "fixture": "eval/reviewed_source_fixtures.json",
+        "reason_codes": []
+      },
       "answer_outline": [
         "оборудование",
         "условия",
@@ -103,7 +117,14 @@
       "expected_time_constraints": {
         "relative_years": 5
       },
-      "expected_source_span_ids": [],
+      "expected_source_span_ids": [
+        "e68ad5f96111645c"
+      ],
+      "expected_source_span_review": {
+        "status": "reviewed",
+        "fixture": "eval/reviewed_source_fixtures.json",
+        "reason_codes": []
+      },
       "answer_outline": [
         "эксперименты",
         "публикации",
@@ -135,7 +156,14 @@
         "зарубежная практика"
       ],
       "expected_time_constraints": {},
-      "expected_source_span_ids": [],
+      "expected_source_span_ids": [
+        "133421dd573f9d94"
+      ],
+      "expected_source_span_review": {
+        "status": "reviewed",
+        "fixture": "eval/reviewed_source_fixtures.json",
+        "reason_codes": []
+      },
       "answer_outline": [
         "отечественная практика",
         "зарубежная практика",
