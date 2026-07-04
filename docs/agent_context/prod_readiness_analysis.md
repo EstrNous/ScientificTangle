@@ -121,7 +121,7 @@
 
 Типовые gaps, которые уже нужно проверить особенно внимательно:
 
-- official questions имеют пустые `expected_source_span_ids`;
+- official questions имеют reviewed `expected_source_span_ids`; offline gate падает, если любой `official-*` набор пуст;
 - live answer quality не подтверждена из-за запрета live models;
 - gap/conflict behavior требует reviewed expectations.
 
@@ -316,7 +316,7 @@ python scripts/eval_yandex_live.py
 | Official scenarios | 4 official questions have evidence-backed answers |
 | Access | `access_leak_rate == 0.0` |
 | Source | Source links resolve correct accessible `SourceSpan` |
-| Export | Markdown/JSON export contains required evidence fields |
+| Export | Markdown/JSON export contains required evidence fields via orchestrator/gateway |
 | Audit | Required audit events are persisted |
 | Eval | Offline quality gate passes; live quality is not claimed |
 | Performance | Offline/perf smoke has trace; live `latency_ms_p95` remains blocked without live run |

@@ -76,6 +76,8 @@ def test_payload_to_source_exposes_highlight_fields() -> None:
         }
     )
 
+    assert source.source_span.id == "span-1"
+    assert source.source_span.document_id == "doc-1"
     assert source.source_span.start_offset == 0
     assert source.source_span.end_offset == 22
     assert source.highlight_start == 0

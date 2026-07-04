@@ -1,5 +1,4 @@
 import asyncio
-from uuid import uuid4
 
 import httpx
 import pytest
@@ -89,9 +88,27 @@ def test_export_query_forwards_to_orchestrator() -> None:
                 "format": "markdown",
                 "status": "completed",
                 "content_type": "text/markdown",
-                "content": "# ok",
+                "content": {
+                    "answer": "ok",
+                    "evidence": [{"source_span_id": "span-1"}],
+                    "sources": [{"document_id": "doc-1"}],
+                    "graph": {"nodes": [], "links": []},
+                    "gaps": [],
+                    "conflicts": [],
+                    "query_ir": {"raw_query": "x", "filters": {}},
+                    "retrieval_trace": {"storage": "hybrid"},
+                    "user_role": "researcher",
+                    "access_scope": ["public", "internal"],
+                    "warnings": [],
+                },
                 "file_url": "inline://export-jobs/test.md",
                 "warnings": [],
+                "format_status": [
+                    {"format": "markdown", "available": True, "status": "available"},
+                    {"format": "json", "available": True, "status": "available"},
+                    {"format": "jsonld", "available": False, "status": "backlog"},
+                    {"format": "pdf", "available": False, "status": "backlog"},
+                ],
                 "generated_at": "2026-07-04T12:00:00+00:00",
             },
         )
@@ -108,6 +125,9 @@ def test_export_query_forwards_to_orchestrator() -> None:
                 "req-2",
             )
             assert result["format"] == "markdown"
+            assert result["content"]["answer"] == "ok"
+            assert result["content"]["retrieval_trace"]["storage"] == "hybrid"
+            assert {item["format"]: item["status"] for item in result["format_status"]}["pdf"] == "backlog"
 
     import asyncio
 

@@ -4,6 +4,8 @@
 **Дата:** 2026-07-04
 **Scope:** только аудит `shared/contracts`, gateway/orchestrator/model/retrieval/export/notification API и eval inputs. Production behavior не менялся. Live model вызовы не запускались.
 
+> Актуализация 2026-07-04: historical E0 выводы про пустые official `expected_source_span_ids` устарели. В текущем `eval/gold_questions.json` все `official-*` имеют reviewed expected spans; live answer quality остаётся `blocked_by_policy`.
+
 Связанные документы: [`nornikel_parallel_execution_plan.md`](nornikel_parallel_execution_plan.md), [`nornikel_e0_db_baseline.md`](nornikel_e0_db_baseline.md), [`nornikel_e0_fe_ui_audit.md`](nornikel_e0_fe_ui_audit.md).
 
 ## 1. Текущее покрытие контрактов
