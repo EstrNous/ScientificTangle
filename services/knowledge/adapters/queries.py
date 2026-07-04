@@ -306,6 +306,65 @@ RETURN DISTINCT e, c, s, d
 LIMIT $limit
 """
 
+BUILD_SUBGRAPH_BY_EVIDENCE = """
+CALL {
+    UNWIND $claim_ids AS claim_id
+    MATCH (c:Claim {claim_id: claim_id})
+    OPTIONAL MATCH (c)-[:DESCRIBED_IN]->(s:SourceSpan)-[:PART_OF]->(d:Document)
+    OPTIONAL MATCH (c)-[:VALIDATED_BY|RELATED_TO|USES_MATERIAL|OPERATES_AT_CONDITION|PRODUCES_OUTPUT|USES_EQUIPMENT|EXPERT_IN]->(e:Entity)
+    OPTIONAL MATCH (c)-[:QUANTIFIED_BY]->(m:Measurement)
+    OPTIONAL MATCH (c)-[:APPLIED_IN_GEOGRAPHY]->(g:Geography)
+    OPTIONAL MATCH (c)-[:DEGRADED_TO]->(o:Observation)
+    RETURN c, s, d, e, m, g, o
+    UNION
+    UNWIND $source_span_ids AS span_id
+    MATCH (s:SourceSpan {source_span_id: span_id})-[:PART_OF]->(d:Document)
+    OPTIONAL MATCH (c:Claim)-[:DESCRIBED_IN]->(s)
+    OPTIONAL MATCH (c)-[:VALIDATED_BY|RELATED_TO|USES_MATERIAL|OPERATES_AT_CONDITION|PRODUCES_OUTPUT|USES_EQUIPMENT|EXPERT_IN]->(e:Entity)
+    OPTIONAL MATCH (c)-[:QUANTIFIED_BY]->(m:Measurement)
+    OPTIONAL MATCH (c)-[:APPLIED_IN_GEOGRAPHY]->(g:Geography)
+    OPTIONAL MATCH (c)-[:DEGRADED_TO]->(o:Observation)
+    RETURN c, s, d, e, m, g, o
+    UNION
+    UNWIND $entity_ids AS entity_id
+    MATCH (e:Entity {entity_id: entity_id})
+    OPTIONAL MATCH (c:Claim)-[:VALIDATED_BY|RELATED_TO|USES_MATERIAL|OPERATES_AT_CONDITION|PRODUCES_OUTPUT|USES_EQUIPMENT|EXPERT_IN]->(e)
+    OPTIONAL MATCH (c)-[:DESCRIBED_IN]->(s:SourceSpan)-[:PART_OF]->(d:Document)
+    OPTIONAL MATCH (c)-[:QUANTIFIED_BY]->(m:Measurement)
+    OPTIONAL MATCH (c)-[:APPLIED_IN_GEOGRAPHY]->(g:Geography)
+    OPTIONAL MATCH (c)-[:DEGRADED_TO]->(o:Observation)
+    RETURN c, s, d, e, m, g, o
+}
+RETURN DISTINCT c, s, d, e, m, g, o
+"""
+
+LINK_CONTRADICTS = """
+MATCH (c1:Claim)-[:QUANTIFIED_BY]->(m1:Measurement)
+MATCH (c2:Claim)-[:QUANTIFIED_BY]->(m2:Measurement)
+WHERE c1.claim_id < c2.claim_id
+  AND m1.unit = m2.unit
+  AND m1.unit <> ''
+  AND m1.value IS NOT NULL
+  AND m2.value IS NOT NULL
+  AND m1.value <> m2.value
+  AND EXISTS {
+      MATCH (e:Entity)<-[:VALIDATED_BY|RELATED_TO]-(c1)
+      WHERE (e)<-[:VALIDATED_BY|RELATED_TO]-(c2)
+  }
+MERGE (c1)-[:CONTRADICTS]->(c2)
+"""
+
+GET_FACT_VERSIONS = """
+MATCH (c:Claim {claim_id: $claim_id})
+OPTIONAL MATCH (c)-[:HAS_VERSION]->(fv:FactVersion)
+OPTIONAL MATCH (c)-[:SUPERSEDES]->(prev:Claim)
+RETURN c.claim_id AS claim_id,
+       c.claim_version AS claim_version,
+       c.status AS status,
+       collect(DISTINCT fv) AS versions,
+       collect(DISTINCT prev.claim_id) AS superseded_claim_ids
+"""
+
 FIND_ENTITIES = """
 MATCH (e:Entity)
 WHERE ($name IS NULL OR toLower(e.canonical_name) CONTAINS toLower($name))
@@ -354,6 +413,8 @@ RETURN coalesce(m.dimension, m.unit, 'default') AS group_key,
 
 RETRIEVE_EVIDENCE = """
 MATCH (c:Claim)-[:DESCRIBED_IN]->(s:SourceSpan)-[:PART_OF]->(d:Document)
+OPTIONAL MATCH (c)-[:QUANTIFIED_BY]->(m:Measurement)
+OPTIONAL MATCH (c)-[:APPLIED_IN_GEOGRAPHY]->(g:Geography)
 WHERE d.access_level IN $access_levels
   AND (
     size($entity_hints) = 0
@@ -363,6 +424,11 @@ WHERE d.access_level IN $access_levels
            OR e.entity_id IN $entity_hints
     }
   )
+  AND ($geo_name IS NULL OR toLower(g.name) CONTAINS toLower($geo_name))
+  AND ($numeric_min IS NULL OR m.normalized_value >= $numeric_min)
+  AND ($numeric_max IS NULL OR m.normalized_value <= $numeric_max)
+  AND ($published_after IS NULL OR c.source_published_at >= $published_after)
+  AND ($published_before IS NULL OR c.source_published_at <= $published_before)
 RETURN c, s, d
 ORDER BY c.confidence DESC, c.claim_last_updated_at DESC
 LIMIT $limit

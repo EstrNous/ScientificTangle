@@ -1,10 +1,12 @@
 from adapters.dto import (
     BootstrapResultDTO,
     EvidenceRecordDTO,
+    FactVersionHistoryDTO,
     GraphNeighborhood,
     GraphSubgraphDTO,
     GroupComparisonDTO,
     MeasurementAggregateDTO,
+    NeighborhoodFallbackResultDTO,
     RankedClaimDTO,
 )
 from adapters.neo4j_adapter import Neo4jKnowledgeAdapter
@@ -74,6 +76,15 @@ class RankClaimsRequest(BaseModel):
     claim_ids: list[str] = Field(min_length=1)
     query_ir: QueryIR | None = None
     limit: int = Field(default=20, ge=1, le=100)
+
+
+class FactVersionsRequest(BaseModel):
+    claim_id: str = Field(min_length=1)
+
+
+class NeighborhoodFallbackRequest(BaseModel):
+    query_ir: QueryIR
+    access_levels: list[str] = Field(default_factory=lambda: ["public", "internal"])
 
 
 class ResetGraphResponse(BaseModel):
@@ -191,4 +202,25 @@ async def rank_claims(request: RankClaimsRequest, app_request: Request) -> list[
         query_ir=request.query_ir,
         request_id=request_id,
         limit=request.limit,
+    )
+
+
+@router.post("/claims/versions", response_model=FactVersionHistoryDTO)
+async def get_fact_versions(request: FactVersionsRequest, app_request: Request) -> FactVersionHistoryDTO:
+    request_id = getattr(app_request.state, "request_id", None) or generate_request_id()
+    adapter: Neo4jKnowledgeAdapter = app_request.app.state.neo4j_adapter
+    return await adapter.get_fact_versions(request.claim_id, request_id=request_id)
+
+
+@router.post("/neighborhood-fallback", response_model=NeighborhoodFallbackResultDTO)
+async def neighborhood_fallback(
+    request: NeighborhoodFallbackRequest,
+    app_request: Request,
+) -> NeighborhoodFallbackResultDTO:
+    request_id = getattr(app_request.state, "request_id", None) or generate_request_id()
+    adapter: Neo4jKnowledgeAdapter = app_request.app.state.neo4j_adapter
+    return await adapter.neighborhood_fallback(
+        request.query_ir,
+        request.access_levels,
+        request_id=request_id,
     )

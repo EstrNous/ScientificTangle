@@ -107,5 +107,73 @@ async def test_neo4j_write_read_roundtrip(neo4j_adapter: Neo4jKnowledgeAdapter) 
 
 
 @pytest.mark.asyncio
+async def test_neo4j_subgraph_by_evidence_ids(neo4j_adapter: Neo4jKnowledgeAdapter) -> None:
+    document_id = f"doc-{uuid.uuid4().hex[:8]}"
+    span_id = f"span-{uuid.uuid4().hex[:8]}"
+    entity_id = f"ent-{uuid.uuid4().hex[:8]}"
+    claim_id = f"claim-{uuid.uuid4().hex[:8]}"
+    bundle = ClaimsBundleDTO(
+        documents=[
+            DocumentDTO(
+                document_id=document_id,
+                title="Subgraph doc",
+                source_type="article",
+                access_level="internal",
+            )
+        ],
+        spans=[
+            SourceSpanDTO(
+                source_span_id=span_id,
+                document_id=document_id,
+                page_number=1,
+                raw_text="Cu grade 1.5 %",
+                char_start=0,
+                char_end=14,
+            )
+        ],
+        entities=[
+            EntityDTO(
+                entity_id=entity_id,
+                canonical_name="copper",
+                domain_type="Material",
+                created_at="2026-01-01T00:00:00+00:00",
+            )
+        ],
+        claims=[
+            ClaimDTO(
+                claim_id=claim_id,
+                status="verified",
+                confidence=0.88,
+                statement="Cu grade 1.5 %",
+                claim_extracted_at="2026-01-01T00:00:00+00:00",
+                claim_last_updated_at="2026-01-01T00:00:00+00:00",
+                source_span_ids=[span_id],
+                entity_ids=[entity_id],
+            )
+        ],
+    )
+    assert await neo4j_adapter.write_bundle(bundle, request_id="integration-subgraph-write")
+    subgraph = await neo4j_adapter.build_subgraph_by_evidence([claim_id], [entity_id], [span_id])
+    assert claim_id in subgraph.claim_ids
+    assert span_id in subgraph.source_span_ids
+    assert any(node.id == entity_id for node in subgraph.nodes)
+
+    versions = await neo4j_adapter.get_fact_versions(claim_id, request_id="integration-versions")
+    assert versions.claim_id == claim_id
+    assert versions.versions
+
+
+@pytest.mark.asyncio
+async def test_neo4j_filter_and_rank_claims(neo4j_adapter: Neo4jKnowledgeAdapter) -> None:
+    from shared.contracts import QueryIR
+
+    query_ir = QueryIR(raw_query="nickel", entities=["nickel"], limit=5)
+    filtered = await neo4j_adapter.filter_by_constraints(query_ir, access_levels=["public", "internal"])
+    assert isinstance(filtered.nodes, list)
+    ranked = await neo4j_adapter.rank_claims([], query_ir=query_ir, limit=5)
+    assert ranked == []
+
+
+@pytest.mark.asyncio
 async def test_neo4j_ping(neo4j_adapter: Neo4jKnowledgeAdapter) -> None:
     assert await neo4j_adapter.ping(request_id="integration-ping")
