@@ -102,14 +102,15 @@ export default function ExportPanel({ sessionId, sessionTitle, messages = [], in
       if (format === 'jsonld') {
         throw new Error('export_jsonld_unavailable');
       }
-      if (format === 'pdf' && serverExportEnabled) {
-        throw new Error('export_pdf_unavailable');
+      if (format === 'pdf') {
+        await runClientExport('pdf');
+        return;
       }
-      if (serverExportEnabled && format !== 'pdf') {
+      if (serverExportEnabled) {
         await runServerExport(format);
         return;
       }
-      if (clientExportEnabled || format === 'pdf') {
+      if (clientExportEnabled) {
         await runClientExport(format);
         return;
       }
@@ -121,9 +122,10 @@ export default function ExportPanel({ sessionId, sessionTitle, messages = [], in
     }
   };
 
-  const disabled = !sessionId || (serverExportEnabled && !queryRunId && !clientExportEnabled);
+  const serverFormatDisabled =
+    !sessionId || (serverExportEnabled && !queryRunId && !clientExportEnabled);
+  const pdfDisabled = !sessionId || activeFormat === 'pdf';
   const jsonLdUnavailable = true;
-  const pdfServerUnavailable = serverExportEnabled;
 
   const content = (
     <>
@@ -142,7 +144,7 @@ export default function ExportPanel({ sessionId, sessionTitle, messages = [], in
       <div className="flex flex-col gap-2">
         <button
           type="button"
-          disabled={disabled || activeFormat === 'md'}
+          disabled={serverFormatDisabled || activeFormat === 'md'}
           onClick={() => handleExport('md')}
           className="nn-btn-ghost w-full justify-center text-xs disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -150,7 +152,7 @@ export default function ExportPanel({ sessionId, sessionTitle, messages = [], in
         </button>
         <button
           type="button"
-          disabled={disabled || activeFormat === 'json'}
+          disabled={serverFormatDisabled || activeFormat === 'json'}
           onClick={() => handleExport('json')}
           className="nn-btn-ghost w-full justify-center text-xs disabled:cursor-not-allowed disabled:opacity-50"
         >
@@ -171,17 +173,12 @@ export default function ExportPanel({ sessionId, sessionTitle, messages = [], in
         </button>
         <button
           type="button"
-          disabled={disabled || pdfServerUnavailable || activeFormat === 'pdf'}
+          disabled={pdfDisabled}
           onClick={() => handleExport('pdf')}
           className="nn-btn-ghost w-full justify-center text-xs disabled:cursor-not-allowed disabled:opacity-50"
-          title={pdfServerUnavailable ? t('chat.exportPdfUnavailable') : undefined}
+          title={t('chat.exportPdfClientHint')}
         >
           {activeFormat === 'pdf' ? t('chat.downloadingPdf') : t('chat.downloadPdf')}
-          {pdfServerUnavailable && (
-            <span className="ml-1 text-[10px] text-nn-gray dark:text-slate-500">
-              ({t('chat.exportUnavailable')})
-            </span>
-          )}
         </button>
       </div>
     </>

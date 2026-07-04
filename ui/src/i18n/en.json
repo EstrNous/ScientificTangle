@@ -199,6 +199,7 @@
     "exportUnavailable": "unavailable",
     "exportJsonLdUnavailable": "JSON-LD export is not supported by the server yet",
     "exportPdfUnavailable": "Server PDF export is backlog",
+    "exportPdfClientHint": "PDF is generated in the browser from the current session",
     "exportErrors": {
       "export_failed": "Export failed",
       "export_no_query_run": "No completed query run to export",
