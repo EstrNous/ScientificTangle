@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import PageShell from '../components/shared/PageShell.jsx';
 import Loader from '../components/shared/Loader.jsx';
@@ -13,7 +13,10 @@ import {
   fetchChatSessions,
 } from '../api/chat.js';
 import { useChatAnswerFlow } from '../hooks/useChatAnswerFlow.js';
-import { isEmptyDraftSession, sessionTitleFromText } from '../utils/chatSession.js';
+import {
+  findReusableEmptyDraftSession,
+  sessionTitleFromText,
+} from '../utils/chatSession.js';
 
 export default function ChatPage() {
   const { t } = useTranslation();
@@ -24,6 +27,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [creatingChat, setCreatingChat] = useState(false);
+  const chatInputRef = useRef(null);
   const {
     phase,
     retrievalTrace,
@@ -83,26 +87,39 @@ export default function ChatPage() {
     };
   }, [activeId]);
 
-  if (loading) return <Loader />;
-
   const defaultSessionTitle = t('chat.defaultSessionTitle');
+  const isMac =
+    typeof navigator !== 'undefined' && /Mac|iPhone|iPod|iPad/.test(navigator.platform);
+  const newChatShortcut = t('chat.newChatShortcut', {
+    shortcut: isMac ? '⌘N' : 'Ctrl+N',
+  });
+  const newChatLabel = creatingChat ? t('chat.creatingChat') : t('chat.newChat');
+  const newChatDisabled = creatingChat || isActive;
 
-  const handleSelectSession = (id) => {
-    if (id !== activeId) {
-      reset();
-    }
-    setActiveId(id);
-    setSidebarOpen(false);
-  };
+  const focusChatInput = useCallback(() => {
+    requestAnimationFrame(() => {
+      chatInputRef.current?.focus();
+    });
+  }, []);
 
-  const handleNewChat = async () => {
+  const handleNewChat = useCallback(async () => {
     if (creatingChat || isActive) return;
 
     setError(null);
 
-    if (isEmptyDraftSession(activeSession, messages, defaultSessionTitle)) {
+    const reusableDraft = findReusableEmptyDraftSession(
+      sessions,
+      activeId,
+      messages,
+      defaultSessionTitle,
+    );
+    if (reusableDraft) {
       reset();
+      if (reusableDraft.id !== activeId) {
+        setActiveId(reusableDraft.id);
+      }
       setSidebarOpen(false);
+      focusChatInput();
       return;
     }
 
@@ -114,11 +131,43 @@ export default function ChatPage() {
       setActiveId(created.id);
       setMessages([]);
       setSidebarOpen(false);
+      focusChatInput();
     } catch (createError) {
       setError(getApiErrorMessage(createError, 'chat_create_failed'));
     } finally {
       setCreatingChat(false);
     }
+  }, [
+    activeId,
+    creatingChat,
+    defaultSessionTitle,
+    focusChatInput,
+    isActive,
+    messages,
+    reset,
+    sessions,
+  ]);
+
+  useEffect(() => {
+    if (loading) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key !== 'n' && event.key !== 'N') return;
+      if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
+      event.preventDefault();
+      handleNewChat();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [handleNewChat, loading]);
+
+  if (loading) return <Loader />;
+
+  const handleSelectSession = (id) => {
+    if (id !== activeId) {
+      reset();
+    }
+    setActiveId(id);
+    setSidebarOpen(false);
   };
 
   const handleSend = async ({ text, files }) => {
@@ -138,10 +187,21 @@ export default function ChatPage() {
 
     try {
       if (!sessionId) {
-        const created = await createChatSession(sessionTitleFromText(text, defaultSessionTitle));
-        sessionId = created.id;
-        setSessions((prev) => [created, ...prev]);
-        setActiveId(sessionId);
+        const reusableDraft = findReusableEmptyDraftSession(
+          sessions,
+          activeId,
+          messages,
+          defaultSessionTitle,
+        );
+        if (reusableDraft) {
+          sessionId = reusableDraft.id;
+          setActiveId(sessionId);
+        } else {
+          const created = await createChatSession(sessionTitleFromText(text, defaultSessionTitle));
+          sessionId = created.id;
+          setSessions((prev) => [created, ...prev]);
+          setActiveId(sessionId);
+        }
       }
 
       setMessages((prev) => [...prev, optimisticUser]);
@@ -203,10 +263,13 @@ export default function ChatPage() {
           <button
             type="button"
             onClick={handleNewChat}
-            disabled={creatingChat || isActive}
+            disabled={newChatDisabled}
+            aria-busy={creatingChat}
+            aria-label={newChatLabel}
+            title={creatingChat ? undefined : newChatShortcut}
             className="rounded-lg border border-nn-border px-3 py-1.5 text-sm text-gray-900 transition-colors hover:bg-nn-gray-light disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800"
           >
-            {t('chat.newChat')}
+            {newChatLabel}
           </button>
           <button
             type="button"
@@ -224,7 +287,8 @@ export default function ChatPage() {
           onSelect={handleSelectSession}
           onDelete={handleDeleteSession}
           onNewChat={handleNewChat}
-          creatingChat={creatingChat || isActive}
+          newChatLoading={creatingChat}
+          newChatDisabled={newChatDisabled}
           sessionId={activeId}
           sessionTitle={activeSession?.title}
           messages={messages}
@@ -240,7 +304,7 @@ export default function ChatPage() {
             streamingComplete={streamingComplete}
             streamingUxEnabled={streamingUxEnabled}
           />
-          <ChatInput onSend={handleSend} disabled={isActive} />
+          <ChatInput ref={chatInputRef} onSend={handleSend} disabled={isActive} />
         </div>
       </div>
     </PageShell>

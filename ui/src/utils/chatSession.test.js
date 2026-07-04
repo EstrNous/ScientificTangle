@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isEmptyDraftSession, sessionTitleFromText } from './chatSession.js';
+import { isEmptyDraftSession, findReusableEmptyDraftSession, sessionTitleFromText } from './chatSession.js';
 
 describe('sessionTitleFromText', () => {
   it('returns fallback for empty text', () => {
@@ -36,5 +36,29 @@ describe('isEmptyDraftSession', () => {
     expect(
       isEmptyDraftSession({ id: 's1', title: 'Мой запрос' }, [], defaultTitle),
     ).toBe(false);
+  });
+});
+
+describe('findReusableEmptyDraftSession', () => {
+  const defaultTitle = 'Новый запрос';
+  const draft = { id: 'draft-1', title: defaultTitle };
+  const active = { id: 'active-1', title: 'Запрос A' };
+
+  it('returns active session when it is an empty draft', () => {
+    expect(findReusableEmptyDraftSession([draft, active], 'draft-1', [], defaultTitle)).toBe(
+      draft,
+    );
+  });
+
+  it('returns another empty draft when active session has messages', () => {
+    expect(
+      findReusableEmptyDraftSession([draft, active], 'active-1', [{ id: 'm1' }], defaultTitle),
+    ).toBe(draft);
+  });
+
+  it('returns null when no reusable draft exists', () => {
+    expect(
+      findReusableEmptyDraftSession([active], 'active-1', [{ id: 'm1' }], defaultTitle),
+    ).toBeNull();
   });
 });
