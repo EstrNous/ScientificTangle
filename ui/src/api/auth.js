@@ -79,12 +79,33 @@ export async function register(username, email, password) {
   return applyAuthResponse(data);
 }
 
+export async function refreshSession() {
+  const { data } = await authHttp.post('/api/auth/refresh');
+  applyAuthResponse(data);
+  return data.access_token;
+}
+
+export async function restoreLiveSession() {
+  const state = useAuthStore.getState();
+  if (state.accessToken) {
+    try {
+      await fetchCurrentUser();
+      return state.accessToken;
+    } catch {
+      useAuthStore.getState().clearAuth();
+    }
+  }
+  const accessToken = await refreshSession();
+  await fetchCurrentUser();
+  return accessToken;
+}
+
 export async function ensureAuth() {
   const state = useAuthStore.getState();
   if (state.accessToken) return state.accessToken;
 
   if (!useMock) {
-    throw new Error('auth_required');
+    return restoreLiveSession();
   }
 
   const identifier = import.meta.env.VITE_AUTH_USERNAME;

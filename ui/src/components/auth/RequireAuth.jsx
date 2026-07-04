@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { ensureAuth, fetchCurrentUser } from '../../api/auth.js';
+import { ensureAuth, restoreLiveSession } from '../../api/auth.js';
 import { useMock } from '../../api/client.js';
 import { useAuthStore } from '../../stores/authStore.js';
 import Loader from '../shared/Loader.jsx';
@@ -16,8 +16,9 @@ export default function RequireAuth() {
       try {
         if (useMock) {
           await ensureAuth();
+        } else {
+          await restoreLiveSession();
         }
-        await fetchCurrentUser();
         if (!cancelled) {
           setStatus('ready');
         }

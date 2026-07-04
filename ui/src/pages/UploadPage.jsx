@@ -132,7 +132,7 @@ export default function UploadPage() {
   };
 
   const handleUpload = async () => {
-    if (!files.length) return;
+    if (!files.length || loading) return;
     setLoading(true);
     setError(null);
     setEntities([]);
@@ -214,6 +214,8 @@ export default function UploadPage() {
             <ErrorBanner
               className="mt-3"
               message={t(`upload.errors.${error}`, { defaultValue: error })}
+              onRetry={files.length ? handleUpload : undefined}
+              retryLabel={t('common.retry')}
             />
           )}
         </div>
