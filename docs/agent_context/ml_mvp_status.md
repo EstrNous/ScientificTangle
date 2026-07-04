@@ -18,6 +18,11 @@
 - Добавлен live Yandex smoke test без секретов в коде; тест пропускается, если `YANDEX_API_KEY` и `YANDEX_FOLDER_ID` не настроены.
 - `eval/run_eval.py` умеет прогонять `/api/query` с auth token из env, нормализовать raw eval documents через ingestion `/v1/documents/normalize` и писать dashboard-ready JSON/Markdown.
 - Alias mining получил локальный embedding-similarity слой без привязки к Qdrant.
+- Conflict detection усилен на ML-стороне: сравнивает только сопоставимые артефакты с учетом свойства, материала, процесса, оборудования, географии, времени, условий и единиц.
+- Gap suggestions проверяет покрытие numeric, geo, time, source type и entity constraints подтвержденным EvidenceBundle и снижает false positive gaps.
+- Notification matching усилен metadata-aware scoring и штрафами для candidate/low-confidence artifacts.
+- JSON-LD enrichment расширен provenance-полями QueryIR, EvidenceBundle, SourceSpan, gaps/conflicts и не экспортирует candidates как facts.
+- Eval/perf отчеты получили versioned `eval/reports/*` artifacts, access leak и JSON-LD provenance метрики.
 
 ## Что ещё не закрыто до полного ML MVP
 
@@ -27,12 +32,12 @@
 
 ## Top-1 ML backlog
 
-- Полный conflict detection с учетом условий эксперимента, материала, процесса, географии и единиц.
+- Live eval artifact на общем demo corpus с поднятым стеком и Yandex secrets.
 - Gap precision на реальном корпусе после end-to-end retrieval.
-- Access filtering correctness в связке с backend/Auth, не внутри model service.
-- JSON-LD export enrichment в финальном export service.
-- Notification matching в связке с user interests и новыми источниками.
-- p50/p95 latency по живому стэку, а не только eval script.
+- Access filtering correctness в связке с backend/Auth/retrieval через live eval gate.
+- JSON-LD enrichment в финальном export service остается задачей export-интеграции; ML endpoint готовит export-ready payload.
+- Notification service wiring остается задачей notification-интеграции; ML endpoint готовит matching scores.
+- p50/p95 latency по живому стэку, а не только локальная проверка отчета.
 
 ## VL/OCR позиция
 

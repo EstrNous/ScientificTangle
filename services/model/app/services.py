@@ -3,6 +3,7 @@ import json
 import math
 import re
 import uuid
+from datetime import UTC, datetime
 from difflib import SequenceMatcher
 from typing import Any
 
@@ -1447,19 +1448,31 @@ def detect_conflicts(request: ConflictDetectionRequest) -> ConflictDetectionResp
     for artifact in request.artifacts:
         if artifact.kind not in ("measurement", "claim", "property"):
             continue
-        key = artifact.metadata.get("quantity", {}).get("unit") if isinstance(artifact.metadata.get("quantity"), dict) else artifact.kind
-        groups.setdefault(str(key), []).append(artifact)
+        key = comparable_artifact_key(artifact)
+        groups.setdefault(key, []).append(artifact)
     conflicts = []
     for key, artifacts in groups.items():
-        numeric_values = [extract_first_number(item.value) for item in artifacts]
-        numeric_values = [value for value in numeric_values if value is not None]
-        if len(set(round(value, 6) for value in numeric_values)) > 1:
+        unit_values = [(item, artifact_quantity(item)) for item in artifacts]
+        unit_values = [(item, quantity) for item, quantity in unit_values if quantity is not None]
+        units = {quantity["unit"] for _, quantity in unit_values if quantity.get("unit")}
+        if len(units) > 1:
             conflicts.append(
                 ConflictSignal(
                     value_key=key,
-                    artifact_ids=[item.id for item in artifacts],
-                    reason="conflicting numeric values for comparable unit or property",
-                    confidence=0.74,
+                    artifact_ids=[item.id for item, _ in unit_values],
+                    reason="needs_unit_check: comparable artifacts use incompatible units",
+                    confidence=0.64,
+                )
+            )
+            continue
+        values = [(item, quantity["value"]) for item, quantity in unit_values if quantity.get("value") is not None]
+        if has_numeric_conflict([value for _, value in values], next(iter(units), "")):
+            conflicts.append(
+                ConflictSignal(
+                    value_key=key,
+                    artifact_ids=[item.id for item, _ in values],
+                    reason="conflicting_values: comparable numeric values differ beyond tolerance",
+                    confidence=0.78,
                 )
             )
         conflicting_candidates = [item for item in artifacts if "conflicting_values" in item.reason_codes]
@@ -1468,7 +1481,7 @@ def detect_conflicts(request: ConflictDetectionRequest) -> ConflictDetectionResp
                 ConflictSignal(
                     value_key=key,
                     artifact_ids=[item.id for item in conflicting_candidates],
-                    reason="candidate reason code marks conflicting values",
+                    reason="conflicting_values: candidate reason code marks conflict",
                     confidence=0.82,
                 )
             )
@@ -1480,12 +1493,23 @@ def suggest_gaps(request: GapSuggestionRequest) -> GapSuggestionResponse:
     if not request.evidence_bundle.evidence_items:
         gaps.append(GapSuggestion(gap_type="missing_evidence", description="Нет подтвержденных SourceSpan в EvidenceBundle.", priority="high"))
     filters = request.query_ir.filters
-    if filters.get("numeric_constraints") and not any(extract_numeric_constraints(item.source_span.text) for item in request.evidence_bundle.evidence_items):
+    evidence_text = " ".join(item.source_span.text for item in request.evidence_bundle.evidence_items)
+    evidence_text_lower = evidence_text.lower()
+    if filters.get("numeric_constraints") and not numeric_constraints_covered(filters.get("numeric_constraints", []), evidence_text):
         gaps.append(GapSuggestion(gap_type="missing_numeric_constraint", description="Вопрос содержит числовые ограничения, но evidence не подтверждает числовые значения.", priority="high"))
     if filters.get("geo_constraints"):
-        evidence_text = " ".join(item.source_span.text.lower() for item in request.evidence_bundle.evidence_items)
-        if not any(str(geo).lower() in evidence_text for geo in filters["geo_constraints"]):
+        if not geo_constraints_covered(filters["geo_constraints"], evidence_text):
             gaps.append(GapSuggestion(gap_type="missing_geo", description="Вопрос содержит географию, но evidence не подтверждает географический контекст.", priority="medium"))
+    if filters.get("time_constraints") and not time_constraints_covered(filters.get("time_constraints", {}), evidence_text):
+        gaps.append(GapSuggestion(gap_type="missing_time", description="Вопрос содержит временной диапазон, но evidence не подтверждает дату или период.", priority="medium"))
+    source_types = [str(value).lower() for value in filters.get("source_type_constraints", [])]
+    if source_types and not any(value in evidence_text_lower for value in source_types):
+        gaps.append(GapSuggestion(gap_type="candidate_review", description="Вопрос ограничен типом источника, но evidence не подтверждает этот тип источника.", priority="medium"))
+    query_entities = [str(value).lower() for value in request.query_ir.entities]
+    if query_entities and request.evidence_bundle.evidence_items:
+        missing_entities = [value for value in query_entities if value and value not in evidence_text_lower]
+        if len(missing_entities) == len(query_entities):
+            gaps.append(GapSuggestion(gap_type="candidate_review", description="Ключевые сущности Query IR не покрыты подтвержденным evidence.", priority="medium"))
     candidate_ids = [item.id for item in request.candidates if item.reason_codes]
     if candidate_ids:
         gaps.append(GapSuggestion(gap_type="candidate_review", description="Есть кандидаты, требующие экспертной проверки.", priority="medium", related_candidate_ids=candidate_ids))
@@ -1518,12 +1542,23 @@ def match_notifications(request: NotificationMatchRequest) -> NotificationMatchR
     for interest in request.interests:
         interest_terms = {interest.label.lower(), *[term.lower() for term in interest.source_terms]}
         for artifact in request.artifacts:
-            artifact_text = f"{artifact.kind} {artifact.value}".lower()
+            artifact_metadata = json.dumps(artifact.metadata, ensure_ascii=False).lower()
+            artifact_text = f"{artifact.kind} {artifact.value} {artifact_metadata}".lower()
             overlap = [term for term in interest_terms if term and term in artifact_text]
             if not overlap:
                 continue
-            score = min(1.0, interest.weight * (0.5 + 0.1 * len(overlap)) * max(artifact.confidence, 0.1))
-            matches.append(NotificationMatch(interest_label=interest.label, artifact_id=artifact.id, score=round(score, 6), reason=", ".join(overlap[:4])))
+            metadata_boost = metadata_match_boost(interest_terms, artifact.metadata)
+            candidate_penalty = 0.55 if artifact.status != "confirmed" else 1.0
+            reason_penalty = max(0.5, 1.0 - (0.12 * len(artifact.reason_codes)))
+            score = min(
+                1.0,
+                interest.weight
+                * (0.45 + 0.12 * len(overlap) + metadata_boost)
+                * max(artifact.confidence, 0.1)
+                * candidate_penalty
+                * reason_penalty,
+            )
+            matches.append(NotificationMatch(interest_label=interest.label, artifact_id=artifact.id, score=round(score, 6), reason=", ".join(stable_unique(overlap)[:4])))
     matches.sort(key=lambda item: item.score, reverse=True)
     return NotificationMatchResponse(matches=matches, warnings=[DEGRADED_WARNING] if not settings.yandex_enabled else [])
 
@@ -1537,16 +1572,33 @@ def enrich_jsonld(request: JsonLdEnrichmentRequest) -> JsonLdEnrichmentResponse:
         },
         "@type": "st:Answer",
         "@id": f"st:answer:{request.answer.id}",
+        "schema:dateCreated": request.answer.created_at.isoformat(),
+        "st:generatedAt": datetime.now(UTC).isoformat(),
         "schema:text": request.answer.answer_text,
         "st:confidence": request.answer.confidence,
-        "st:query": request.answer.query_ir.raw_query,
+        "st:query": {
+            "@type": "st:QueryIR",
+            "@id": f"st:query:{request.answer.query_ir.id}",
+            "schema:text": request.answer.query_ir.raw_query,
+            "st:intent": request.answer.query_ir.intent,
+            "st:entities": request.answer.query_ir.entities,
+            "st:filters": request.answer.query_ir.filters,
+        },
+        "st:gaps": request.answer.evidence_bundle.gaps,
+        "st:conflicts": request.answer.evidence_bundle.conflicts,
         "st:evidence": [
             {
                 "@type": "st:SourceSpan",
+                "@id": f"st:source-span:{item.source_span.id}",
                 "st:documentId": item.source_span.document_id,
                 "st:page": item.source_span.page,
                 "st:startOffset": item.source_span.start_offset,
                 "st:endOffset": item.source_span.end_offset,
+                "st:sourceType": item.source_span.source_type,
+                "st:claimIds": item.claim_ids,
+                "st:entityIds": item.entity_ids,
+                "st:relevanceScore": item.relevance_score,
+                "st:extractionMethod": item.extraction_method,
                 "schema:text": item.source_span.text,
             }
             for item in evidence
@@ -1577,6 +1629,139 @@ def extract_first_number(text: str) -> float | None:
     if not match:
         return None
     return parse_float(match.group(0))
+
+
+def comparable_artifact_key(artifact: ExtractionArtifact) -> str:
+    metadata = artifact.metadata
+    fields = {
+        "kind": artifact.kind,
+        "property": metadata_value(metadata, "property") or metadata_value(metadata, "parameter") or artifact.kind,
+        "material": metadata_value(metadata, "material"),
+        "process": metadata_value(metadata, "process"),
+        "equipment": metadata_value(metadata, "equipment"),
+        "geography": metadata_value(metadata, "geography") or metadata_value(metadata, "geo"),
+        "time": metadata_value(metadata, "time") or metadata_value(metadata, "date"),
+        "condition": metadata_value(metadata, "condition") or metadata_value(metadata, "conditions"),
+    }
+    return "|".join(f"{key}={normalize_comparable_value(value)}" for key, value in fields.items() if value)
+
+
+def metadata_value(metadata: dict[str, Any], key: str) -> str:
+    value = metadata.get(key)
+    if value is None:
+        return ""
+    if isinstance(value, (list, tuple, set)):
+        return ",".join(sorted(str(item) for item in value if item is not None))
+    if isinstance(value, dict):
+        return json.dumps(value, ensure_ascii=False, sort_keys=True)
+    return str(value)
+
+
+def normalize_comparable_value(value: str) -> str:
+    return normalize_alias_text(str(value).replace("_", " "))
+
+
+def artifact_quantity(artifact: ExtractionArtifact) -> dict[str, Any] | None:
+    quantity = artifact.metadata.get("quantity")
+    if isinstance(quantity, dict):
+        unit = normalize_unit(str(quantity.get("unit", ""))) if quantity.get("unit") else ""
+        value = quantity.get("value")
+        return {"unit": unit, "value": float(value) if isinstance(value, int | float) else parse_optional_float(value)}
+    quantities = artifact.metadata.get("quantities")
+    if isinstance(quantities, list) and quantities and isinstance(quantities[0], dict):
+        first = quantities[0]
+        unit = normalize_unit(str(first.get("unit", ""))) if first.get("unit") else ""
+        value = first.get("value")
+        return {"unit": unit, "value": float(value) if isinstance(value, int | float) else parse_optional_float(value)}
+    value = extract_first_number(artifact.value)
+    unit_match = next((unit for unit in UNIT_ALIASES if unit.lower() in artifact.value.lower()), "")
+    return {"unit": normalize_unit(unit_match), "value": value} if value is not None else None
+
+
+def parse_optional_float(value: Any) -> float | None:
+    if value is None:
+        return None
+    try:
+        return parse_float(str(value))
+    except ValueError:
+        return None
+
+
+def has_numeric_conflict(values: list[float], unit: str) -> bool:
+    if len(values) < 2:
+        return False
+    tolerance = numeric_tolerance(unit)
+    ordered = sorted(values)
+    return (ordered[-1] - ordered[0]) > tolerance
+
+
+def numeric_tolerance(unit: str) -> float:
+    if unit == "%":
+        return 0.05
+    if unit in {"m/s", "mg/l", "mg/dm3"}:
+        return 0.01
+    return 0.000001
+
+
+def numeric_constraints_covered(constraints: list[Any], evidence_text: str) -> bool:
+    evidence_quantities = extract_numeric_constraints(evidence_text)
+    if not constraints:
+        return True
+    if not evidence_quantities:
+        return False
+    return all(any(quantity_covers_constraint(quantity, constraint) for quantity in evidence_quantities) for constraint in constraints if isinstance(constraint, dict))
+
+
+def quantity_covers_constraint(quantity: Quantity, constraint: dict[str, Any]) -> bool:
+    expected_unit = normalize_unit(str(constraint.get("unit", ""))) if constraint.get("unit") else ""
+    if expected_unit and quantity.unit != expected_unit:
+        return False
+    operator = str(constraint.get("operator", "eq"))
+    expected_value = parse_optional_float(constraint.get("value"))
+    expected_min = parse_optional_float(constraint.get("range_min"))
+    expected_max = parse_optional_float(constraint.get("range_max"))
+    if operator == "range" and expected_min is not None and expected_max is not None:
+        if quantity.operator == "range":
+            return quantity.range_min is not None and quantity.range_max is not None and quantity.range_min <= expected_min and quantity.range_max >= expected_max
+        return quantity.value is not None and expected_min <= quantity.value <= expected_max
+    if expected_value is None:
+        return True
+    if quantity.value is None:
+        return False
+    tolerance = numeric_tolerance(quantity.unit)
+    return abs(quantity.value - expected_value) <= tolerance
+
+
+def time_constraints_covered(constraints: dict[str, Any], evidence_text: str) -> bool:
+    if not constraints:
+        return True
+    years = [int(match.group(0)) for match in re.finditer(r"\b(?:19|20)\d{2}\b", evidence_text)]
+    if not years:
+        return False
+    start_year = constraints.get("start_year")
+    end_year = constraints.get("end_year")
+    if start_year is not None and end_year is not None:
+        return any(int(start_year) <= year <= int(end_year) for year in years)
+    return True
+
+
+def geo_constraints_covered(constraints: list[Any], evidence_text: str) -> bool:
+    if not constraints:
+        return True
+    extracted = {normalize_alias_text(value) for value in extract_geo_constraints(evidence_text)}
+    normalized_text = normalize_alias_text(evidence_text)
+    for constraint in constraints:
+        normalized = normalize_alias_text(str(constraint))
+        if normalized in normalized_text or normalized in extracted:
+            continue
+        return False
+    return True
+
+
+def metadata_match_boost(interest_terms: set[str], metadata: dict[str, Any]) -> float:
+    metadata_text = json.dumps(metadata, ensure_ascii=False).lower()
+    matches = sum(1 for term in interest_terms if term and term in metadata_text)
+    return min(0.25, 0.08 * matches)
 
 
 def json_safe_payload(payload: dict[str, Any]) -> str:

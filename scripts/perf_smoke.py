@@ -3,6 +3,7 @@ import asyncio
 import json
 import statistics
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -11,7 +12,7 @@ import httpx
 DEFAULT_GATEWAY_URL = "http://localhost:8000"
 DEFAULT_AUTH_URL = "http://localhost:8001"
 DEFAULT_GOLD_PATH = "eval/gold_questions.json"
-DEFAULT_OUTPUT = "tmp/perf_smoke.json"
+DEFAULT_OUTPUT = "eval/reports/perf_latest.json"
 
 
 async def login(client: httpx.AsyncClient, auth_url: str, identifier: str, password: str) -> str:
@@ -61,6 +62,8 @@ def build_report(results: list[dict[str, Any]]) -> dict[str, Any]:
     p50 = statistics.median(latencies) if latencies else None
     p95 = latencies[min(len(latencies) - 1, round((len(latencies) - 1) * 0.95))] if latencies else None
     return {
+        "schema_version": "ml_perf_report.v1",
+        "generated_at": datetime.now(UTC).isoformat(),
         "total": len(results),
         "ok": sum(1 for item in results if item["status_code"] == 200),
         "with_evidence": sum(1 for item in results if item["has_evidence"]),
@@ -96,6 +99,9 @@ def main() -> None:
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+    if output.name == "perf_latest.json":
+        versioned = output.with_name(f"perf_{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}.json")
+        versioned.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
 
