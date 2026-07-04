@@ -3,6 +3,7 @@ import json
 from types import SimpleNamespace
 
 import httpx
+import pytest
 from app.api.query import (
     RetrievalQueryRequest,
     RetrievalSearchRequest,
@@ -28,6 +29,7 @@ from shared.contracts import (
     SourceSpan,
     TableBlock,
 )
+from shared.web import ServiceError
 
 
 def source(document_id: str, policy: AccessPolicy, text: str) -> SourcePayload:
@@ -88,7 +90,7 @@ class FakeStorageAdapter:
 
     async def get_source(self, source_span_id, access_roles):
         return source(
-            source_span_id,
+            "allowed",
             AccessPolicy(level="internal"),
             "Никель 82 %",
         )
@@ -172,10 +174,37 @@ def test_source_and_search_repeat_access_filtering() -> None:
 
     source_result, search_result = asyncio.run(execute())
 
-    assert source_result.source_span.document_id == "span-1"
+    assert source_result.source_span.document_id == "allowed"
     assert [item.source.source_span.document_id for item in search_result.items] == [
         "allowed"
     ]
+
+
+def test_resolve_source_returns_access_denied_for_existing_restricted_source() -> None:
+    class RestrictedStorageAdapter(FakeStorageAdapter):
+        async def get_source(self, source_span_id, access_roles):
+            return source(
+                source_span_id,
+                AccessPolicy(level="restricted", allowed_roles=["admin"]),
+                "Закрытый никель 99 %",
+            )
+
+    request = SimpleNamespace(
+        app=SimpleNamespace(state=SimpleNamespace(storage_adapter=RestrictedStorageAdapter()))
+    )
+
+    async def execute():
+        return await resolve_source(
+            "restricted-span",
+            SourceResolveRequest(access_roles=["external_partner"]),
+            request,
+        )
+
+    with pytest.raises(ServiceError) as error:
+        asyncio.run(execute())
+
+    assert error.value.status_code == 403
+    assert error.value.code == "access_denied"
 
 
 def test_collect_evidence_items_respects_access_policy_and_constraints() -> None:

@@ -24,6 +24,7 @@ from shared.contracts import (
     TableBlock,
 )
 from shared.utils.source_span import compute_source_span_id as source_span_id
+from shared.web import ServiceError
 
 from ..core.config import settings
 from ..retrieval_planner import RetrievalPlan, build_retrieval_plan
@@ -286,6 +287,7 @@ async def run_query(
         )
         enrichment_response.raise_for_status()
         query_ir = QueryIR.model_validate(enrichment_response.json())
+        query_ir.filters["dictionary_version_id"] = str(request.dictionary_version_id)
 
     time_constraints = query_ir.filters.get("time_constraints") or {}
     if isinstance(time_constraints, dict) and time_constraints.get("relative_years"):
@@ -670,11 +672,13 @@ async def resolve_source(
 ) -> SourcePayload:
     adapter: RetrievalStorageAdapter = app_request.app.state.storage_adapter
     try:
-        source = await adapter.get_source(source_span_id, request.access_roles)
+        source = await adapter.get_source(source_span_id, ["admin"])
     except StorageAdapterNotReady as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
-    if source is None or not access_allowed(source.access_policy, request.access_roles):
-        raise HTTPException(status_code=404, detail="source_not_found")
+    if source is None:
+        raise ServiceError(404, "source_not_found", "Source was not found")
+    if not access_allowed(source.access_policy, request.access_roles):
+        raise ServiceError(403, "access_denied", "Source access denied")
     return source
 
 
