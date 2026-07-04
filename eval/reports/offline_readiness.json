@@ -1,0 +1,88 @@
+{
+  "schema_version": "offline_quality_gate.v1",
+  "generated_at": "2026-07-04T10:39:37.613526+00:00",
+  "overall_status": "warn",
+  "checks": [
+    {
+      "id": "pinned_input_integrity",
+      "status": "pass",
+      "details": "all pinned input sha256 values match"
+    },
+    {
+      "id": "regression_suite_inventory",
+      "status": "pass",
+      "details": "all required suites are declared"
+    },
+    {
+      "id": "no_live_policy_declared",
+      "status": "pass",
+      "details": {
+        "live_model_calls": "blocked_by_policy",
+        "confirmed_claim_rule": "confirmed evidence requires SourceSpan",
+        "raw_corpus_commit_rule": "external raw files from full dataset are not committed"
+      }
+    },
+    {
+      "id": "official_expected_source_spans",
+      "status": "pass",
+      "details": {
+        "missing": [],
+        "mismatched": []
+      }
+    },
+    {
+      "id": "official_query_ir_constraints",
+      "status": "pass",
+      "details": {
+        "missing": []
+      }
+    },
+    {
+      "id": "access_filtering_fixture",
+      "status": "pass",
+      "details": {
+        "covered_question_ids": [
+          "corpus-001"
+        ],
+        "suite_question_ids": [
+          "corpus-001"
+        ]
+      }
+    },
+    {
+      "id": "offline_e2e_scenario_inventory",
+      "status": "pass",
+      "details": {
+        "file": "tests\\e2e\\test_official_questions_smoke.py",
+        "missing": []
+      }
+    },
+    {
+      "id": "full_corpus_reviewed_source_expectations",
+      "status": "blocked_by_data",
+      "details": {
+        "status": "blocked_by_data",
+        "reason_codes": [
+          "raw_corpus_not_normalized",
+          "reviewed_source_span_ids_missing_for_full_corpus"
+        ]
+      }
+    },
+    {
+      "id": "live_answer_quality",
+      "status": "blocked_by_policy",
+      "details": "live model calls are forbidden in E6 no-live quality gate"
+    },
+    {
+      "id": "live_latency_p95",
+      "status": "blocked_by_policy",
+      "details": "live model calls are forbidden in E6 no-live quality gate"
+    }
+  ],
+  "summary": {
+    "official_questions": 4,
+    "corpus_regression_questions": 12,
+    "live_model_calls": "blocked_by_policy",
+    "full_corpus_source_expectations": "blocked_by_data"
+  }
+}
