@@ -411,7 +411,9 @@
       "admin_user_save_failed": "Не удалось сохранить пользователя",
       "admin_policy_save_failed": "Не удалось сохранить политику доступа",
       "admin_save_failed": "Не удалось сохранить изменения",
-      "forbidden": "Недостаточно прав для этой операции"
+      "forbidden": "Недостаточно прав для этой операции",
+      "dictionaries_load_failed": "Не удалось загрузить версии словарей",
+      "dictionary_activate_failed": "Не удалось активировать словарь"
     },
     "filterAll": "Все действия",
     "actions": {
@@ -423,6 +425,23 @@
       "role_changed": "смена роли"
     },
     "sourceTitle": "Фрагмент источника",
+    "dictionariesTitle": "Версии словарей",
+    "dictionariesEmpty": "Словари ещё не загружались",
+    "dictionaryActivate": "Активировать",
+    "dictionaryActivating": "Активация…",
+    "dictionaryColumns": {
+      "version": "Версия",
+      "status": "Статус",
+      "files": "Файлы",
+      "created": "Создана",
+      "actions": "Действия"
+    },
+    "dictionaryStatus": {
+      "active": "активна",
+      "inactive": "неактивна",
+      "validated": "проверена",
+      "validation_failed": "ошибка проверки"
+    },
     "sourceEmpty": "Выберите событие с источником в журнале аудита",
     "sourceMeta": "Стр. {{page}} · {{section}}",
     "ops": {
@@ -577,12 +596,49 @@
       "candidates": "Кандидаты",
       "indexed": "Индекс"
     },
+    "stagesTitle": "Этапы обработки",
+    "stages": {
+      "upload": "Загрузка",
+      "parse": "Разбор документа",
+      "extract": "Извлечение сущностей",
+      "index": "Индексация",
+      "complete": "Готово",
+      "dictionary": "Словарь"
+    },
+    "stageStatuses": {
+      "pending": "ожидание",
+      "active": "в процессе",
+      "done": "готово",
+      "failed": "ошибка"
+    },
     "errors": {
       "upload_failed": "Не удалось загрузить файлы",
       "delete_failed": "Не удалось удалить документ",
       "forbidden": "Недостаточно прав для удаления документа",
       "not_found": "Документ не найден",
       "document_delete_not_implemented": "Удаление документа пока недоступно на сервере"
+    }
+  },
+  "search": {
+    "resultsCount": "Показано {{shown}} из {{total}}",
+    "loadMore": "Загрузить ещё",
+    "loadingMore": "Загрузка…",
+    "errors": {
+      "search_failed": "Не удалось выполнить поиск"
+    },
+    "filters": {
+      "geo": "География",
+      "geoPlaceholder": "Россия, Norilsk",
+      "yearFrom": "Год от",
+      "yearTo": "Год до",
+      "numeric": "Числовой фильтр",
+      "sourceTypes": "Тип источника"
+    },
+    "sourceTypes": {
+      "text": "текст",
+      "table": "таблица",
+      "figure": "рисунок",
+      "caption": "подпись"
     }
   },
   "review": {

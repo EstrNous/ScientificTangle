@@ -2,6 +2,7 @@ import ReactMarkdown from 'react-markdown';
 import { useTranslation } from 'react-i18next';
 import { isDegradedScientificAnswer, isPartialScientificAnswer } from '../../utils/answerPayload.js';
 import ReasonCodeBadges from './ReasonCodeBadges.jsx';
+import SourceLink from '../shared/SourceLink.jsx';
 
 function AnswerSection({ title, children, tone = 'default' }) {
   const toneClasses = {
@@ -75,10 +76,18 @@ function ConflictList({ conflicts }) {
         const description =
           typeof conflict === 'string' ? conflict : conflict.description ?? conflict.statement;
         const reasonCodes = typeof conflict === 'object' ? conflict.reason_codes : [];
+        const sourceA = typeof conflict === 'object' ? conflict.source_a ?? conflict.sourceA : null;
+        const sourceB = typeof conflict === 'object' ? conflict.source_b ?? conflict.sourceB : null;
 
         return (
           <li key={index} className="text-sm text-gray-900 dark:text-slate-100">
             <p>{description}</p>
+            {(sourceA || sourceB) && (
+              <p className="mt-1 flex flex-wrap gap-3 text-[11px]">
+                {sourceA && <SourceLink sourceRef={sourceA} />}
+                {sourceB && <SourceLink sourceRef={sourceB} />}
+              </p>
+            )}
             {reasonCodes?.length > 0 && <ReasonCodeBadges reasonCodes={reasonCodes} />}
           </li>
         );

@@ -67,10 +67,21 @@ export function mapReviewCandidate(item = {}) {
 }
 
 export function mapReviewQueue(payload = {}) {
+  const items = payload.items ?? payload.candidates ?? [];
+  const conflicts = payload.conflicts ?? payload.conflict_items ?? [];
   return {
-    items: (payload.items ?? payload.candidates ?? []).map(mapReviewCandidate),
-    total: payload.total ?? (payload.items ?? payload.candidates ?? []).length,
+    items: items.map(mapReviewCandidate),
+    total: payload.total ?? payload.total_found ?? items.length,
     filters: payload.filters ?? {},
+    conflicts: conflicts.map((item) => ({
+      id: item.id ?? item.conflict_id,
+      claimA: item.claim_a ?? item.claimA ?? '',
+      claimB: item.claim_b ?? item.claimB ?? '',
+      conditionA: item.condition_a ?? item.conditionA ?? '',
+      conditionB: item.condition_b ?? item.conditionB ?? '',
+      sourceA: item.source_a ?? item.sourceA ?? null,
+      sourceB: item.source_b ?? item.sourceB ?? null,
+    })),
   };
 }
 
@@ -196,5 +207,17 @@ export function serializeAdminPolicyPatch(accessPolicy = {}) {
       export_allowed: accessPolicy.exportAllowed ?? accessPolicy.export_allowed,
       roles: accessPolicy.roles ?? [],
     },
+  };
+}
+
+export function mapDictionaryVersion(item = {}) {
+  return {
+    id: item.id,
+    version: item.version ?? '',
+    status: item.status ?? 'inactive',
+    packageSha256: item.package_sha256 ?? item.packageSha256 ?? '',
+    filesCount: (item.files ?? []).length,
+    createdAt: item.created_at ?? item.createdAt ?? null,
+    activatedAt: item.activated_at ?? item.activatedAt ?? null,
   };
 }

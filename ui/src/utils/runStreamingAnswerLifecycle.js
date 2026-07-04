@@ -1,4 +1,7 @@
-import { buildMockAssistantReply, buildRetrievalSteps } from '../api/mock/chatQuery.js';
+import {
+  buildRetrievalSteps,
+  buildSimulatedAssistantReply,
+} from './simulation/answerLifecycleFixtures.js';
 import { CHAT_ANSWER_PHASES } from './chatAnswerLifecycle.js';
 import { revealMarkdownText } from './growingMarkdown.js';
 
@@ -47,7 +50,7 @@ export async function runStreamingAnswerLifecycle(
   await delay(phaseDelayMs);
 
   onPhaseChange?.(CHAT_ANSWER_PHASES.SYNTHESIS);
-  const reply = buildMockAssistantReply(text, fileNames);
+  const reply = buildSimulatedAssistantReply(text, fileNames);
   const draftText = reply.content ?? '';
 
   await revealMarkdownText(draftText, {

@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next';
 import { DeleteIcon } from '../admin/AdminIcons.jsx';
 import Loader from '../shared/Loader.jsx';
+import UploadStageStepper from './UploadStageStepper.jsx';
+import { resolveUploadTaskStages } from '../../utils/uploadTaskStages.js';
 
 const TASK_STATUS_STYLES = {
   pending: 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
@@ -27,6 +29,7 @@ export default function UploadAnalysisPanel({
 }) {
   const { t } = useTranslation();
   const report = task?.report;
+  const stages = resolveUploadTaskStages(task, t);
 
   return (
     <section className="nn-card flex min-h-0 flex-col p-4">
@@ -56,6 +59,8 @@ export default function UploadAnalysisPanel({
           </div>
 
           {loading && task.status !== 'completed' && task.status !== 'failed' && <Loader />}
+
+          <UploadStageStepper stages={stages} />
 
           {report && (
             <div className="grid grid-cols-2 gap-2">

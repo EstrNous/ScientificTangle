@@ -12,6 +12,10 @@ export function isDevRoleSwitcherEnabled() {
   return useMock || import.meta.env.DEV;
 }
 
+export function isProductionAuthMode() {
+  return !useMock && !import.meta.env.DEV;
+}
+
 export function isLiveProductionMode() {
   return !useMock;
 }
