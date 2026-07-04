@@ -66,6 +66,29 @@ def test_confirmed_artifact_requires_source_span() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    "reason_code",
+    [
+        "outside_time_range",
+        "geo_mismatch",
+        "unit_mismatch",
+        "unsupported_claim",
+        "unresolved_alias",
+        "inaccessible_source",
+    ],
+)
+def test_e1_verification_reason_codes_are_model_local_candidates(reason_code: str) -> None:
+    artifact = ExtractionArtifact(
+        kind="claim",
+        value="Needs verification",
+        confidence=0.5,
+        status="candidate",
+        reason_codes=[reason_code],
+    )
+
+    assert artifact.reason_codes == [reason_code]
+
+
 def test_structured_extraction_confirms_only_sourced_measurements() -> None:
     span = SourceSpan(
         document_id="doc-1",

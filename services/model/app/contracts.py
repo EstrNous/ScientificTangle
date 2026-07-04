@@ -23,6 +23,12 @@ CandidateReasonCode = Literal[
     "needs_unit_check",
     "access_filtered",
     "schema_candidate",
+    "outside_time_range",
+    "geo_mismatch",
+    "unit_mismatch",
+    "unsupported_claim",
+    "unresolved_alias",
+    "inaccessible_source",
 ]
 ClaimStatus = Literal["confirmed", "candidate", "disputed", "deprecated"]
 ArtifactKind = Literal[
