@@ -197,7 +197,6 @@ async def run_batches(args: argparse.Namespace) -> dict[str, Any]:
     actual_size = sum(item.size_bytes for item in all_files)
     oversized = [item for item in all_files if item.size_bytes > args.max_file_bytes]
     ingestible = [item for item in all_files if item.size_bytes <= args.max_file_bytes]
-    skipped_paths = {item.relative_path for item in oversized}
     if oversized:
         existing_skipped = {
             entry.get("relative_path")

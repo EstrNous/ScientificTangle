@@ -3,7 +3,12 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Header, Query, Request, UploadFile, status
 
-from shared.contracts import DeleteDocumentResult, DocumentCatalogResponse, IngestionTaskPayload, UserRole
+from shared.contracts import (
+    DeleteDocumentResult,
+    DocumentCatalogResponse,
+    IngestionTaskPayload,
+    UserRole,
+)
 from shared.security import AuthenticatedPrincipal
 from shared.web import ServiceError, require_principal
 

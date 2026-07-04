@@ -5,7 +5,12 @@ from uuid import UUID
 import httpx
 from fastapi import UploadFile, status
 
-from shared.contracts import ApiError, DictionaryVersionPayload, DocumentCatalogResponse, IngestionTaskPayload
+from shared.contracts import (
+    ApiError,
+    DictionaryVersionPayload,
+    DocumentCatalogResponse,
+    IngestionTaskPayload,
+)
 
 from ..core.config import settings
 

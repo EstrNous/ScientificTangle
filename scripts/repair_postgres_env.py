@@ -159,7 +159,7 @@ def repair_postgres_env(env_path: Path, compose_files: list[str], *, sync_only: 
     for candidate in collect_candidate_passwords(values):
         if verify_postgres_tcp(candidate, compose_files):
             if values.get("POSTGRES_PASSWORD") != candidate:
-                print(f"PostgreSQL TCP OK with stored password; aligning POSTGRES_PASSWORD")
+                print("PostgreSQL TCP OK with stored password; aligning POSTGRES_PASSWORD")
                 values["POSTGRES_PASSWORD"] = candidate
                 sync_postgres_urls(values)
                 write_env(env_path, lines, values)
