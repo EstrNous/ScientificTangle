@@ -6,7 +6,7 @@ export default function DashboardShell({ children }) {
     <div className="flex h-screen flex-col overflow-hidden bg-nn-gray-light text-gray-900 dark:bg-slate-950 dark:text-slate-100">
       <TopBar />
       <TabNav />
-      <main className="min-h-0 flex-1 overflow-hidden p-6">{children}</main>
+      <main className="min-h-0 flex-1 overflow-hidden p-3 sm:p-4 md:p-6">{children}</main>
     </div>
   );
 }

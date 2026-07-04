@@ -30,7 +30,6 @@ function ObservationList({ items, variant }) {
         const statement = typeof item === 'string' ? item : item.statement;
         const reasonCodes = typeof item === 'object' ? item.reason_codes : [];
         const confidence = typeof item === 'object' ? item.confidence : null;
-        const sourceSpanIds = typeof item === 'object' ? item.source_span_ids : [];
 
         return (
           <li
@@ -45,7 +44,6 @@ function ObservationList({ items, variant }) {
             {variant === 'confirmed' && confidence != null && (
               <p className="mt-0.5 text-xs text-nn-gray dark:text-slate-500">
                 {(confidence * 100).toFixed(0)}%
-                {sourceSpanIds?.length > 0 && ` · span: ${sourceSpanIds.join(', ')}`}
               </p>
             )}
             {reasonCodes?.length > 0 && <ReasonCodeBadges reasonCodes={reasonCodes} />}

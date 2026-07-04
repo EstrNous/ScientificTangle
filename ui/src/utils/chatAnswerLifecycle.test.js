@@ -5,6 +5,8 @@ import {
   isTerminalPhase,
   phaseIndex,
   resolveAnswerPhase,
+  shouldShowAnswerPipeline,
+  shouldShowRetrievalTrace,
   transitionPhase,
 } from './chatAnswerLifecycle.js';
 
@@ -54,5 +56,31 @@ describe('chatAnswerLifecycle', () => {
     expect(phaseIndex(CHAT_ANSWER_PHASES.PARSING)).toBe(0);
     expect(phaseIndex(CHAT_ANSWER_PHASES.CITATIONS)).toBe(4);
     expect(phaseIndex(CHAT_ANSWER_PHASES.ERROR)).toBeNull();
+  });
+
+  it('shows pipeline only when streaming or non-session mode', () => {
+    expect(
+      shouldShowAnswerPipeline(CHAT_ANSWER_PHASES.RETRIEVAL, 'streaming', true),
+    ).toBe(true);
+    expect(
+      shouldShowAnswerPipeline(CHAT_ANSWER_PHASES.RETRIEVAL, 'session', false),
+    ).toBe(false);
+    expect(
+      shouldShowAnswerPipeline(CHAT_ANSWER_PHASES.PARSING, 'session', false),
+    ).toBe(false);
+    expect(shouldShowAnswerPipeline(CHAT_ANSWER_PHASES.ERROR, 'streaming', true)).toBe(false);
+  });
+
+  it('hides retrieval trace when lifecycle pipeline is visible', () => {
+    const trace = { steps: [{ id: 'a', label: 'step', status: 'active' }] };
+    expect(
+      shouldShowRetrievalTrace(trace, CHAT_ANSWER_PHASES.RETRIEVAL, 'streaming', true),
+    ).toBe(false);
+    expect(
+      shouldShowRetrievalTrace(trace, CHAT_ANSWER_PHASES.RETRIEVAL, 'session', false),
+    ).toBe(true);
+    expect(shouldShowRetrievalTrace(null, CHAT_ANSWER_PHASES.RETRIEVAL, 'session', false)).toBe(
+      false,
+    );
   });
 });

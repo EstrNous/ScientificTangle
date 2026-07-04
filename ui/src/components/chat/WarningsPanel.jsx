@@ -7,7 +7,7 @@ export default function WarningsPanel({ confidence, warnings = [] }) {
   if (!hasWarnings && !lowConfidence) return null;
 
   return (
-    <div className="space-y-2">
+    <div className="min-w-0 space-y-2 break-words">
       {lowConfidence && (
         <p className="text-xs text-amber-600 dark:text-amber-400">
           Уверенность ответа: {(confidence * 100).toFixed(0)}% — проверьте источники

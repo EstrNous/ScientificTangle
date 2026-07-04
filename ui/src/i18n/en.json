@@ -137,6 +137,8 @@
   },
   "chat": {
     "history": "History",
+    "showHistory": "Query history",
+    "hideHistory": "Hide history",
     "export": "Export",
     "downloadMd": "Download MD",
     "downloadJson": "Download JSON",
