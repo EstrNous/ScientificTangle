@@ -6,7 +6,7 @@ htpasswd -cb /etc/nginx/grafana.htpasswd \
   "${GRAFANA_NGINX_BASIC_PASSWORD:-grafana123}"
 
 if [ "${NGINX_CONFIG:-dev}" = "cloud" ]; then
-  if [ ! -f /etc/nginx/nginx.conf ] || [ ! -s /etc/nginx/nginx.conf ]; then
+  if [ -w /etc/nginx/nginx.conf ]; then
     cp /etc/nginx/nginx.cloud.http.conf /etc/nginx/nginx.conf
   fi
 fi
