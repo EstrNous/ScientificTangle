@@ -1,7 +1,12 @@
+from uuid import uuid4
+
 from app.service.chat_service import ChatService
+from shared.contracts import UserRole
+from shared.security import AuthenticatedPrincipal
 
 
 def test_map_query_response_builds_ui_payload() -> None:
+    principal = AuthenticatedPrincipal(user_id=uuid4(), role=UserRole.ANALYST, token_id=uuid4())
     payload = ChatService._map_query_response(
         {
             "answer": {
@@ -21,7 +26,8 @@ def test_map_query_response_builds_ui_payload() -> None:
                 ]
             },
             "warnings": ["demo_warning"],
-        }
+        },
+        principal,
     )
 
     assert payload["content"] == "Тестовый ответ"
