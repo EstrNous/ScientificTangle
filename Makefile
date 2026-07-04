@@ -1,24 +1,56 @@
-.PHONY: bootstrap up down build logs seed ingest-demo e2e eval eval-offline-quality eval-yandex-live perf-smoke reset-demo lint test test-model test-neo4j-integration test-yandex-live export-demo
+.PHONY: bootstrap bootstrap-prod ensure-env up up-prod prod down down-prod build build-prod logs logs-prod seed seed-prod prod-demo ingest-demo e2e eval eval-offline-quality eval-yandex-live perf-smoke reset-demo lint test test-model test-neo4j-integration test-yandex-live export-demo deploy-cloud cloud-ps cloud-logs cloud-down
+
+COMPOSE_DEV = docker compose -f docker-compose.yml -f docker-compose.dev.yml
+COMPOSE_PROD = docker compose -f docker-compose.yml -f docker-compose.prod.yml
+COMPOSE_CLOUD = docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloud.yml -f docker-compose.cloud.http.yml
 
 bootstrap:
 	python scripts/generate_auth_keys.py
 
-up: bootstrap
-	docker compose up -d
+bootstrap-prod: bootstrap
+	python scripts/generate_tls_certs.py
+
+ensure-env:
+	python scripts/ensure_env.py
+
+up: bootstrap ensure-env
+	$(COMPOSE_DEV) up -d
+
+up-prod: ensure-env bootstrap-prod
+	$(COMPOSE_PROD) up -d --build --wait
+
+prod: up-prod seed-prod
+	@echo Prod ready: https://localhost/  curl -k https://localhost/api/health
 
 down:
-	docker compose down -v
+	$(COMPOSE_DEV) down -v
+
+down-prod:
+	$(COMPOSE_PROD) down -v
 
 build:
-	docker compose build
+	$(COMPOSE_DEV) build
+
+build-prod:
+	$(COMPOSE_PROD) build
 
 logs:
-	docker compose logs -f $(SERVICE)
+	$(COMPOSE_DEV) logs -f $(SERVICE)
+
+logs-prod:
+	$(COMPOSE_PROD) logs -f $(SERVICE)
 
 seed:
-	docker compose exec auth_audit auth-seed-users
-	docker compose exec notification sh -c "cd /app/infra/postgres/notification_db && PYTHONPATH=. python seed.py"
+	$(COMPOSE_DEV) exec auth_audit auth-seed-users
+	$(COMPOSE_DEV) exec notification sh -c "cd /app/infra/postgres/notification_db && PYTHONPATH=. python seed.py"
 	python scripts/seed_demo.py
+
+seed-prod:
+	$(COMPOSE_PROD) exec -T auth_audit auth-seed-users
+	$(COMPOSE_PROD) exec -T notification sh -c "cd /app/infra/postgres/notification_db && PYTHONPATH=. python seed.py"
+
+prod-demo: prod
+	DEMO_API_URL=https://localhost/api EDGE_TLS_VERIFY=false python scripts/seed_demo.py
 
 ingest-demo:
 	python scripts/seed_demo.py
@@ -41,10 +73,10 @@ perf-smoke:
 	python scripts/perf_smoke.py
 
 reset-demo:
-	docker compose down -v
+	$(COMPOSE_DEV) down -v
 	python scripts/generate_auth_keys.py
-	docker compose up -d
-	docker compose exec auth_audit auth-seed-users
+	$(COMPOSE_DEV) up -d
+	$(COMPOSE_DEV) exec auth_audit auth-seed-users
 	python scripts/seed_demo.py
 
 seed-counts:
@@ -74,3 +106,16 @@ test-yandex-live:
 
 export-demo:
 	@echo "export-demo: use ui ExportPanel or eval reports"
+
+deploy-cloud:
+	@test -n "$(HOST)" || (echo "Usage: make deploy-cloud HOST=203.0.113.10 [DEPLOY_ARGS='--install-docker']" && exit 1)
+	bash scripts/cloud_deploy.sh $(HOST) $(DEPLOY_ARGS)
+
+cloud-ps:
+	$(COMPOSE_CLOUD) ps
+
+cloud-logs:
+	$(COMPOSE_CLOUD) logs -f $(SERVICE)
+
+cloud-down:
+	$(COMPOSE_CLOUD) down

@@ -48,6 +48,55 @@ def check_makefile_todos() -> list[str]:
     return []
 
 
+def check_base_compose_no_host_ports() -> list[str]:
+    compose = ROOT / "docker-compose.yml"
+    text = compose.read_text(encoding="utf-8")
+    if "ports:" in text:
+        return ["prod_perimeter: docker-compose.yml must not publish host ports"]
+    return []
+
+
+def check_prod_compose_nginx_only_ports() -> list[str]:
+    compose = ROOT / "docker-compose.prod.yml"
+    text = compose.read_text(encoding="utf-8")
+    lines = text.splitlines()
+    issues: list[str] = []
+    current_service: str | None = None
+    in_ports = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped.endswith(":") and not stripped.startswith("-") and line.startswith("  ") and not line.startswith("    "):
+            current_service = stripped[:-1]
+            in_ports = False
+            continue
+        if current_service and stripped == "ports:":
+            in_ports = True
+            continue
+        if in_ports and stripped.startswith("- "):
+            if current_service != "nginx":
+                issues.append(
+                    f"prod_perimeter: docker-compose.prod.yml publishes ports for {current_service}"
+                )
+            in_ports = False
+    if "nginx:" not in text or 'ports:' not in text.split("nginx:")[1]:
+        issues.append("prod_perimeter: docker-compose.prod.yml must publish nginx ports")
+    return issues
+
+
+def check_dev_compose_has_ports() -> list[str]:
+    compose = ROOT / "docker-compose.dev.yml"
+    if not compose.exists():
+        return ["prod_perimeter: missing docker-compose.dev.yml"]
+    text = compose.read_text(encoding="utf-8")
+    required = ("gateway:", "postgres:", "nginx:")
+    missing = [name for name in required if name not in text]
+    if missing:
+        return [f"prod_perimeter: docker-compose.dev.yml missing services: {', '.join(missing)}"]
+    if text.count("ports:") < 3:
+        return ["prod_perimeter: docker-compose.dev.yml should publish dev host ports"]
+    return []
+
+
 def main() -> int:
     errors: list[str] = []
     errors.extend(check_no_app_imports())
@@ -55,6 +104,9 @@ def main() -> int:
     errors.extend(check_no_init_sql_mount())
     errors.extend(check_no_page_mock_imports())
     errors.extend(check_makefile_todos())
+    errors.extend(check_base_compose_no_host_ports())
+    errors.extend(check_prod_compose_nginx_only_ports())
+    errors.extend(check_dev_compose_has_ports())
 
     validate = subprocess.run(
         [sys.executable, str(ROOT / "scripts" / "validate_ontology.py")],
