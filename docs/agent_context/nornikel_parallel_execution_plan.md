@@ -1,60 +1,47 @@
-# ScientificTangle / НорСинтез — параллельный план закрытия gaps
+# Параллельный план закрытия gaps НорСинтез
 
-Дата: 2026-07-04.
-База: `dev` и исходный gap-анализ `nornikel-gap-analysis.md`.
-Цель: закрыть все выявленные разрывы FE/BE/DB/ML без live model calls и без смешивания независимых работ в одну большую ветку.
+Документ задаёт порядок закрытия разрывов реализации ScientificTangle / НорСинтез для трёх технических специалистов:
 
-## 0. Роли и границы
-
-В работе участвуют 5 человек:
-
-- `Databases` — PostgreSQL, Alembic, MinIO, Neo4j, Qdrant, seed/reset, индексы, data lifecycle, audit storage.
-- `Backend/ML` — gateway/orchestrator API, model/retrieval integration в offline/mock режиме, contracts, eval, gold dataset, e2e fixtures.
+- `Databases` — PostgreSQL, Alembic, MinIO, Neo4j, Qdrant, seed/reset, data lifecycle, audit storage.
+- `Backend/ML` — gateway/orchestrator APIs, retrieval/model wiring в offline режимах, shared contracts, eval, gold dataset.
 - `Frontend` — UI pages, stores, API clients, source viewer, chat UX, admin/audit/export/notification screens.
-- `Validator` — отдельный проверяющий между этапами. Он не берёт feature work роли, а проверяет merged `dev`, заводит маленькие fix cards, если этап не закрыт.
-- `External Orchestrator Refactor Owner` — отдельный человек вне этого плана. Он занимается расформированием god object в `services/orchestrator/app/service/service.py`. Остальные роли не трогают этот рефакторинг и не начинают крупное дробление orchestrator service.
 
-`Backend/ML` — роль, которой нужен весь dataset. Она отвечает за расширенный offline gold dataset, expected `SourceSpan`, official scenarios, reviewed fixtures и no-live eval reports. Live модели не используются: ни Yandex, ни другие внешние inference endpoints.
+Отдельно работает `Validator`: он проверяет `dev` между этапами, закрывает только мелкие интеграционные дефекты этапа и не берёт feature work ролей.
 
-## 1. Жёсткие ограничения
+Пятая роль вне этого плана — `External Orchestrator Refactor Owner`. Он расформировывает god object в `services/orchestrator/app/service/service.py`. Роли этого плана не трогают этот рефакторинг и не делают крупное дробление orchestrator service.
 
-- Следовать `AGENTS.md` и `docs/agent_context/task_router.md`.
-- Работать только в `feat/*`; `dev` не менять локальными merge.
-- Перед карточкой: `git fetch origin`; ветку создавать от свежего `origin/dev` или rebase feature-ветки на `origin/dev`.
-- Следующий этап начинается только после merge в `dev` всех PR трёх ролей текущего этапа и PR валидатора этого этапа.
-- В рамках одного этапа `Databases`, `Backend/ML` и `Frontend` работают независимо.
-- Если задача зависит от ещё не смерженной ветки другой роли, агент останавливается и пишет dependency.
-- Если работа требует изменения shared contracts, public API, миграций, ontology или security, это допустимо только если карточка прямо говорит об этом.
-- `README.md` не менять без отдельного запроса.
-- В коде не добавлять комментарии, кроме форматов/генераторов/миграций/линтеров/юридических требований.
+`Backend/ML` — роль, которой нужен весь dataset. Она отвечает за расширенный offline gold dataset, reviewed expected `SourceSpan`, official scenarios, gap/conflict fixtures и no-live eval reports.
+
+План рассчитан на работу через отдельных агентов в новых чатах. Один чат берёт одну карточку: конкретный этап и конкретную роль.
+
+## Общий протокол
+
+- Каждый агент начинает с `AGENTS.md`, `docs/agent_context/task_router.md` и этого файла.
+- Перед работой агент выполняет `git fetch origin`; рабочая база — свежий `origin/dev`.
+- Каждая техническая карточка выполняется в отдельной ветке `feat/nornikel-e<N>-<role>-<slug>`.
+- Валидатор этапа работает в ветке `feat/nornikel-e<N>-validator` только после merge PR ролей этапа в `dev`.
+- Агент делает минимальный scope, прогоняет релевантные проверки, коммитит и пушит ветку.
+- Агент не мержит в `dev`; интеграция идёт через PR на GitHub.
+- Следующий этап начинается только после merge в `dev` всех PR трёх ролей и PR валидатора предыдущего этапа.
+- Если карточка требует ещё не смерженных изменений другой роли, она останавливается и фиксирует dependency вместо обходного решения.
+- Если задача требует live model call, она останавливается и фиксирует `blocked_by_policy`.
+- В этапы E0-E7 не включать Yandex live smoke, live eval, live latency p95 claims и generated live answer quality.
 - Не хардкодить demo-ответы, official answers или факты без `SourceSpan`.
-- Не использовать live model calls. Все model-related проверки должны быть deterministic/offline/mock.
+- Не менять `README.md` без явного запроса.
 
-Запрещено до отдельного финального разрешения:
-
-```powershell
-$env:RUN_MODEL_TESTS='1'; python scripts/run_tests.py
-make eval-yandex-live
-make test-yandex-live
-python scripts/yandex_live_smoke.py
-python scripts/eval_yandex_live.py
-```
-
-Если команда или тест внезапно требует live model, агент останавливает эту часть и пишет `blocked_by_policy`.
-
-## 2. Шаблон промпта для трёх технических ролей
+Шаблон команды для новой технической карточки:
 
 ```text
 Следуй AGENTS.md и docs/agent_context/task_router.md.
 
-Выполни C:\Users\petro\Downloads\Telegram Desktop\nornikel-gap-analysis.md:
+Выполни docs/agent_context/nornikel_parallel_execution_plan.md:
 - этап: E<N>
-- роль: <Databases | Backend/ML | Frontend>
+- роль: <Databases|Backend/ML|Frontend>
 - ветка: feat/nornikel-e<N>-<db|bml|fe>-<slug>
 
-Работай только в рамках своей карточки.
+Работай только в рамках этой карточки.
 Не бери задачи других ролей и следующих этапов.
-Не трогай рефакторинг god object в services/orchestrator/app/service/service.py: это работа External Orchestrator Refactor Owner.
+Не трогай рефакторинг god object в services/orchestrator/app/service/service.py.
 Не используй live models. Если проверка требует live model call, останови эту часть и пометь blocked_by_policy.
 Если задача зависит от несмёрженного PR другой роли, остановись и явно напиши dependency.
 
@@ -69,120 +56,89 @@ python scripts/eval_yandex_live.py
 - в dev не мержи
 ```
 
-Пример:
+Шаблон команды для валидатора:
 
 ```text
 Следуй AGENTS.md и docs/agent_context/task_router.md.
 
-Выполни C:\Users\petro\Downloads\Telegram Desktop\nornikel-gap-analysis.md:
-- этап: E2
-- роль: Backend/ML
-- ветка: feat/nornikel-e2-bml-gold-dataset
-
-Работай только в рамках своей карточки.
-Не бери задачи других ролей и следующих этапов.
-Не трогай рефакторинг god object в services/orchestrator/app/service/service.py.
-Не используй live models.
-Если задача зависит от несмёрженного PR другой роли, остановись и явно напиши dependency.
-
-Перед работой:
-- git fetch origin
-- создай ветку от свежего origin/dev или rebase текущую feature-ветку на origin/dev
-
-После реализации:
-- прогони релевантные проверки
-- сделай коммит одной строкой на русском в формате `feat: сделано то-то`
-- push своей feat-ветки
-- в dev не мержи
-```
-
-## 3. Шаблон промпта для валидатора
-
-```text
-Следуй AGENTS.md и docs/agent_context/task_router.md.
-
-Проверь C:\Users\petro\Downloads\Telegram Desktop\nornikel-gap-analysis.md:
+Проверь docs/agent_context/nornikel_parallel_execution_plan.md:
 - этап: E<N>
 - роль: Validator
 - ветка: feat/nornikel-e<N>-validator
 
-Работай только после того, как PR ролей Databases, Backend/ML и Frontend для этапа E<N> смержены в dev.
+Работай только после merge в dev PR ролей Databases, Backend/ML и Frontend для этапа E<N>.
 Начни от свежего origin/dev.
 Не бери feature work следующего этапа.
 Не используй live models. Все live quality checks пометь blocked_by_policy.
 Не трогай рефакторинг god object в services/orchestrator/app/service/service.py.
 
-Что сделать:
-- проверить acceptance criteria этапа;
-- прогнать минимальные релевантные проверки;
-- составить validation report в docs/agent_context/;
-- если есть маленькие интеграционные дефекты этапа, исправить только их;
-- если дефект требует отдельной роли или следующего этапа, зафиксировать blocker/dependency.
-
 После проверки:
+- составь validation report в docs/agent_context/
+- исправь только мелкие интеграционные дефекты текущего этапа
+- если дефект требует отдельной роли или следующего этапа, зафиксируй blocker/dependency
 - сделай коммит одной строкой на русском в формате `feat: проверен этап E<N>`
 - push ветки
 - в dev не мержи
 ```
 
-## 4. Карта этапов и веток
+## Этапы и merge gates
 
-| Этап | Databases | Backend/ML | Frontend | Validator gate |
+| Этап | Databases | Backend/ML | Frontend | Gate перед следующим этапом |
 |---|---|---|---|---|
-| E0. Baseline и freeze | `feat/nornikel-e0-db-baseline` | `feat/nornikel-e0-bml-contract-audit` | `feat/nornikel-e0-fe-ui-audit` | `feat/nornikel-e0-validator` |
-| E1. Persistent foundations | `feat/nornikel-e1-db-core-storage` | `feat/nornikel-e1-bml-core-api-contracts` | `feat/nornikel-e1-fe-api-foundation` | `feat/nornikel-e1-validator` |
-| E2. Dataset, sources, review | `feat/nornikel-e2-db-review-source-data` | `feat/nornikel-e2-bml-gold-dataset` | `feat/nornikel-e2-fe-review-source-ui` | `feat/nornikel-e2-validator` |
-| E3. User workflows | `feat/nornikel-e3-db-workflow-state` | `feat/nornikel-e3-bml-workflow-wiring` | `feat/nornikel-e3-fe-workflows` | `feat/nornikel-e3-validator` |
-| E4. Evidence, RBAC, search | `feat/nornikel-e4-db-evidence-access` | `feat/nornikel-e4-bml-evidence-retrieval` | `feat/nornikel-e4-fe-evidence-access` | `feat/nornikel-e4-validator` |
-| E5. Export, notifications, audit | `feat/nornikel-e5-db-product-events` | `feat/nornikel-e5-bml-export-notifications` | `feat/nornikel-e5-fe-export-notifications` | `feat/nornikel-e5-validator` |
-| E6. Offline quality and CI | `feat/nornikel-e6-db-seed-reliability` | `feat/nornikel-e6-bml-offline-quality` | `feat/nornikel-e6-fe-e2e-hardening` | `feat/nornikel-e6-validator` |
-| E7. Production polish | `feat/nornikel-e7-db-ops-docs` | `feat/nornikel-e7-bml-runbooks` | `feat/nornikel-e7-fe-polish` | `feat/nornikel-e7-validator` |
+| E0. Baseline и аудит | `feat/nornikel-e0-db-baseline` | `feat/nornikel-e0-bml-contract-audit` | `feat/nornikel-e0-fe-ui-audit` | `feat/nornikel-e0-validator` merged в `dev` |
+| E1. Storage и API foundation | `feat/nornikel-e1-db-core-storage` | `feat/nornikel-e1-bml-core-api-contracts` | `feat/nornikel-e1-fe-api-foundation` | Core storage/contracts/UI adapters merged |
+| E2. Dataset, SourceSpan, Review | `feat/nornikel-e2-db-review-source-data` | `feat/nornikel-e2-bml-gold-dataset` | `feat/nornikel-e2-fe-review-source-ui` | Dataset/source/review foundation validated |
+| E3. User workflows | `feat/nornikel-e3-db-workflow-state` | `feat/nornikel-e3-bml-workflow-wiring` | `feat/nornikel-e3-fe-workflows` | Interests/notifications/delete/admin/review smoke validated |
+| E4. Evidence, RBAC, Search | `feat/nornikel-e4-db-evidence-access` | `feat/nornikel-e4-bml-evidence-retrieval` | `feat/nornikel-e4-fe-evidence-access` | Evidence/source/access/search/dictionaries validated |
+| E5. Export, Notifications, Audit | `feat/nornikel-e5-db-product-events` | `feat/nornikel-e5-bml-export-notifications` | `feat/nornikel-e5-fe-export-notifications` | Export/notification/audit product flows validated |
+| E6. Offline quality и CI | `feat/nornikel-e6-db-seed-reliability` | `feat/nornikel-e6-bml-offline-quality` | `feat/nornikel-e6-fe-e2e-hardening` | No-live quality/e2e gate validated |
+| E7. Production polish | `feat/nornikel-e7-db-ops-docs` | `feat/nornikel-e7-bml-runbooks` | `feat/nornikel-e7-fe-polish` | Final no-live readiness report merged |
 
-## 5. E0. Baseline и freeze
+## E0. Baseline и аудит
 
-Цель: зафиксировать реальное состояние, не начать исправления поверх спорных контрактов и разнести gaps по владельцам.
+Цель этапа — зафиксировать текущее состояние и разнести gaps по владельцам, не меняя production behavior.
 
-### Databases
+### Databases: storage baseline
 
 Ветка: `feat/nornikel-e0-db-baseline`.
 
-Сделать:
+Что сделать:
 
 - Проверить migrations, seed/reset scripts, PostgreSQL schemas, MinIO buckets, Neo4j labels/indexes, Qdrant collections.
 - Зафиксировать, какие таблицы/коллекции нужны для review, interests, notifications, export jobs, document deletion, audit pagination.
-- Найти existing migrations, которые уже закрывают parts of `UserInterest`, `ExportJob`, audit, review state.
+- Найти existing migrations, которые уже закрывают части `UserInterest`, `ExportJob`, audit и review state.
 - Не добавлять новые migrations на этом этапе, если можно ограничиться аудитом.
 
 Выход:
 
 - DB baseline report в `docs/agent_context/`.
-- Список storage gaps по каждой фиче: review, interests, notifications, delete, export, admin save, audit, source spans.
+- Список storage gaps по фичам: review, interests, notifications, delete, export, admin save, audit, source spans.
 
-### Backend/ML
+### Backend/ML: contract and dataset audit
 
 Ветка: `feat/nornikel-e0-bml-contract-audit`.
 
-Сделать:
+Что сделать:
 
 - Проверить `shared/contracts`, gateway/orchestrator APIs, model offline endpoints, retrieval/source/export/notification endpoints.
-- Зафиксировать, какие DTO уже есть и каких не хватает: `ReviewDecisionPayload`, interests payloads, notification match payload, delete result, export job payload, eval report payload, source payload with highlight fields.
-- Проверить official questions, `eval/gold_questions.json`, `eval/pinned_demo_artifact.json`, `demo/official_questions.md`.
+- Зафиксировать missing DTO: `ReviewDecisionPayload`, interests payloads, notification match payload, delete result, export job payload, eval report payload, source payload highlight fields.
+- Проверить `demo/official_questions.md`, `eval/gold_questions.json`, `eval/pinned_demo_artifact.json`, `eval/regression_suites.json`.
 - Пометить все live model gates как `blocked_by_policy`.
-- Определить список задач, где нужен весь dataset. Владельцем назначить `Backend/ML`.
+- Определить список работ, где нужен полный dataset; владельцем этих работ является `Backend/ML`.
 
 Выход:
 
 - Contract/API/eval baseline report.
 - Dataset access checklist для E2: где лежит полный corpus, как reviewить expected `SourceSpan`, какие файлы нельзя коммитить.
 
-### Frontend
+### Frontend: UI baseline
 
 Ветка: `feat/nornikel-e0-fe-ui-audit`.
 
-Сделать:
+Что сделать:
 
 - Проверить routes, stores, API clients, mock/live boundaries, RoleSwitcher, source resolver, NotificationBell, ExportPanel, AdminPage, ProfilePage, EvaluationDashboard, UploadPage, SearchPage, GraphPage, Lab/GapConflict views.
-- Найти все direct imports из `api/mock/` в production components.
+- Найти direct imports из `api/mock/` в production components.
 - Зафиксировать missing pages/components: `ReviewConsole`, dictionary version manager, ingestion queue, eval report dashboard, source highlight states.
 - Не удалять mock layer на E0.
 
@@ -195,35 +151,29 @@ python scripts/eval_yandex_live.py
 
 Ветка: `feat/nornikel-e0-validator`.
 
-Проверить:
+Что проверить:
 
 - Все три baseline report merged в `dev`.
 - Нет live model claims.
 - Есть единая таблица gaps и owners.
 - Нет изменений production behavior без необходимости.
 
-Минимальные проверки:
+Выход:
 
-- `git diff --check`.
-- Проверка markdown links/paths вручную через `rg`.
+- Validation report E0.
+- Список blockers для E1, если baseline неполный.
 
-## 6. E1. Persistent foundations
+## E1. Storage и API foundation
 
-Цель: заложить storage/API/UI основы для фич с худшей связкой: interests, notifications, delete, admin save, export, review.
+Цель этапа — заложить storage/API/UI основы для фич с худшей связкой: interests, notifications, delete, admin save, export и review.
 
-### Databases
+### Databases: core storage
 
 Ветка: `feat/nornikel-e1-db-core-storage`.
 
-Сделать:
+Что сделать:
 
-- Добавить или довести migrations для:
-  - `review_decisions`;
-  - user interests and extracted entities, если их нет в нужной форме;
-  - notification references: `reference_id`, `reference_type`, `type`, `status`, `read_at`;
-  - export jobs/artifacts, если выбран async export path;
-  - audit cursor fields/indexes;
-  - document deletion state/tombstone, если нужен safe cascade.
+- Добавить или довести migrations для `review_decisions`, user interests, extracted entities, notification references, export jobs/artifacts, audit cursor fields, document deletion state/tombstone.
 - Добавить индексы под filters: user/status/date/type, document_id, source_span_id, export job owner.
 - Обеспечить idempotent seed/reset для новых таблиц.
 - Не менять ontology и security без явного решения.
@@ -232,22 +182,15 @@ python scripts/eval_yandex_live.py
 
 - Alembic migrations.
 - DB tests или migration smoke.
-- Документ с ownership: какая таблица принадлежит какому сервису.
+- Документ ownership: какая таблица принадлежит какому сервису.
 
-### Backend/ML
+### Backend/ML: core API contracts
 
 Ветка: `feat/nornikel-e1-bml-core-api-contracts`.
 
-Сделать:
+Что сделать:
 
-- Добавить минимальные backward-compatible contracts для:
-  - interests `GET/PUT`;
-  - notification list/mark/read/match result;
-  - delete document result;
-  - export request/job/result;
-  - review queue/decision;
-  - eval report summary;
-  - source payload highlight fields.
+- Добавить минимальные backward-compatible contracts для interests `GET/PUT`, notification list/mark/read/match result, delete document result, export request/job/result, review queue/decision, eval report summary, source payload highlight fields.
 - Добавить gateway/orchestrator route skeletons только там, где есть storage foundation.
 - Для model interactions использовать только offline/deterministic/mock path.
 - Зафиксировать, что live quality не проверяется.
@@ -256,21 +199,15 @@ python scripts/eval_yandex_live.py
 
 - Shared contract changes с tests.
 - OpenAPI/gateway contract tests по fixture.
-- No-live model policy в соответствующем agent context report.
+- No-live model policy в `docs/agent_context/`.
 
-### Frontend
+### Frontend: API foundation
 
 Ветка: `feat/nornikel-e1-fe-api-foundation`.
 
-Сделать:
+Что сделать:
 
-- Добавить API clients/helpers:
-  - `api/interests`;
-  - `api/notifications`;
-  - `api/review`;
-  - `api/export`;
-  - `api/admin` PATCH helpers;
-  - delete document helper with proper error mapping.
+- Добавить API clients/helpers для interests, notifications, review, export, admin PATCH и delete document.
 - Подготовить common async states: loading, optimistic update, rollback, toast/error.
 - Подготовить feature flags для server export, live notifications, review console, source live mode.
 - Не подключать UI flows, если backend contracts ещё не merged.
@@ -282,23 +219,29 @@ python scripts/eval_yandex_live.py
 
 ### Validator gate
 
-Проверить:
+Ветка: `feat/nornikel-e1-validator`.
+
+Что проверить:
 
 - Migrations применяются на clean DB.
 - Shared contracts backward-compatible.
 - UI clients не ломают mock mode.
-- `git diff --check`.
-- Релевантные backend contract tests and UI tests.
+- `git diff --check`, релевантные backend contract tests and UI tests.
 
-## 7. E2. Dataset, sources, review
+Выход:
 
-Цель: подготовить полный offline dataset/gold layer, source correctness и review workflow foundation.
+- Validation report E1.
+- Fixes только для мелких integration defects этапа.
 
-### Databases
+## E2. Dataset, SourceSpan, Review
+
+Цель этапа — подготовить полный offline dataset/gold layer, source correctness и review workflow foundation.
+
+### Databases: review and source data
 
 Ветка: `feat/nornikel-e2-db-review-source-data`.
 
-Сделать:
+Что сделать:
 
 - Реализовать review queue storage поверх Neo4j candidates + PG decision state.
 - Подготовить source span lookup indexes and payload fields: `highlight_start`, `highlight_end`, `page`, `table_row_id`.
@@ -311,11 +254,11 @@ python scripts/eval_yandex_live.py
 - Storage/API-ready слой для review/source/delete.
 - DB fixtures для E2/E3.
 
-### Backend/ML
+### Backend/ML: gold dataset
 
 Ветка: `feat/nornikel-e2-bml-gold-dataset`.
 
-Сделать:
+Что сделать:
 
 - Получить доступ ко всему dataset и собрать расширенный offline gold dataset.
 - Для 4 official questions выбрать reviewed expected `SourceSpan` candidates:
@@ -324,32 +267,24 @@ python scripts/eval_yandex_live.py
   - `official-003`: Au/Ag/PGM distribution, matte/slag, last 5 years;
   - `official-004`: mine water injection, Russia/foreign practice, economics.
 - Добавить gap/conflict/review fixtures без обращения к live models.
-- Добавить reason codes for missing/weak/unsupported evidence.
-- Обновить pinned offline artifact only if it contains no generated live answers.
+- Добавить reason codes для missing/weak/unsupported evidence.
+- Обновить pinned offline artifact только если он не содержит generated live answers.
 
 Выход:
 
 - Расширенный `eval/gold_questions.json` или отдельный reviewed fixture file.
-- Dataset report: что покрыто, что candidate, что blocked_by_data.
+- Dataset report: что покрыто, что candidate, что `blocked_by_data`.
 - Offline tests that validate schema and expected source ids presence.
 
-### Frontend
+### Frontend: review and source UI
 
 Ветка: `feat/nornikel-e2-fe-review-source-ui`.
 
-Сделать:
+Что сделать:
 
 - Создать `ReviewConsolePage` и route `/review` behind feature flag.
-- Компоненты:
-  - `CandidateTable`;
-  - `ConflictDiffView`;
-  - `ReviewActionBar`;
-  - filters by type/status/date;
-  - pending/approved/rejected/deferred states.
-- Source viewer:
-  - scroll/highlight by offsets;
-  - locked source state for 403;
-  - table row/cell source rendering.
+- Добавить `CandidateTable`, `ConflictDiffView`, `ReviewActionBar`, filters by type/status/date, pending/approved/rejected/deferred states.
+- Source viewer: scroll/highlight by offsets, locked source state for 403, table row/cell source rendering.
 - Не подключать destructive review actions, если backend endpoint ещё не merged.
 
 Выход:
@@ -359,29 +294,31 @@ python scripts/eval_yandex_live.py
 
 ### Validator gate
 
-Проверить:
+Ветка: `feat/nornikel-e2-validator`.
+
+Что проверить:
 
 - Gold dataset не содержит hardcoded answer text from live models.
 - Expected `SourceSpan` ids есть для official questions или gaps явно marked `blocked_by_data`.
 - Source viewer states covered.
 - Review console открывается только через expected flag/route.
 
-## 8. E3. User workflows
+Выход:
 
-Цель: закрыть реальные пользовательские workflows с худшей связкой: interests, notifications trigger, delete document, admin save, review actions.
+- Validation report E2.
+- Список dataset/source blockers перед E3.
 
-### Databases
+## E3. User workflows
+
+Цель этапа — закрыть реальные пользовательские workflows с худшей связкой: interests, notification trigger, delete document, admin save и review actions.
+
+### Databases: workflow state
 
 Ветка: `feat/nornikel-e3-db-workflow-state`.
 
-Сделать:
+Что сделать:
 
-- Довести persistence для:
-  - interests profile and extracted entities;
-  - notification match results;
-  - review decisions;
-  - document deletion tombstones/cascade status;
-  - admin changes audit records.
+- Довести persistence для interests profile, extracted entities, notification match results, review decisions, document deletion tombstones/cascade status, admin changes audit records.
 - Добавить rollback-safe transaction boundaries для delete/review/admin operations.
 - Добавить cursor pagination для audit/notification lists, если storage готов.
 
@@ -390,54 +327,33 @@ python scripts/eval_yandex_live.py
 - Integration storage tests.
 - Seed data for workflow e2e.
 
-### Backend/ML
+### Backend/ML: workflow wiring
 
 Ветка: `feat/nornikel-e3-bml-workflow-wiring`.
 
-Сделать:
+Что сделать:
 
-- Реализовать:
-  - `GET /api/interests`;
-  - `PUT /api/interests`;
-  - gateway proxy to offline/deterministic model extract;
-  - `GET /api/notifications?since=`;
-  - mark read / mark all read;
-  - ingestion hook for `ingestion_complete`;
-  - offline notification matching without live models;
-  - `DELETE /api/documents/{document_id}`;
-  - `POST /api/review/queue`;
-  - `POST /api/review/decisions`;
-  - admin PATCH response consistency and audit.
-- Delete cascade: MinIO delete, knowledge purge, retrieval deindex, PG cleanup, audit.
-- Review approve/reject must not promote unsupported claims to confirmed without source.
+- Реализовать `GET /api/interests`, `PUT /api/interests`, gateway proxy to offline/deterministic model extract.
+- Реализовать `GET /api/notifications?since=`, mark read, mark all read, ingestion hook for `ingestion_complete`, offline notification matching without live models.
+- Реализовать `DELETE /api/documents/{document_id}` with MinIO delete, knowledge purge, retrieval deindex, PG cleanup and audit.
+- Реализовать `POST /api/review/queue`, `POST /api/review/decisions`, admin PATCH response consistency and audit.
+- Не допускать promotion unsupported claims to confirmed without source.
 
 Выход:
 
 - Backend integration tests for interests, notifications, delete, admin save, review.
 - E2E-ready APIs.
 
-### Frontend
+### Frontend: workflow UI
 
 Ветка: `feat/nornikel-e3-fe-workflows`.
 
-Сделать:
+Что сделать:
 
-- ProfilePage:
-  - load interests from API;
-  - save to API;
-  - show extracted entities from response;
-  - keep localStorage only as explicit mock fallback.
-- NotificationBell:
-  - incremental poll or stream fallback;
-  - click opens source/document by `reference_id` and `reference_type`;
-  - toast/badge for new unread notifications;
-  - i18n titles by `type`, not backend hardcoded text.
-- Upload/Admin:
-  - document delete with optimistic remove and rollback;
-  - 403/404 specific messages;
-  - admin save per row or save all with diff.
-- ReviewConsole:
-  - wire queue and decision actions with rollback.
+- ProfilePage: load interests from API, save to API, show extracted entities from response, keep localStorage only as explicit mock fallback.
+- NotificationBell: incremental poll or stream fallback, click opens source/document by `reference_id` and `reference_type`, toast/badge for new unread notifications, i18n titles by `type`.
+- Upload/Admin: document delete with optimistic remove and rollback, 403/404 specific messages, admin save per row or save all with diff.
+- ReviewConsole: wire queue and decision actions with rollback.
 
 Выход:
 
@@ -446,28 +362,31 @@ python scripts/eval_yandex_live.py
 
 ### Validator gate
 
-Проверить:
+Ветка: `feat/nornikel-e3-validator`.
+
+Что проверить:
 
 - E2E smoke: interests save, notification list, delete document error handling, admin save persistence, review decision.
 - No direct live model calls.
 - No production-only reliance on seed/demo notifications.
 
-## 9. E4. Evidence, RBAC, search
+Выход:
 
-Цель: закрыть evidence-first correctness, source/live boundary, RBAC runtime, dictionaries, upload stages and search filters.
+- Validation report E3.
+- Список blockers перед evidence/access этапом.
 
-### Databases
+## E4. Evidence, RBAC, Search
+
+Цель этапа — закрыть evidence-first correctness, source/live boundary, RBAC runtime, dictionaries, upload stages и search filters.
+
+### Databases: evidence access
 
 Ветка: `feat/nornikel-e4-db-evidence-access`.
 
-Сделать:
+Что сделать:
 
 - Проверить and index access policy fields for documents/source spans/vectors/claims.
-- Добавить fixtures:
-  - public document;
-  - internal document;
-  - confidential document;
-  - external partner user.
+- Добавить fixtures: public document, internal document, confidential document, external partner user.
 - Убедиться, что Qdrant payload supports numeric/geo/time filters, dictionary version, source type, table rows.
 - Подготовить audit fields for access denied/source opened/search/export.
 
@@ -476,22 +395,15 @@ python scripts/eval_yandex_live.py
 - Access fixture pack.
 - DB/retrieval storage smoke tests.
 
-### Backend/ML
+### Backend/ML: evidence retrieval
 
 Ветка: `feat/nornikel-e4-bml-evidence-retrieval`.
 
-Сделать:
+Что сделать:
 
-- Проверить and complete:
-  - source resolver live path;
-  - `SourcePayload` highlight fields;
-  - 403 with code `access_denied`;
-  - retrieval filters for geo/numeric/time;
-  - search pagination;
-  - dictionary active preflight;
-  - upload task stages and parse warnings;
-  - conflicts in `QueryRunPayload`;
-  - same conflict ids in chat and lab views.
+- Проверить and complete source resolver live path, `SourcePayload` highlight fields, 403 with code `access_denied`.
+- Проверить retrieval filters for geo/numeric/time, search pagination, dictionary active preflight, upload task stages and parse warnings.
+- Добавить conflicts in `QueryRunPayload` и same conflict ids in chat and lab views.
 - Ensure access filtering happens before synthesis and before export.
 - For official questions run only offline QueryIR/retrieval/source checks.
 
@@ -500,16 +412,16 @@ python scripts/eval_yandex_live.py
 - Tests for access leak, source resolve, search filters, dictionary preflight, upload stages.
 - Offline retrieval quality report with channel contribution: vector, lexical, table, graph, numeric, geo, time.
 
-### Frontend
+### Frontend: evidence and access UI
 
 Ветка: `feat/nornikel-e4-fe-evidence-access`.
 
-Сделать:
+Что сделать:
 
 - Убрать direct `api/mock/` imports из production components; оставить mock только behind resolver/test boundary.
-- Source refs через `useSourceResolver` / live adapter.
-- RoleSwitcher только dev + mock; route guards by real auth role.
-- SourcePanel locked state for 403.
+- Source refs перевести на `useSourceResolver` / live adapter.
+- RoleSwitcher оставить только dev + mock; route guards строить по real auth role.
+- Добавить SourcePanel locked state for 403.
 - Search filters: geo, year range, numeric, pagination/infinite scroll.
 - Admin dictionaries tab: list versions, active badge, activate button.
 - Upload stepper from `task.stages[]`, parse warnings.
@@ -522,22 +434,29 @@ python scripts/eval_yandex_live.py
 
 ### Validator gate
 
-Проверить:
+Ветка: `feat/nornikel-e4-validator`.
+
+Что проверить:
 
 - `VITE_USE_MOCK=false` smoke.
 - external partner source/search/export access filtering.
 - grep rule: no `api/mock` in production components except tests/dev boundary.
 - dictionary upload/activate/query warning flow.
 
-## 10. E5. Export, notifications, audit
+Выход:
 
-Цель: сделать export/notification/audit честными product features, а не UI/service stubs.
+- Validation report E4.
+- Список evidence/access regressions перед E5.
 
-### Databases
+## E5. Export, Notifications, Audit
+
+Цель этапа — сделать export, notification и audit честными product features, а не UI/service stubs.
+
+### Databases: product events
 
 Ветка: `feat/nornikel-e5-db-product-events`.
 
-Сделать:
+Что сделать:
 
 - Finalize export jobs/artifacts storage or document orchestrator-owned export storage.
 - Add MinIO bucket metadata for exports if backend chooses stored artifacts.
@@ -550,70 +469,34 @@ python scripts/eval_yandex_live.py
 - DB support for export/audit/notification product flows.
 - Migration and storage tests.
 
-### Backend/ML
+### Backend/ML: export and notifications
 
 Ветка: `feat/nornikel-e5-bml-export-notifications`.
 
-Сделать:
+Что сделать:
 
-- Выбрать and document authoritative export boundary:
-  - short-term: orchestrator-owned export; or
-  - full: `services/export` with jobs and MinIO artifacts.
-- Server export:
-  - Markdown;
-  - JSON;
-  - JSON-LD status explicit;
-  - PDF status explicit;
-  - evidence table;
-  - source links;
-  - graph;
-  - gaps/conflicts;
-  - confidence/warnings;
-  - `QueryIR`;
-  - `retrieval_trace`;
-  - user role/access scope;
-  - audit event.
-- Notifications:
-  - real event source from ingestion/review/query conflicts;
-  - no seed-only production behavior;
-  - `GET /notifications?since=`;
-  - controlled no-live matching.
-- Audit:
-  - `query_created`;
-  - `answer_generated`;
-  - `source_opened`;
-  - `document_uploaded`;
-  - `document_deleted`;
-  - `document_exported`;
-  - `review_decision`;
-  - `access_denied`;
-  - `admin_setting_changed`.
+- Выбрать and document authoritative export boundary: short-term orchestrator-owned export or full `services/export` with jobs and MinIO artifacts.
+- Server export должен включать Markdown, JSON, explicit JSON-LD/PDF status, evidence table, source links, graph, gaps/conflicts, confidence/warnings, `QueryIR`, `retrieval_trace`, user role/access scope, audit event.
+- Notifications: real event source from ingestion/review/query conflicts, no seed-only production behavior, `GET /notifications?since=`, controlled no-live matching.
+- Audit events: `query_created`, `answer_generated`, `source_opened`, `document_uploaded`, `document_deleted`, `document_exported`, `review_decision`, `access_denied`, `admin_setting_changed`.
 
 Выход:
 
 - Export/notification/audit integration tests.
 - Boundary decision documented in `docs/agent_context/`.
 
-### Frontend
+### Frontend: export and notification UI
 
 Ветка: `feat/nornikel-e5-fe-export-notifications`.
 
-Сделать:
+Что сделать:
 
 - ExportPanel uses `POST /api/export` in production.
 - Add JSON-LD option if backend exposes it; otherwise show unavailable state, not fake export.
 - Poll export job or handle direct download URL.
 - Client-side export only offline fallback behind flag.
-- Notification center:
-  - refresh/poll;
-  - read/unread;
-  - click target;
-  - empty/error states.
-- Audit page:
-  - filters;
-  - pagination;
-  - CSV export;
-  - event drill-down to run/source/document.
+- Notification center: refresh/poll, read/unread, click target, empty/error states.
+- Audit page: filters, pagination, CSV export, event drill-down to run/source/document.
 - EvaluationDashboard reads backend/pinned offline report, not hardcoded analytics.
 
 Выход:
@@ -623,32 +506,31 @@ python scripts/eval_yandex_live.py
 
 ### Validator gate
 
-Проверить:
+Ветка: `feat/nornikel-e5-validator`.
+
+Что проверить:
 
 - Export JSON contains evidence and no restricted sources for external partner.
 - Notification appears after offline-triggered event, not seed-only.
 - Audit events visible with filters/pagination.
 - PDF/JSON-LD are either implemented or honestly marked unavailable/backlog.
 
-## 11. E6. Offline quality and CI
+Выход:
 
-Цель: собрать no-live quality gate, E2E 1-10, clean seed/reset, regression reports.
+- Validation report E5.
+- Список product-flow defects перед E6.
 
-### Databases
+## E6. Offline quality и CI
+
+Цель этапа — собрать no-live quality gate, E2E 1-10, clean seed/reset and regression reports.
+
+### Databases: seed reliability
 
 Ветка: `feat/nornikel-e6-db-seed-reliability`.
 
-Сделать:
+Что сделать:
 
-- Clean reset/reseed gate:
-  - users;
-  - dictionaries;
-  - demo documents;
-  - reviewed fixtures;
-  - graph;
-  - Qdrant;
-  - MinIO;
-  - notification/export/audit seed where appropriate.
+- Clean reset/reseed gate для users, dictionaries, demo documents, reviewed fixtures, graph, Qdrant, MinIO, notification/export/audit seed where appropriate.
 - Add counts report: documents, tables, `SourceSpan`, claims, vectors, graph nodes, dictionary versions.
 - Verify backup/restore scope for PostgreSQL, Neo4j, Qdrant, MinIO.
 
@@ -657,51 +539,28 @@ python scripts/eval_yandex_live.py
 - Repeatable seed report.
 - Backup/restore gap report.
 
-### Backend/ML
+### Backend/ML: offline quality
 
 Ветка: `feat/nornikel-e6-bml-offline-quality`.
 
-Сделать:
+Что сделать:
 
-- No-live official scenario suite:
-  - QueryIR constraints;
-  - retrieval evidence;
-  - expected `SourceSpan` presence;
-  - access filtering;
-  - source resolve;
-  - export completeness;
-  - audit events.
-- Run or fix offline quality gates:
-  - `eval/demo_quality_gate.py`;
-  - regression suites that do not call live models;
-  - E2E official questions smoke if it can run offline.
-- Create final offline quality report:
-  - pass/warn/fail;
-  - `blocked_by_policy` for live answer quality and latency;
-  - `blocked_by_data` if reviewed source expectations still incomplete.
+- No-live official scenario suite: QueryIR constraints, retrieval evidence, expected `SourceSpan` presence, access filtering, source resolve, export completeness, audit events.
+- Run or fix offline quality gates: `eval/demo_quality_gate.py`, regression suites that do not call live models, E2E official questions smoke if it can run offline.
+- Create final offline quality report with pass/warn/fail, `blocked_by_policy` for live answer quality and latency, `blocked_by_data` for incomplete reviewed source expectations.
 
 Выход:
 
 - Offline readiness report.
 - CI/e2e jobs or Makefile targets for no-live gates.
 
-### Frontend
+### Frontend: e2e hardening
 
 Ветка: `feat/nornikel-e6-fe-e2e-hardening`.
 
-Сделать:
+Что сделать:
 
-- Playwright/Cypress or existing e2e coverage for:
-  - interests save;
-  - upload and task stages;
-  - notification click to source;
-  - source viewer highlight/403;
-  - export;
-  - admin save;
-  - review decision;
-  - search filters;
-  - dictionary activate;
-  - audit filtering.
+- Add Playwright/Cypress or existing e2e coverage for interests save, upload stages, notification click to source, source viewer highlight/403, export, admin save, review decision, search filters, dictionary activate, audit filtering.
 - UI production build with `VITE_USE_MOCK=false`.
 - Disable simulated lifecycle when real backend mode is active.
 - Streaming flags: default prod behavior documented; fallback to non-streaming if stream unavailable.
@@ -713,32 +572,34 @@ python scripts/eval_yandex_live.py
 
 ### Validator gate
 
-Проверить:
+Ветка: `feat/nornikel-e6-validator`.
+
+Что проверить:
 
 - `ruff check shared services scripts tests`.
-- `$env:COVERAGE='1'; $env:COVERAGE_FAIL_UNDER='60'; python scripts/run_tests.py` if feasible.
+- `$env:COVERAGE='1'; $env:COVERAGE_FAIL_UNDER='60'; python scripts/run_tests.py`, если feasible.
 - `cd ui; npm ci; npm test; npm run build; npm run lint`.
 - No-live e2e target.
 - `python eval/demo_quality_gate.py` without live models.
 - Any skipped command has explicit reason.
 
-## 12. E7. Production polish
+Выход:
 
-Цель: убрать demo-only хвосты, синхронизировать docs/runbooks и подготовить финальный handoff.
+- Validation report E6.
+- Итоговый список open no-live blockers.
 
-### Databases
+## E7. Production polish
+
+Цель этапа — убрать demo-only хвосты, синхронизировать docs/runbooks и подготовить финальный handoff.
+
+### Databases: ops docs
 
 Ветка: `feat/nornikel-e7-db-ops-docs`.
 
-Сделать:
+Что сделать:
 
 - Document database ownership, migrations, backup/restore, seed/reset, retention.
-- Add runbook for common DB failures:
-  - migration fail;
-  - Qdrant empty;
-  - Neo4j unavailable;
-  - MinIO missing object;
-  - stale dictionary.
+- Add runbook for migration fail, Qdrant empty, Neo4j unavailable, MinIO missing object, stale dictionary.
 - Verify cleanup policies for deleted docs and export artifacts.
 
 Выход:
@@ -746,44 +607,31 @@ python scripts/eval_yandex_live.py
 - DB/ops docs in `docs/agent_context/`.
 - No structure drift.
 
-### Backend/ML
+### Backend/ML: runbooks
 
 Ветка: `feat/nornikel-e7-bml-runbooks`.
 
-Сделать:
+Что сделать:
 
-- Operator runbook:
-  - clean setup;
-  - seed;
-  - health;
-  - offline eval;
-  - no-live restrictions;
-  - where reports live;
-  - how to interpret blocked_by_policy.
-- Production readiness summary:
-  - P0 closed/open;
-  - P1 risks;
-  - export/notification boundary;
-  - live model final step explicitly deferred.
+- Operator runbook: clean setup, seed, health, offline eval, no-live restrictions, where reports live, how to interpret `blocked_by_policy`.
+- Production readiness summary: P0 closed/open, P1 risks, export/notification boundary, live model final step explicitly deferred.
 - Coordinate with External Orchestrator Refactor Owner only by documenting dependency, not by refactoring `service.py`.
 
 Выход:
 
 - Runbook and final readiness report.
+- Honest no-live readiness status.
 
-### Frontend
+### Frontend: polish
 
 Ветка: `feat/nornikel-e7-fe-polish`.
 
-Сделать:
+Что сделать:
 
 - Empty/error/degraded states across pages.
 - Global service health indicator from `/health/all` or current health endpoint.
 - PWA manifest, OG meta, logo alt for `НорСинтез`.
-- Mobile/desktop smoke polish:
-  - no overlapping text;
-  - no layout shifts in chat/source/export/review;
-  - warnings/gaps/conflicts visible.
+- Mobile/desktop smoke polish: no overlapping text, no layout shifts in chat/source/export/review, warnings/gaps/conflicts visible.
 - Remove user-facing fake/demo labels unless explicitly dev-only.
 
 Выход:
@@ -793,16 +641,39 @@ python scripts/eval_yandex_live.py
 
 ### Validator gate
 
-Проверить:
+Ветка: `feat/nornikel-e7-validator`.
+
+Что проверить:
 
 - Docs updated only where needed; if repo structure changed, update `docs/agent_context/project_structure.md`.
 - No `README.md` changes unless explicitly requested.
 - Final no-live readiness status is honest.
 - Live model tasks are not included except as final deferred section.
 
-## 13. Known feature coverage mapping
+Выход:
 
-Этот план закрывает все пункты исходного gap-analysis:
+- Final validation report.
+- Список deferred live-model tasks after E7.
+
+## Что не входит в E0-E7
+
+Эти задачи запрещено брать в рамках этого плана:
+
+- live model eval;
+- Yandex live smoke;
+- live latency p95 claims;
+- generated final answer quality from external models;
+- large orchestrator god object refactor in `services/orchestrator/app/service/service.py`.
+
+После E7 и отдельного разрешения можно создать новый финальный live-model plan:
+
+- run live eval;
+- compare offline vs live reports;
+- update `eval/reports/`;
+- mark live quality gates pass/warn/fail;
+- only then claim live answer quality.
+
+## Покрытие gaps исходного анализа
 
 | Gap | Где закрывается |
 |---|---|
@@ -829,32 +700,14 @@ python scripts/eval_yandex_live.py
 | UI shell | E7 health/error states |
 | Branding | E7 PWA/OG/alt/user-facing naming |
 
-## 14. Minimal quality gate for every technical card
+## Минимальный quality gate для каждой карточки
 
 - `git diff --check`.
-- `git status -sb` before commit.
-- Relevant unit/integration/UI tests for touched area.
-- If migrations changed: migration apply/rollback or documented migration smoke.
-- If contracts changed: contract/schema tests.
-- If UI changed: `npm test` or targeted test, plus `npm run build` when feasible.
-- If tests are skipped: final answer must state exact reason.
-- Commit one Russian line: `feat: сделано то-то`.
-- Push only own `feat/*` branch. After rebase use `--force-with-lease` only for own feature branch.
-
-## 15. Final deferred work outside this plan
-
-Не включать в этапы E0-E7:
-
-- live model eval;
-- Yandex live smoke;
-- live latency p95 claims;
-- generated final answer quality from external models;
-- large orchestrator god object refactor in `services/orchestrator/app/service/service.py`.
-
-После E7 и отдельного разрешения можно создать новый финальный live-model plan:
-
-- run live eval;
-- compare offline vs live reports;
-- update `eval/reports/`;
-- mark live quality gates pass/warn/fail;
-- only then claim live answer quality.
+- `git status -sb` перед коммитом.
+- Релевантные unit/integration/UI тесты по затронутой зоне.
+- Если migrations changed: migration apply/rollback or documented migration smoke.
+- Если contracts changed: contract/schema tests.
+- Если UI changed: targeted UI tests and `npm run build`, когда feasible.
+- Если тесты не запускались, агент обязан написать причину в финальном ответе.
+- Коммит одной строкой на русском в формате `feat: сделано то-то`.
+- Push только своей `feat/*` ветки; после rebase — только `--force-with-lease` и только для своей feature-ветки.
