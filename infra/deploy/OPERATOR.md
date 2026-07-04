@@ -99,11 +99,70 @@ cat infra/deploy/credentials.txt
 
 ## 6. Проверка
 
+Одна команда — полная диагностика стенда:
+
+```bash
+chmod +x scripts/cloud_verify.sh
+./scripts/cloud_verify.sh
+```
+
+Скрипт показывает: `compose ps`, `/api/health` и `/api/health/all`, счётчики Postgres (ingestion, indexed documents, source spans), объекты MinIO `source-files`, `points_count` в Qdrant, проверку периметра (internal routes → 404), smoke export/eval и поиск.
+
+Для HTTPS-стенда:
+
+```bash
+./scripts/cloud_verify.sh --https --base-url https://ВАШ_IP/
+```
+
+Ручные проверки (если нужны отдельно):
+
 ```bash
 curl -fsS http://127.0.0.1/api/health
 curl -fsS http://127.0.0.1/api/health/all
 docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloud.yml -f docker-compose.cloud.http.yml ps
 ```
+
+### Что считать нормой
+
+| Проверка | Норма |
+|----------|-------|
+| `/api/health` | HTTP 200 |
+| `/api/health/all` | `status: ok` |
+| `/model/v1/status`, `/retrieval/health` снаружи | HTTP 404 |
+| `indexed_documents` | > 0 после загрузки корпуса |
+| `source_span_lookup` | > 0 |
+| Qdrant `points_count` | > 0 |
+| `/api/search` | `total_found > 0` при загруженном корпусе |
+
+Пустые counts при `--no-demo` до batch ingestion — ожидаемо (скрипт покажет WARN, не FAIL).
+
+## 7. Recovery runbook
+
+Если поиск/чат без источников или UI «не видит» датасет:
+
+1. **Не делать** `down -v` без явной необходимости — volumes могут содержать нужные данные.
+2. **Не запускать** `scripts/seed_demo.py` на полном корпусе одним запросом — лимит upload 100 MB, будет `413`.
+3. Проверить, есть ли файлы на диске VM:
+
+```bash
+du -sh ~/ScientificTangle/demo/seed_data/yandex_disk_corpus
+find ~/ScientificTangle/demo/seed_data/yandex_disk_corpus -type f | wc -l
+```
+
+4. Файлы на диске ≠ данные в приложении. Корпус нужно отправить через `/api/documents/upload` batch-ами (см. Task B: `scripts/seed_corpus_batches.py` после merge) или маленькими пачками через UI Upload.
+5. После каждой пачки:
+
+```bash
+./scripts/cloud_verify.sh --skip-search
+```
+
+6. Если `ingestion_tasks` в статусе `failed` — смотреть `error_message`:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloud.yml -f docker-compose.cloud.http.yml exec -T postgres psql -U st_user -d scientific_tangle -c "select id,status,error_message from ingestion_tasks order by created_at desc limit 5;"
+```
+
+7. Периметр: снаружи internal prefixes (`/model`, `/retrieval`, `/orchestrator`, `/ingestion`, `/knowledge`) должны отдавать 404. HTTP cloud использует `nginx.cloud.http.conf`; при старом dev nginx — пересоздать nginx: `docker compose ... up -d nginx` после `git pull`.
 
 После cloud deploy не используйте `make up`: это dev-стек. Для cloud-стенда используйте:
 
@@ -111,6 +170,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compos
 make cloud-up
 make cloud-ps
 make cloud-logs SERVICE=nginx
+make cloud-verify
 make cloud-down
 ```
 
@@ -127,7 +187,9 @@ make cloud-down
 |---------|---------|
 | `Health check failed` | `docker compose ... logs gateway auth_audit orchestrator`; подождать 5–10 мин после первого build |
 | Не открывается в браузере | проверить security group: порт 80 открыт; `curl http://127.0.0.1/` на VM |
-| `seed_demo` failed | проверить интернет для скачивания corpus; повторить `python3 scripts/seed_demo.py --api-url http://127.0.0.1/api` |
+| `seed_demo` failed / `413` | полный корпус не влезает в 100 MB; используйте `--no-demo` и batch upload, не один multipart |
+| Корпус на диске, но поиск пустой | файлы не в MinIO/Postgres/Qdrant; см. раздел Recovery runbook, `./scripts/cloud_verify.sh` |
+| `/model` или `/retrieval` доступны снаружи | устаревший dev nginx; `git pull`, `docker compose ... up -d nginx` или deploy с `--https` |
 | LLM не отвечает | добавить `YANDEX_API_KEY` и `YANDEX_FOLDER_ID` в `.env`, `docker compose ... up -d model gateway` |
 | `password authentication failed` или Neo4j unhealthy после старых попыток | старые Docker volumes могли быть созданы с другими паролями; для чистого demo reset выполните `docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloud.yml -f docker-compose.cloud.http.yml down -v` и запустите deploy заново |
 
