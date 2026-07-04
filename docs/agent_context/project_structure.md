@@ -28,9 +28,9 @@
 - `docker-compose.cloud.https.yml` — cloud HTTPS edge: self-signed TLS, порты 80/443.
 - `infra/deploy/OPERATOR.md` — пошаговый cloud deploy: `./scripts/cloud_deploy.sh <IP>`.
 - `infra/deploy/yandex-cloud-init.yaml` — cloud-init для Yandex Cloud.
-- `scripts/generate_cloud_env.py` — генерация `.env` и `infra/deploy/credentials.txt` по IP/домену.
-- `scripts/cloud_deploy.sh` — turnkey deploy: env, keys, compose, seed.
-- `Makefile` — цели сборки и управления: bootstrap, up, prod, prod-demo, up-prod, deploy-cloud, seed, eval и др.
+- `scripts/generate_cloud_env.py` — создание `.env` из `.env.example`, запись публичного IP/домена, Yandex-полей и `infra/deploy/credentials.txt`.
+- `scripts/cloud_deploy.sh` — turnkey deploy: env, keys, cloud compose, seed.
+- `Makefile` — цели сборки и управления: bootstrap, up, prod, prod-demo, up-prod, deploy-cloud, cloud-up, seed, eval и др.
 - `.env.example` — шаблон переменных окружения для копирования в `.env`, включая `INTERNAL_SERVICE_TOKEN` для межсервисных вызовов export/notification.
 
 ### Документация

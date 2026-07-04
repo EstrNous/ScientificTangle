@@ -16,6 +16,7 @@ YANDEX_FOLDER_ID=""
 YANDEX_ENV_FILE=""
 COMPOSE_FILES=()
 WAIT_TIMEOUT="${WAIT_TIMEOUT:-2400}"
+DOCKER_CMD=(docker)
 
 usage() {
   cat <<'EOF'
@@ -152,103 +153,6 @@ env_value() {
   grep -m1 "^${1}=" "$ROOT_DIR/.env" | cut -d= -f2- || true
 }
 
-repair_compose_args() {
-  REPAIR_COMPOSE_ARGS=()
-  local token
-  local expect_file=0
-  for token in "${COMPOSE_FILES[@]}"; do
-    if [[ "$token" == "-f" ]]; then
-      expect_file=1
-      continue
-    fi
-    if [[ "$expect_file" -eq 1 ]]; then
-      REPAIR_COMPOSE_ARGS+=(--compose-file "$token")
-      expect_file=0
-    fi
-  done
-}
-
-run_postgres_repair() {
-  repair_compose_args
-  if [[ "${1:-}" == "sync-only" ]]; then
-    python3 scripts/repair_postgres_env.py --env "$ROOT_DIR/.env" --sync-urls-only
-    return 0
-  fi
-  python3 scripts/repair_postgres_env.py --env "$ROOT_DIR/.env" "${REPAIR_COMPOSE_ARGS[@]}"
-}
-
-compose_container_id() {
-  docker compose "${COMPOSE_FILES[@]}" ps -q "$1" 2>/dev/null | head -1
-}
-
-container_config_env() {
-  local service="$1"
-  local key="$2"
-  local container_id
-  container_id="$(compose_container_id "$service")"
-  if [[ -z "$container_id" ]]; then
-    return 1
-  fi
-  docker inspect "$container_id" --format '{{range .Config.Env}}{{println .}}{{end}}' \
-    | grep -m1 "^${key}=" | cut -d= -f2- || true
-}
-
-auth_env_mismatches() {
-  local key expected actual found=0
-  for key in AUTH_ALLOWED_ORIGINS AUTH_DATABASE_URL; do
-    expected="$(env_value "$key")"
-    if [[ -z "$expected" ]]; then
-      continue
-    fi
-    actual="$(container_config_env auth_audit "$key")"
-    if [[ "$actual" != "$expected" ]]; then
-      found=1
-      printf '%s: expected=%s actual=%s\n' "$key" "$expected" "${actual:-<unset>}"
-    fi
-  done
-  return $((found == 0 ? 0 : 1))
-}
-
-wait_for_auth_healthy() {
-  log "Waiting for auth_audit to become healthy"
-  if ! docker compose "${COMPOSE_FILES[@]}" up -d --wait --wait-timeout "$WAIT_TIMEOUT" auth_audit; then
-    echo "auth_audit failed to become healthy" >&2
-    docker logs st-auth-audit --tail 40 >&2 || true
-    exit 1
-  fi
-}
-
-sync_auth_facing_services() {
-  local auth_services=(auth_audit orchestrator gateway nginx)
-  local attempt details
-
-  for attempt in 1 2; do
-    if [[ "$attempt" -eq 1 ]]; then
-      log "Applying .env to auth-facing services (force-recreate)"
-    else
-      log "Retry: force-recreate auth-facing services"
-    fi
-    docker compose "${COMPOSE_FILES[@]}" up -d --force-recreate "${auth_services[@]}"
-    docker compose "${COMPOSE_FILES[@]}" up -d --wait --wait-timeout "$WAIT_TIMEOUT" "${auth_services[@]}"
-
-    if auth_env_mismatches; then
-      log "auth_audit env matches .env (AUTH_ALLOWED_ORIGINS, AUTH_DATABASE_URL)"
-      wait_for_auth_healthy
-      return 0
-    fi
-
-    details="$(auth_env_mismatches 2>&1 || true)"
-    log "auth_audit env mismatch:"
-    while IFS= read -r line; do
-      [[ -n "$line" ]] && log "  $line"
-    done <<< "$details"
-  done
-
-  echo "auth_audit env still mismatched after recreate" >&2
-  auth_env_mismatches >&2 || true
-  exit 1
-}
-
 require_yandex_for_demo() {
   local key folder
   key="$(env_value YANDEX_API_KEY)"
@@ -272,7 +176,7 @@ EOF
 wait_for_model_yandex() {
   log "Waiting for model service with Yandex credentials"
   for attempt in $(seq 1 60); do
-    if docker compose "${COMPOSE_FILES[@]}" exec -T model python -c "
+    if compose exec -T model python -c "
 import httpx
 response = httpx.get('http://127.0.0.1:8006/v1/status', timeout=10.0)
 response.raise_for_status()
@@ -302,6 +206,41 @@ build_compose_files() {
   fi
 }
 
+docker_cli() {
+  "${DOCKER_CMD[@]}" "$@"
+}
+
+compose() {
+  docker_cli compose "${COMPOSE_FILES[@]}" "$@"
+}
+
+detect_docker_access() {
+  if docker info >/dev/null 2>&1; then
+    DOCKER_CMD=(docker)
+    return 0
+  fi
+  if command -v sudo >/dev/null 2>&1 && sudo docker info >/dev/null 2>&1; then
+    DOCKER_CMD=(sudo docker)
+    return 0
+  fi
+  echo "Docker daemon is not accessible. Try running with sudo or re-login after --install-docker." >&2
+  exit 1
+}
+
+warn_existing_stateful_volumes() {
+  local volume
+  for volume in scientifictangle_pg_data scientifictangle_neo4j_data; do
+    if docker_cli volume inspect "$volume" >/dev/null 2>&1; then
+      cat >&2 <<EOF
+Warning: existing Docker volume detected: $volume
+If this VM was previously deployed with different DB passwords, Postgres/Neo4j may keep old credentials.
+For a clean demo VM, remove old state explicitly before deploy:
+  ${DOCKER_CMD[*]} compose ${COMPOSE_FILES[*]} down -v
+EOF
+    fi
+  done
+}
+
 install_docker_ubuntu() {
   log "Installing Docker (Ubuntu)"
   require_cmd sudo
@@ -323,7 +262,9 @@ fi
 require_cmd docker
 require_cmd python3
 
-if ! docker compose version >/dev/null 2>&1; then
+detect_docker_access
+
+if ! docker_cli compose version >/dev/null 2>&1; then
   echo "docker compose plugin is required" >&2
   exit 1
 fi
@@ -346,13 +287,13 @@ fi
 
 log "Generating .env and credentials for host $HOST"
 python3 scripts/generate_cloud_env.py "${GEN_ARGS[@]}"
-run_postgres_repair sync-only
 
 if [[ "$WITH_DEMO" -eq 1 ]]; then
   require_yandex_for_demo
 fi
 
 build_compose_files
+warn_existing_stateful_volumes
 
 if [[ "$HTTPS" -eq 1 ]]; then
   log "Generating self-signed TLS certificate for $HOST"
@@ -366,26 +307,28 @@ log "Generating JWT keys"
 python3 scripts/generate_auth_keys.py
 
 log "Building images"
-docker compose "${COMPOSE_FILES[@]}" build
+compose build
 
 log "Starting stack (timeout ${WAIT_TIMEOUT}s)"
-docker compose "${COMPOSE_FILES[@]}" up -d --wait --wait-timeout "$WAIT_TIMEOUT"
-
-log "Repairing PostgreSQL credentials and database URLs"
-run_postgres_repair
-sync_auth_facing_services
+if ! compose up -d --wait --wait-timeout "$WAIT_TIMEOUT"; then
+  echo "Stack failed to become healthy" >&2
+  compose ps >&2 || true
+  docker_cli logs st-auth-audit --tail 40 >&2 || true
+  docker_cli logs st-neo4j --tail 40 >&2 || true
+  exit 1
+fi
 
 if [[ "$WITH_DEMO" -eq 1 ]]; then
   log "Recreating model service to apply Yandex credentials"
-  docker compose "${COMPOSE_FILES[@]}" up -d --force-recreate model
+  compose up -d --force-recreate model
   wait_for_model_yandex
 fi
 
 log "Seeding auth users"
-docker compose "${COMPOSE_FILES[@]}" exec -T auth_audit auth-seed-users
+compose exec -T auth_audit auth-seed-users
 
 log "Seeding notification fixtures"
-docker compose "${COMPOSE_FILES[@]}" exec -T notification sh -c "cd /app/infra/postgres/notification_db && PYTHONPATH=. python seed.py"
+compose exec -T notification sh -c "cd /app/infra/postgres/notification_db && PYTHONPATH=. python seed.py"
 
 if [[ "$WITH_DEMO" -eq 1 ]]; then
   log "Preparing demo corpus"
@@ -397,7 +340,7 @@ if [[ "$WITH_DEMO" -eq 1 ]]; then
   fi
   log "Seeding demo corpus (offline, via gateway)"
   ADMIN_PASSWORD="$(env_value AUTH_SEED_ADMIN_PASSWORD)"
-  ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin12345}"
+  ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin}"
   python3 scripts/seed_demo.py \
     --api-url "http://127.0.0.1/api" \
     --username admin \
@@ -415,7 +358,7 @@ for attempt in $(seq 1 30); do
   sleep 5
   if [[ "$attempt" -eq 30 ]]; then
     echo "Health check failed for ${PUBLIC_URL}/api/health" >&2
-    docker compose "${COMPOSE_FILES[@]}" ps
+    compose ps
     exit 1
   fi
 done
@@ -434,7 +377,7 @@ ScientificTangle cloud deploy: SUCCESS
 Полезные команды:
   docker compose ${COMPOSE_FILES[*]} ps
   docker compose ${COMPOSE_FILES[*]} logs -f nginx gateway
-  make down
+  make cloud-down
 
 ================================================================
 EOF

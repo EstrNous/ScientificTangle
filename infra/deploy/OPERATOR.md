@@ -51,7 +51,7 @@ chmod +x scripts/cloud_deploy.sh
 Скрипт сам:
 
 1. установит Docker (флаг `--install-docker`);
-2. сгенерирует `.env` и случайные пароли БД;
+2. создаст `.env` из `.env.example` и запишет публичный адрес/Yandex-поля;
 3. создаст JWT-ключи в `secrets/`;
 4. соберёт и поднимет весь стек (`docker compose` + prod + cloud overrides);
 5. засеет пользователей и demo corpus;
@@ -88,8 +88,8 @@ http://ВАШ_IP/
 
 | Роль | Логин | Пароль |
 |------|-------|--------|
-| admin | `admin` | `admin12345` |
-| researcher | `researcher` | `researcher123` |
+| admin | `admin` | `admin` |
+| researcher | `researcher` | `researcher` |
 
 Полный список паролей (Grafana, БД) — в файле на сервере:
 
@@ -103,6 +103,15 @@ cat infra/deploy/credentials.txt
 curl -fsS http://127.0.0.1/api/health
 curl -fsS http://127.0.0.1/api/health/all
 docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloud.yml -f docker-compose.cloud.http.yml ps
+```
+
+После cloud deploy не используйте `make up`: это dev-стек. Для cloud-стенда используйте:
+
+```bash
+make cloud-up
+make cloud-ps
+make cloud-logs SERVICE=nginx
+make cloud-down
 ```
 
 ## Yandex Cloud: cloud-init (опционально)
@@ -120,6 +129,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compos
 | Не открывается в браузере | проверить security group: порт 80 открыт; `curl http://127.0.0.1/` на VM |
 | `seed_demo` failed | проверить интернет для скачивания corpus; повторить `python3 scripts/seed_demo.py --api-url http://127.0.0.1/api` |
 | LLM не отвечает | добавить `YANDEX_API_KEY` и `YANDEX_FOLDER_ID` в `.env`, `docker compose ... up -d model gateway` |
+| `password authentication failed` или Neo4j unhealthy после старых попыток | старые Docker volumes могли быть созданы с другими паролями; для чистого demo reset выполните `docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloud.yml -f docker-compose.cloud.http.yml down -v` и запустите deploy заново |
 
 ## Остановка и перезапуск
 

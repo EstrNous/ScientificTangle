@@ -45,7 +45,7 @@ Mode `e2e` задаёт production env через `ui/vite.config.js` (`VITE_USE
 
 Offline suite покрывает сценарии 1–10 из `prod_readiness_analysis.md` на уровне UI flows с intercepted API.
 
-Stack suite — smoke login/profile без mocks; требует seed users (`researcher` / `researcher123`).
+Stack suite — smoke login/profile без mocks; требует seed users (`researcher` / `researcher`).
 
 ## No-live demo checklist (scenarios 1–10)
 

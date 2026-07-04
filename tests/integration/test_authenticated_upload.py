@@ -23,7 +23,7 @@ def test_authenticated_upload_is_stored_and_persisted() -> None:
             "/api/auth/login",
             json={
                 "identifier": os.getenv("AUTH_SEED_RESEARCHER_USERNAME", "researcher"),
-                "password": os.getenv("AUTH_SEED_RESEARCHER_PASSWORD", "researcher123"),
+                "password": os.getenv("AUTH_SEED_RESEARCHER_PASSWORD", "researcher"),
             },
         )
         login.raise_for_status()

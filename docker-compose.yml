@@ -1,3 +1,10 @@
+x-postgres-service-env: &postgres-service-env
+  POSTGRES_URL: "postgresql+asyncpg://${POSTGRES_USER:-st_user}:${POSTGRES_PASSWORD:-st_pass}@postgres:5432/${POSTGRES_DB:-scientific_tangle}"
+  AUTH_DATABASE_URL: "postgresql+asyncpg://${POSTGRES_USER:-st_user}:${POSTGRES_PASSWORD:-st_pass}@postgres:5432/${POSTGRES_DB:-scientific_tangle}"
+  GATEWAY_DATABASE_URL: "postgresql+asyncpg://${POSTGRES_USER:-st_user}:${POSTGRES_PASSWORD:-st_pass}@postgres:5432/${POSTGRES_DB:-scientific_tangle}"
+  ORCHESTRATOR_DATABASE_URL: "postgresql+asyncpg://${POSTGRES_USER:-st_user}:${POSTGRES_PASSWORD:-st_pass}@postgres:5432/${POSTGRES_DB:-scientific_tangle}"
+  NOTIFICATION_DATABASE_URL: "postgresql+asyncpg://${POSTGRES_USER:-st_user}:${POSTGRES_PASSWORD:-st_pass}@postgres:5432/${POSTGRES_DB:-scientific_tangle}"
+
 services:
   postgres:
     image: postgres:16
@@ -21,7 +28,7 @@ services:
     image: neo4j:5-community
     container_name: st-neo4j
     environment:
-      NEO4J_AUTH: ${NEO4J_AUTH:-neo4j/neo4j_pass}
+      NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-neo4j_pass}
     volumes:
       - neo4j_data:/data
       - neo4j_logs:/logs
@@ -101,6 +108,8 @@ services:
       dockerfile: services/gateway/Dockerfile
     container_name: st-gateway
     env_file: .env
+    environment:
+      <<: *postgres-service-env
     healthcheck:
       test: ["CMD", "python", "-c", "import httpx; r=httpx.get('http://localhost:8000/health'); assert r.status_code == 200"]
       interval: 30s
@@ -131,6 +140,7 @@ services:
     container_name: st-auth-audit
     env_file: .env
     environment:
+      <<: *postgres-service-env
       AUTH_JWT_PRIVATE_KEY_PATH: /run/secrets/auth_private.pem
       AUTH_JWT_PUBLIC_KEY_PATH: /run/secrets/auth_public.pem
     secrets:
@@ -155,6 +165,7 @@ services:
     container_name: st-orchestrator
     env_file: .env
     environment:
+      <<: *postgres-service-env
       NOTIFICATION_URL: http://notification:8008
     command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8002"]
     depends_on:
@@ -188,6 +199,8 @@ services:
         RUNTIME_APT_PACKAGES: libreoffice-writer fonts-dejavu-core
     container_name: st-ingestion
     env_file: .env
+    environment:
+      <<: *postgres-service-env
     depends_on:
       auth_audit:
         condition: service_healthy
@@ -208,6 +221,8 @@ services:
         SERVICE_PORT: 8004
     container_name: st-knowledge
     env_file: .env
+    environment:
+      <<: *postgres-service-env
     depends_on:
       model:
         condition: service_healthy
@@ -228,6 +243,8 @@ services:
         SERVICE_PORT: 8005
     container_name: st-retrieval
     env_file: .env
+    environment:
+      <<: *postgres-service-env
     depends_on:
       knowledge:
         condition: service_healthy
@@ -250,6 +267,8 @@ services:
         SERVICE_PORT: 8006
     container_name: st-model
     env_file: .env
+    environment:
+      <<: *postgres-service-env
     depends_on:
       redis:
         condition: service_healthy
@@ -266,6 +285,8 @@ services:
         SERVICE_PORT: 8007
     container_name: st-export
     env_file: .env
+    environment:
+      <<: *postgres-service-env
     depends_on:
       minio:
         condition: service_healthy
@@ -285,6 +306,8 @@ services:
       dockerfile: services/notification/Dockerfile
     container_name: st-notification
     env_file: .env
+    environment:
+      <<: *postgres-service-env
     healthcheck:
       test: ["CMD", "python", "-c", "import httpx; r=httpx.get('http://localhost:8008/health'); assert r.status_code == 200"]
       interval: 30s
