@@ -27,6 +27,7 @@ export default function ChatWindow({
   retrievalTrace,
   answerPhase,
   answerMode,
+  answerFailReason,
   streamingDraft,
   streamingComplete,
   streamingUxEnabled = false,
@@ -70,7 +71,12 @@ export default function ChatWindow({
           )}
         </div>
       ))}
-      <ChatAnswerStatus phase={answerPhase} mode={answerMode} streamingUxEnabled={streamingUxEnabled} />
+      <ChatAnswerStatus
+        phase={answerPhase}
+        mode={answerMode}
+        streamingUxEnabled={streamingUxEnabled}
+        failReason={answerFailReason}
+      />
       {streamingUxEnabled && (
         <StreamingAnswerDraft
           phase={answerPhase}

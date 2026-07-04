@@ -37,6 +37,7 @@ export default function ChatPage() {
     streamingDraft,
     streamingComplete,
     mode,
+    failReason,
     isActive,
     streamingUxEnabled,
     sendAnswerQuery,
@@ -103,8 +104,9 @@ export default function ChatPage() {
       attachments,
     };
 
+    let sessionId = activeId;
+
     try {
-      let sessionId = activeId;
       if (!sessionId) {
         const created = await createChatSession(sessionTitleFromText(text));
         sessionId = created.id;
@@ -123,7 +125,16 @@ export default function ChatPage() {
         ),
       );
     } catch (sendError) {
-      setMessages((prev) => prev.filter((m) => m.id !== optimisticUser.id));
+      if (sessionId) {
+        try {
+          const persisted = await fetchChatMessages(sessionId);
+          setMessages(persisted);
+        } catch {
+          setMessages((prev) => prev.filter((m) => m.id !== optimisticUser.id));
+        }
+      } else {
+        setMessages((prev) => prev.filter((m) => m.id !== optimisticUser.id));
+      }
       setError(getApiErrorMessage(sendError, 'chat_send_failed'));
     }
   };
@@ -185,6 +196,7 @@ export default function ChatPage() {
             messages={messages}
             retrievalTrace={retrievalTrace}
             answerPhase={phase}
+            answerFailReason={failReason}
             answerMode={mode}
             streamingDraft={streamingDraft}
             streamingComplete={streamingComplete}

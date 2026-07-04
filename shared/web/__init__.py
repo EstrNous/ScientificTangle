@@ -1,5 +1,12 @@
 from shared.web.auth import (
     INTERNAL_SERVICE_TOKEN_HEADER,
+    AuthorizedContext,
+    authorization_header_from_request,
+    forwarded_auth,
+    get_http_request,
+    get_request_id,
+    require_authorization_header,
+    require_forwarded_auth,
     require_internal_service,
     require_principal,
 )
@@ -15,6 +22,13 @@ __all__ = [
     "install_rate_limit_middleware",
     "install_error_handlers",
     "request_id_middleware",
+    "AuthorizedContext",
+    "authorization_header_from_request",
+    "forwarded_auth",
+    "get_http_request",
+    "get_request_id",
+    "require_forwarded_auth",
+    "require_authorization_header",
     "require_internal_service",
     "require_principal",
 ]

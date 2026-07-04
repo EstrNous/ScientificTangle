@@ -12,6 +12,7 @@ const initialState = {
   streamingComplete: false,
   mode: 'session',
   isActive: false,
+  failReason: null,
 };
 
 export const useChatAnswerStore = create((set, get) => ({
@@ -37,6 +38,7 @@ export const useChatAnswerStore = create((set, get) => ({
       streamingDraft: null,
       streamingComplete: false,
       isActive: true,
+      failReason: null,
     }),
   completeQuery: (terminalPhase = CHAT_ANSWER_PHASES.DONE) =>
     set({
@@ -45,14 +47,16 @@ export const useChatAnswerStore = create((set, get) => ({
       streamingDraft: null,
       streamingComplete: false,
       isActive: false,
+      failReason: null,
     }),
-  failQuery: () =>
+  failQuery: (failReason = null) =>
     set({
       phase: CHAT_ANSWER_PHASES.ERROR,
       retrievalTrace: null,
       streamingDraft: null,
       streamingComplete: false,
       isActive: false,
+      failReason,
     }),
   reset: () => set({ ...initialState }),
 }));

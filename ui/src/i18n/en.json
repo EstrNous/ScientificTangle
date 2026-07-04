@@ -238,6 +238,12 @@
       "sessionWaiting": "Waiting for server response…",
       "degraded": "Answer prepared with limited confidence",
       "error": "Could not complete answer preparation",
+      "errors": {
+        "active_dictionary_required": "No active dictionary. Run demo seed (make seed).",
+        "orchestrator_unavailable": "Query service is unavailable. Check docker compose ps.",
+        "orchestrator_timeout": "The request timed out. Try again later.",
+        "validation_error": "The server rejected the request. Refresh the page and try again."
+      },
       "phases": {
         "parsing": "Parsing query",
         "retrieval": "Corpus retrieval",
