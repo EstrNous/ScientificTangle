@@ -1,5 +1,9 @@
+import asyncio
+from uuid import uuid4
+
 import httpx
 import pytest
+from app.core.config import settings
 from app.service.service import GatewayService, GatewayServiceError
 
 
@@ -30,6 +34,27 @@ def test_run_query_forwards_to_orchestrator() -> None:
     assert captured["authorization"] == "Bearer token"
     assert captured["request_id"] == "req-1"
     assert "никель" in str(captured["body"])
+
+
+def test_run_query_injects_scientific_flag_when_enabled(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "top1_scientific_query_enabled", True)
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["body"] = request.read().decode()
+        return httpx.Response(200, json={"answer": {"summary": "ok"}})
+
+    async def run() -> None:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            service = GatewayService(client, "http://orchestrator", 1024)
+            await service.run_query(
+                {"question": "никель", "filters": {}, "limit": 10},
+                "Bearer token",
+                "req-1",
+            )
+
+    asyncio.run(run())
+    assert "top1_scientific_query" in str(captured["body"])
 
 
 def test_run_query_maps_downstream_error() -> None:

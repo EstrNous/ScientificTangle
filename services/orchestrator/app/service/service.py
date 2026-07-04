@@ -37,6 +37,22 @@ from shared.contracts import (
 )
 from shared.security import AuthenticatedPrincipal
 
+from ..core.config import settings
+from .scientific_query import (
+    access_levels_for_role,
+    apply_conflict_signals,
+    apply_table_extraction_method,
+    build_verification_artifacts,
+    graph_record_candidates,
+    local_verification_reason_codes,
+    merge_candidate_items,
+    merge_graph_exact_evidence,
+    partition_verified_evidence,
+    planner_selects_graph,
+    planner_selects_table,
+    scientific_query_enabled,
+)
+
 
 class OrchestratorServiceError(Exception):
     def __init__(
@@ -363,8 +379,22 @@ class OrchestratorService:
             )
             query_ir = QueryIR.model_validate(retrieval_response["query_ir"])
             evidence_bundle = EvidenceBundle.model_validate(retrieval_response["evidence_bundle"])
-            retrieval_trace = retrieval_response.get("retrieval_trace", {})
+            retrieval_trace = dict(retrieval_response.get("retrieval_trace", {}))
             warnings = list(retrieval_response.get("warnings", []))
+            candidate_items: list[dict] = []
+            if scientific_query_enabled(settings.top1_scientific_query_enabled, filters):
+                evidence_bundle, retrieval_trace, candidate_items, scientific_warnings = (
+                    await self._enrich_scientific_query(
+                        query_ir,
+                        evidence_bundle,
+                        retrieval_trace,
+                        principal,
+                        request_id,
+                    )
+                )
+                warnings.extend(scientific_warnings)
+            else:
+                retrieval_trace["pipeline_mode"] = "legacy"
             graph = GraphSubgraph()
             if evidence_bundle.evidence_items:
                 gaps_response = await self._request_downstream(
@@ -374,7 +404,7 @@ class OrchestratorService:
                     {
                         "query_ir": query_ir.model_dump(mode="json"),
                         "evidence_bundle": evidence_bundle.model_dump(mode="json"),
-                        "candidates": [],
+                        "candidates": candidate_items,
                     },
                     request_id,
                     "model",
@@ -420,7 +450,7 @@ class OrchestratorService:
                     {
                         "query_ir": query_ir.model_dump(mode="json"),
                         "evidence_bundle": evidence_bundle.model_dump(mode="json"),
-                        "candidate_items": [],
+                        "candidate_items": candidate_items,
                     },
                     request_id,
                     "model",
@@ -483,6 +513,73 @@ class OrchestratorService:
             message = "Query pipeline returned invalid data"
             await repository.mark_failed(run, code, message, latency_ms)
             raise OrchestratorServiceError(502, code, message, run.id) from error
+
+    async def _enrich_scientific_query(
+        self,
+        query_ir: QueryIR,
+        evidence_bundle: EvidenceBundle,
+        retrieval_trace: dict,
+        principal: AuthenticatedPrincipal,
+        request_id: str,
+    ) -> tuple[EvidenceBundle, dict, list[dict], list[str]]:
+        warnings: list[str] = []
+        candidate_items: list[dict] = []
+        retrieval_trace = {
+            **retrieval_trace,
+            "pipeline_mode": "top1_scientific",
+            "planner_selected_graph": planner_selects_graph(retrieval_trace),
+            "planner_selected_table": planner_selects_table(retrieval_trace),
+        }
+        graph_result: dict = {}
+        if retrieval_trace["planner_selected_graph"]:
+            try:
+                graph_result = await self._request_downstream(
+                    "POST",
+                    self._knowledge_url,
+                    "/v1/graph/exact-search",
+                    {
+                        "query_ir": query_ir.model_dump(mode="json"),
+                        "access_levels": access_levels_for_role(principal.role),
+                    },
+                    request_id,
+                    "knowledge",
+                )
+                evidence_bundle, graph_trace = merge_graph_exact_evidence(evidence_bundle, graph_result)
+                retrieval_trace["graph_exact"] = graph_trace
+                candidate_items.extend(graph_record_candidates(graph_result))
+            except OrchestratorServiceError as error:
+                warnings.append(f"graph_exact_fallback:{error.code}")
+                retrieval_trace["graph_exact"] = {"fallback": error.code}
+        if retrieval_trace["planner_selected_table"]:
+            evidence_bundle = apply_table_extraction_method(evidence_bundle)
+        artifacts = build_verification_artifacts(evidence_bundle)
+        for artifact in artifacts:
+            reason_codes = local_verification_reason_codes(query_ir, artifact["value"])
+            if reason_codes:
+                artifact["reason_codes"] = reason_codes
+                artifact["status"] = "candidate"
+        if artifacts:
+            try:
+                conflicts_response = await self._request_downstream(
+                    "POST",
+                    self._model_url,
+                    "/v1/conflicts/detect",
+                    {"artifacts": artifacts},
+                    request_id,
+                    "model",
+                )
+                artifacts = apply_conflict_signals(artifacts, conflicts_response.get("conflicts", []))
+                warnings.extend(conflicts_response.get("warnings", []))
+                retrieval_trace["verification"] = {
+                    "conflicts_detected": len(conflicts_response.get("conflicts", [])),
+                    "artifacts_checked": len(artifacts),
+                }
+            except OrchestratorServiceError as error:
+                warnings.append(f"verification_fallback:{error.code}")
+                retrieval_trace["verification"] = {"fallback": error.code}
+        evidence_bundle, verified_candidates = partition_verified_evidence(evidence_bundle, artifacts)
+        candidate_items = merge_candidate_items(candidate_items, verified_candidates)
+        return evidence_bundle, retrieval_trace, candidate_items, warnings
 
     async def get_run(
         self,
