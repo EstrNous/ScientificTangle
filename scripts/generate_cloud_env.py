@@ -2,6 +2,7 @@ import argparse
 import os
 import secrets
 from pathlib import Path
+from urllib.parse import quote
 
 ROOT = Path(__file__).resolve().parents[1]
 ENV_EXAMPLE = ROOT / ".env.example"
@@ -76,6 +77,10 @@ def build_auth_origins(
     return ",".join(unique)
 
 
+def postgres_async_url(password: str) -> str:
+    return f"postgresql+asyncpg://st_user:{quote(password, safe='')}@postgres:5432/scientific_tangle"
+
+
 def build_env(
     host: str,
     *,
@@ -109,9 +114,10 @@ def build_env(
 
     lines = ENV_EXAMPLE.read_text(encoding="utf-8").splitlines()
     _replace_line(lines, "POSTGRES_PASSWORD", postgres_password)
-    _replace_line(lines, "POSTGRES_URL", f"postgresql+asyncpg://st_user:{postgres_password}@postgres:5432/scientific_tangle")
-    _replace_line(lines, "AUTH_DATABASE_URL", f"postgresql+asyncpg://st_user:{postgres_password}@postgres:5432/scientific_tangle")
-    _upsert(lines, "GATEWAY_DATABASE_URL", f"postgresql+asyncpg://st_user:{postgres_password}@postgres:5432/scientific_tangle")
+    postgres_url = postgres_async_url(postgres_password)
+    _replace_line(lines, "POSTGRES_URL", postgres_url)
+    _replace_line(lines, "AUTH_DATABASE_URL", postgres_url)
+    _upsert(lines, "GATEWAY_DATABASE_URL", postgres_url)
     _replace_line(lines, "NEO4J_PASSWORD", neo4j_password)
     _replace_line(lines, "NEO4J_AUTH", f"neo4j/{neo4j_password}")
     _replace_line(lines, "MINIO_ROOT_PASSWORD", minio_password)

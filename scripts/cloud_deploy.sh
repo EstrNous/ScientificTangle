@@ -152,8 +152,29 @@ env_value() {
   grep -m1 "^${1}=" "$ROOT_DIR/.env" | cut -d= -f2- || true
 }
 
-sql_escape_literal() {
-  printf "%s" "$1" | sed "s/'/''/g"
+repair_compose_args() {
+  REPAIR_COMPOSE_ARGS=()
+  local token
+  local expect_file=0
+  for token in "${COMPOSE_FILES[@]}"; do
+    if [[ "$token" == "-f" ]]; then
+      expect_file=1
+      continue
+    fi
+    if [[ "$expect_file" -eq 1 ]]; then
+      REPAIR_COMPOSE_ARGS+=(--compose-file "$token")
+      expect_file=0
+    fi
+  done
+}
+
+run_postgres_repair() {
+  repair_compose_args
+  if [[ "${1:-}" == "sync-only" ]]; then
+    python3 scripts/repair_postgres_env.py --env "$ROOT_DIR/.env" --sync-urls-only
+    return 0
+  fi
+  python3 scripts/repair_postgres_env.py --env "$ROOT_DIR/.env" "${REPAIR_COMPOSE_ARGS[@]}"
 }
 
 compose_container_id() {
@@ -188,53 +209,13 @@ auth_env_mismatches() {
   return $((found == 0 ? 0 : 1))
 }
 
-verify_postgres_tcp() {
-  local password
-  password="$(env_value POSTGRES_PASSWORD)"
-  if [[ -z "$password" ]]; then
-    return 0
-  fi
-  docker compose "${COMPOSE_FILES[@]}" exec -T -e PGPASSWORD="$password" postgres \
-    psql -h 127.0.0.1 -U st_user -d scientific_tangle -tAc 'SELECT 1' >/dev/null 2>&1
-}
-
-fix_postgres_password_from_env() {
-  local password escaped
-  password="$(env_value POSTGRES_PASSWORD)"
-  if [[ -z "$password" ]]; then
-    return 1
-  fi
-  escaped="$(sql_escape_literal "$password")"
-  docker compose "${COMPOSE_FILES[@]}" exec -T postgres \
-    psql -U st_user -d scientific_tangle -v ON_ERROR_STOP=1 \
-    -c "ALTER USER st_user WITH PASSWORD '${escaped}';" >/dev/null
-}
-
-ensure_postgres_credentials() {
-  if verify_postgres_tcp; then
-    log "PostgreSQL password matches .env (TCP check OK)"
-    return 0
-  fi
-
-  log "PostgreSQL TCP auth failed — syncing st_user password to .env"
-  if ! fix_postgres_password_from_env; then
-    cat >&2 <<'EOF'
-Не удалось выровнять пароль PostgreSQL под .env.
-
-Проверьте вручную:
-  grep '^POSTGRES_PASSWORD=' .env
-  docker compose ... exec -T -e PGPASSWORD=... postgres psql -h 127.0.0.1 -U st_user -d scientific_tangle -c 'SELECT 1'
-
-Если volume не нужен: docker compose ... down -v
-EOF
+wait_for_auth_healthy() {
+  log "Waiting for auth_audit to become healthy"
+  if ! docker compose "${COMPOSE_FILES[@]}" up -d --wait --wait-timeout "$WAIT_TIMEOUT" auth_audit; then
+    echo "auth_audit failed to become healthy" >&2
+    docker logs st-auth-audit --tail 40 >&2 || true
     exit 1
   fi
-
-  if ! verify_postgres_tcp; then
-    echo "PostgreSQL password still mismatched after ALTER USER" >&2
-    exit 1
-  fi
-  log "PostgreSQL password updated to match .env"
 }
 
 sync_auth_facing_services() {
@@ -252,6 +233,7 @@ sync_auth_facing_services() {
 
     if auth_env_mismatches; then
       log "auth_audit env matches .env (AUTH_ALLOWED_ORIGINS, AUTH_DATABASE_URL)"
+      wait_for_auth_healthy
       return 0
     fi
 
@@ -364,6 +346,7 @@ fi
 
 log "Generating .env and credentials for host $HOST"
 python3 scripts/generate_cloud_env.py "${GEN_ARGS[@]}"
+run_postgres_repair sync-only
 
 if [[ "$WITH_DEMO" -eq 1 ]]; then
   require_yandex_for_demo
@@ -388,7 +371,8 @@ docker compose "${COMPOSE_FILES[@]}" build
 log "Starting stack (timeout ${WAIT_TIMEOUT}s)"
 docker compose "${COMPOSE_FILES[@]}" up -d --wait --wait-timeout "$WAIT_TIMEOUT"
 
-ensure_postgres_credentials
+log "Repairing PostgreSQL credentials and database URLs"
+run_postgres_repair
 sync_auth_facing_services
 
 if [[ "$WITH_DEMO" -eq 1 ]]; then
