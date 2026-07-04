@@ -24,6 +24,8 @@ def test_build_report_contains_dashboard_data() -> None:
                 "geo_correctness": None,
                 "conflict_detection_accuracy": None,
                 "gap_precision": None,
+                "access_leak_rate": 0.0,
+                "jsonld_provenance_coverage": 1.0,
                 "query_trace_completeness": 1.0,
                 "has_evidence": True,
                 "error": None,
@@ -35,6 +37,10 @@ def test_build_report_contains_dashboard_data() -> None:
     assert report["dashboard_data"]["official_questions_total"] == 1
     assert report["dashboard_data"]["official_questions_with_evidence"] == 1
     assert report["dashboard_data"]["metric_status"]["numeric_correctness"] == "pass"
+    assert report["schema_version"] == "ml_eval_report.v1"
+    assert report["metrics"]["access_leak_rate"] == 0.0
+    assert report["metrics"]["jsonld_provenance_coverage"] == 1.0
+    assert report["dashboard_data"]["metric_status"]["access_leak_rate"] == "pass"
 
 
 def test_load_eval_documents_uses_ingestion_normalize(tmp_path) -> None:

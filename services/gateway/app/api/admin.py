@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends, Header, Query
 from pydantic import BaseModel, Field
 
 from shared.contracts import (
@@ -61,8 +61,18 @@ async def list_audit_events(
     authorization: Annotated[str, Header()],
     principal: Annotated[AuthenticatedPrincipal, Depends(require_admin)],
     service: Annotated[AdminService, Depends(get_admin_service)],
+    action: str | None = Query(default=None, min_length=1),
+    user_id: UUID | None = Query(default=None),
+    limit: int = Query(default=200, ge=1, le=500),
+    offset: int = Query(default=0, ge=0),
 ) -> list[AuditEvent]:
-    return await service.list_audit_events(authorization)
+    return await service.list_audit_events(
+        authorization,
+        action=action,
+        user_id=user_id,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get("/strategic/metrics", response_model=StrategicMetricsPayload)

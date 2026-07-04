@@ -7,6 +7,7 @@ const tabs = [
   { key: 'graph', path: '/graph', labelKey: 'nav.graph' },
   { key: 'strategic', path: '/strategic', labelKey: 'nav.strategic' },
   { key: 'lab', path: '/lab', labelKey: 'nav.lab' },
+  { key: 'upload', path: '/upload', labelKey: 'nav.upload' },
   { key: 'admin', path: '/admin', labelKey: 'nav.admin' },
 ];
 

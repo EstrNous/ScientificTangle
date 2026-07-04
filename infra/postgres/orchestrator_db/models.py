@@ -19,6 +19,7 @@ class ExportJobStatus(StrEnum):
 class ExportFormat(StrEnum):
     PDF = "pdf"
     MARKDOWN = "markdown"
+    JSON = "json"
     JSON_LD = "json-ld"
 
 
@@ -137,15 +138,19 @@ class ExportJob(Base):
     __tablename__ = "export_jobs"
     __table_args__ = (
         Index("ix_export_jobs_user_id", "user_id"),
+        Index("ix_export_jobs_query_run_id", "query_run_id"),
         Index("ix_export_jobs_status", "status"),
         Index("ix_export_jobs_created_at", "created_at"),
     )
 
     id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4)
     user_id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), nullable=False)
+    query_run_id: Mapped[UUID | None] = mapped_column(PostgreSQLUUID(as_uuid=True))
     status: Mapped[str] = mapped_column(String(32), nullable=False, default=ExportJobStatus.PENDING.value)
     format: Mapped[str] = mapped_column(String(32), nullable=False)
     file_url: Mapped[str | None] = mapped_column(String(1024))
+    payload: Mapped[dict | None] = mapped_column(JSONB)
+    error_message: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

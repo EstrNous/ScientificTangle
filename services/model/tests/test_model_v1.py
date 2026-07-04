@@ -549,3 +549,142 @@ def test_conflicts_gaps_interests_notifications_and_jsonld() -> None:
     assert notification.status_code == 200
     assert jsonld.status_code == 200
     assert jsonld.json()["jsonld"]["@type"] == "st:Answer"
+
+
+def test_conflict_detection_uses_comparable_conditions() -> None:
+    span = SourceSpan(document_id="doc-conflict", page=1, start_offset=0, end_offset=40, text="Nickel recovery reached 82 %.", source_type="text")
+    base_metadata = {
+        "property": "recovery",
+        "material": "nickel",
+        "process": "flotation",
+        "geography": "Россия",
+        "condition": "pH 8",
+        "quantity": {"value": 82, "unit": "%"},
+    }
+    first = ExtractionArtifact(kind="measurement", value="82 %", confidence=0.9, status="confirmed", source_span_ids=[span.id], source_spans=[span], metadata=base_metadata)
+    second = ExtractionArtifact(
+        kind="measurement",
+        value="76 %",
+        confidence=0.9,
+        status="confirmed",
+        source_span_ids=[span.id],
+        source_spans=[span],
+        metadata={**base_metadata, "quantity": {"value": 76, "unit": "%"}},
+    )
+    other_condition = ExtractionArtifact(
+        kind="measurement",
+        value="70 %",
+        confidence=0.9,
+        status="confirmed",
+        source_span_ids=[span.id],
+        source_spans=[span],
+        metadata={**base_metadata, "condition": "pH 10", "quantity": {"value": 70, "unit": "%"}},
+    )
+
+    comparable = client.post("/v1/conflicts/detect", json={"artifacts": [first.model_dump(mode="json"), second.model_dump(mode="json")]})
+    non_comparable = client.post("/v1/conflicts/detect", json={"artifacts": [first.model_dump(mode="json"), other_condition.model_dump(mode="json")]})
+
+    assert comparable.status_code == 200
+    assert any("conflicting_values" in item["reason"] for item in comparable.json()["conflicts"])
+    assert non_comparable.status_code == 200
+    assert non_comparable.json()["conflicts"] == []
+
+
+def test_conflict_detection_marks_unit_review_without_false_conflict() -> None:
+    span = SourceSpan(document_id="doc-units", page=1, start_offset=0, end_offset=40, text="Flow is reported in two unit systems.", source_type="text")
+    metadata = {"property": "flow", "process": "circulation", "condition": "pilot"}
+    first = ExtractionArtifact(kind="measurement", value="1.2 m/s", confidence=0.9, status="confirmed", source_span_ids=[span.id], source_spans=[span], metadata={**metadata, "quantity": {"value": 1.2, "unit": "m/s"}})
+    second = ExtractionArtifact(kind="measurement", value="4.3 l/s", confidence=0.9, status="confirmed", source_span_ids=[span.id], source_spans=[span], metadata={**metadata, "quantity": {"value": 4.3, "unit": "l/s"}})
+
+    response = client.post("/v1/conflicts/detect", json={"artifacts": [first.model_dump(mode="json"), second.model_dump(mode="json")]})
+
+    assert response.status_code == 200
+    conflicts = response.json()["conflicts"]
+    assert conflicts
+    assert conflicts[0]["reason"].startswith("needs_unit_check")
+
+
+def test_gap_suggestions_cover_numeric_geo_time_and_false_positive_cases() -> None:
+    query_ir = QueryIR(
+        raw_query="Россия 2021-2024 скорость 1.2 м/с публикации",
+        entities=["скорость"],
+        filters={
+            "numeric_constraints": [{"value": 1.2, "unit": "m/s", "operator": "eq"}],
+            "geo_constraints": ["Россия"],
+            "time_constraints": {"start_year": 2021, "end_year": 2024},
+            "source_type_constraints": ["publication"],
+        },
+    )
+    covered_span = SourceSpan(
+        document_id="doc-gap",
+        page=1,
+        start_offset=0,
+        end_offset=90,
+        text="Publication: В России в 2023 скорость потока составила 1.2 м/с.",
+        source_type="text",
+    )
+    missing_span = SourceSpan(
+        document_id="doc-gap",
+        page=1,
+        start_offset=91,
+        end_offset=140,
+        text="Источник описывает скорость потока без чисел и географии.",
+        source_type="text",
+    )
+    covered_bundle = EvidenceBundle(query_ir=query_ir, evidence_items=[EvidenceItem(source_span=covered_span, relevance_score=0.9)], total_found=1)
+    missing_bundle = EvidenceBundle(query_ir=query_ir, evidence_items=[EvidenceItem(source_span=missing_span, relevance_score=0.4)], total_found=1)
+
+    covered = client.post("/v1/gaps/suggest", json={"query_ir": query_ir.model_dump(mode="json"), "evidence_bundle": covered_bundle.model_dump(mode="json"), "candidates": []})
+    missing = client.post("/v1/gaps/suggest", json={"query_ir": query_ir.model_dump(mode="json"), "evidence_bundle": missing_bundle.model_dump(mode="json"), "candidates": []})
+
+    assert covered.status_code == 200
+    assert covered.json()["gaps"] == []
+    assert missing.status_code == 200
+    gap_types = {item["gap_type"] for item in missing.json()["gaps"]}
+    assert {"missing_numeric_constraint", "missing_geo", "missing_time"} <= gap_types
+
+
+def test_notification_matching_uses_metadata_and_penalizes_candidates() -> None:
+    span = SourceSpan(document_id="doc-notify", page=1, start_offset=0, end_offset=50, text="Никель и флотация.", source_type="text")
+    strong = ExtractionArtifact(
+        kind="claim",
+        value="Никель улучшается при флотации",
+        confidence=0.9,
+        status="confirmed",
+        source_span_ids=[span.id],
+        source_spans=[span],
+        metadata={"material": "никель", "process": "флотация", "geography": "Россия"},
+    )
+    weak = ExtractionArtifact(
+        kind="claim",
+        value="Никель возможно связан с процессом",
+        confidence=0.5,
+        status="candidate",
+        reason_codes=["low_confidence"],
+        metadata={"material": "никель"},
+    )
+    interests = [{"label": "materials", "weight": 0.9, "source_terms": ["никель", "флотация", "Россия"]}]
+
+    response = client.post("/v1/notifications/match", json={"interests": interests, "artifacts": [weak.model_dump(mode="json"), strong.model_dump(mode="json")]})
+
+    assert response.status_code == 200
+    matches = response.json()["matches"]
+    assert matches[0]["artifact_id"] == strong.id
+    assert matches[0]["score"] > matches[1]["score"]
+
+
+def test_jsonld_enrichment_exports_provenance_without_candidate_facts() -> None:
+    query_ir = QueryIR(raw_query="никель", entities=["никель"], filters={"geo_constraints": ["Россия"]})
+    span = SourceSpan(document_id="doc-jsonld", page=2, start_offset=10, end_offset=30, text="Никель подтвержден источником.", source_type="text")
+    evidence = EvidenceItem(source_span=span, relevance_score=0.8, claim_ids=["claim-1"], entity_ids=["entity-1"], extraction_method="exact")
+    bundle = EvidenceBundle(query_ir=query_ir, evidence_items=[evidence], total_found=1, gaps=["missing_time"], conflicts=["conflict-1"])
+    answer_response = client.post("/v1/answers/synthesize", json={"query_ir": query_ir.model_dump(mode="json"), "evidence_bundle": bundle.model_dump(mode="json")})
+    jsonld = client.post("/v1/jsonld/enrich", json={"answer": answer_response.json()["answer"]})
+
+    assert jsonld.status_code == 200
+    payload = jsonld.json()["jsonld"]
+    assert payload["st:query"]["schema:text"] == "никель"
+    assert payload["st:gaps"] == ["missing_time"]
+    assert payload["st:conflicts"] == ["conflict-1"]
+    assert payload["st:evidence"][0]["@id"].startswith("st:source-span:")
+    assert payload["st:evidence"][0]["st:claimIds"] == ["claim-1"]

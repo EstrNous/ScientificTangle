@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
 
-from shared.contracts import GraphSubgraph, QueryRunPayload, SearchResultPayload, SourcePayload
+from shared.contracts import ExportPayload, GraphSubgraph, QueryRunPayload, SearchResultPayload, SourcePayload
 from shared.security import AuthenticatedPrincipal
 from shared.web import ServiceError, require_principal
 
@@ -18,6 +18,11 @@ class QueryRunRequest(BaseModel):
     question: str = Field(min_length=1)
     filters: dict[str, Any] = Field(default_factory=dict)
     limit: int = Field(default=20, ge=1, le=100)
+
+
+class ExportRunRequest(BaseModel):
+    query_run_id: UUID
+    format: str = Field(pattern="^(markdown|json)$")
 
 
 def raise_service_error(error: OrchestratorServiceError) -> None:
@@ -56,6 +61,24 @@ async def get_run(
 ) -> QueryRunPayload:
     try:
         return await service.get_run(run_id, principal)
+    except OrchestratorServiceError as error:
+        raise_service_error(error)
+
+
+@router.post("/export", response_model=ExportPayload)
+async def export_run(
+    request: Request,
+    payload: ExportRunRequest,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],
+    service: Annotated[OrchestratorService, Depends(get_orchestrator_service)],
+) -> ExportPayload:
+    try:
+        return await service.export_query_run(
+            principal=principal,
+            run_id=payload.query_run_id,
+            export_format=payload.format,
+            request_id=request.state.request_id,
+        )
     except OrchestratorServiceError as error:
         raise_service_error(error)
 

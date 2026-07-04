@@ -3,13 +3,13 @@ import asyncio
 import json
 import os
 import time
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import httpx
 
 from shared.utils.source_span import compute_source_span_id_from_parts
-
 
 DEFAULT_EVAL_SERVICE_URL = "http://localhost:8000/api/query"
 DEFAULT_GOLD_QUESTIONS_PATH = "eval/gold_questions.json"
@@ -28,6 +28,7 @@ async def run_evaluation(
     gold = load_gold_questions(gold_questions_path, official_only=official_only)
     results = []
     async with httpx.AsyncClient(timeout=30.0) as client:
+        documents = await load_eval_documents(client, documents_path, ingestion_normalize_url)
         for question in gold:
             started_at = time.perf_counter()
             try:
@@ -39,14 +40,14 @@ async def run_evaluation(
                 elapsed_ms = round((time.perf_counter() - started_at) * 1000, 2)
                 data = response.json() if response.headers.get("content-type", "").startswith("application/json") else {}
                 result = evaluate_response(question, response.status_code, data, elapsed_ms)
-                result["input_documents_count"] = 0
+                result["input_documents_count"] = len(documents)
             except httpx.HTTPError as exc:
                 elapsed_ms = round((time.perf_counter() - started_at) * 1000, 2)
                 result = evaluate_response(question, 0, {"error": str(exc)}, elapsed_ms)
-                result["input_documents_count"] = 0
+                result["input_documents_count"] = len(documents)
             results.append(result)
 
-    report = build_report(results)
+    report = build_report(results, metadata={"official_only": official_only, "input_documents_count": len(documents)})
     write_reports(report, Path(output_base))
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
@@ -112,6 +113,8 @@ def evaluate_response(question: dict[str, Any], status_code: int, data: dict[str
         "geo_correctness": geo_correctness(question, data, query_ir),
         "conflict_detection_accuracy": conflict_detection_accuracy(question, data),
         "gap_precision": gap_precision(question, data),
+        "access_leak_rate": access_leak_rate(question, evidence_items),
+        "jsonld_provenance_coverage": jsonld_provenance_coverage(data),
         "query_trace_completeness": query_trace_completeness(data),
         "has_evidence": bool(evidence_items),
         "error": data.get("error"),
@@ -250,6 +253,25 @@ def gap_precision(question: dict[str, Any], data: dict[str, Any]) -> float | Non
     return matched / len(gaps)
 
 
+def access_leak_rate(question: dict[str, Any], evidence_items: list[dict[str, Any]]) -> float | None:
+    forbidden = {str(item) for item in question.get("expected_forbidden_source_span_ids", [])}
+    if not forbidden:
+        return None
+    actual = collect_source_span_ids(evidence_items)
+    return len(forbidden & actual) / len(forbidden)
+
+
+def jsonld_provenance_coverage(data: dict[str, Any]) -> float | None:
+    jsonld = data.get("jsonld") or data.get("answer", {}).get("jsonld")
+    if not isinstance(jsonld, dict):
+        return None
+    evidence = jsonld.get("st:evidence", [])
+    if not isinstance(evidence, list) or not evidence:
+        return None
+    sourced = sum(1 for item in evidence if isinstance(item, dict) and item.get("@id") and item.get("st:documentId"))
+    return sourced / len(evidence)
+
+
 def query_trace_completeness(data: dict[str, Any]) -> float:
     expected_keys = ("query_ir", "evidence_bundle", "confidence")
     return sum(1 for key in expected_keys if key in data or key in data.get("answer", {})) / len(expected_keys)
@@ -290,7 +312,7 @@ def query_ir_time_value(filters: dict[str, Any], key: str) -> Any:
     return None
 
 
-def build_report(results: list[dict[str, Any]]) -> dict[str, Any]:
+def build_report(results: list[dict[str, Any]], metadata: dict[str, Any] | None = None) -> dict[str, Any]:
     metrics = {
         "citation_coverage": average_metric(results, "citation_coverage"),
         "numeric_correctness": average_metric(results, "numeric_correctness"),
@@ -303,12 +325,17 @@ def build_report(results: list[dict[str, Any]]) -> dict[str, Any]:
         "geo_correctness": average_metric(results, "geo_correctness"),
         "conflict_detection_accuracy": average_metric(results, "conflict_detection_accuracy"),
         "gap_precision": average_metric(results, "gap_precision"),
+        "access_leak_rate": average_metric(results, "access_leak_rate"),
+        "jsonld_provenance_coverage": average_metric(results, "jsonld_provenance_coverage"),
         "query_trace_completeness": average_metric(results, "query_trace_completeness"),
         "latency_ms_avg": average_metric(results, "latency_ms"),
         "latency_ms_p50": percentile_metric(results, "latency_ms", 0.5),
         "latency_ms_p95": percentile_metric(results, "latency_ms", 0.95),
     }
     return {
+        "schema_version": "ml_eval_report.v1",
+        "generated_at": datetime.now(UTC).isoformat(),
+        "metadata": metadata or {},
         "total_questions": len(results),
         "answered_200": sum(1 for item in results if item["status_code"] == 200),
         "with_evidence": sum(1 for item in results if item["has_evidence"]),
@@ -336,6 +363,8 @@ def build_dashboard_data(results: list[dict[str, Any]], metrics: dict[str, Any])
             "unsupported_claim_rate": threshold_status(metrics.get("unsupported_claim_rate"), 0.1, higher_is_better=False),
             "query_ir_constraint_recall": threshold_status(metrics.get("query_ir_constraint_recall"), 0.9, higher_is_better=True),
             "latency_ms_p95": threshold_status(metrics.get("latency_ms_p95"), 5000, higher_is_better=False),
+            "access_leak_rate": threshold_status(metrics.get("access_leak_rate"), 0.0, higher_is_better=False),
+            "jsonld_provenance_coverage": threshold_status(metrics.get("jsonld_provenance_coverage"), 1.0, higher_is_better=True),
         },
         "summary_rows": [
             {
@@ -377,12 +406,19 @@ def write_reports(report: dict[str, Any], output_base: Path) -> None:
     output_base.parent.mkdir(parents=True, exist_ok=True)
     output_base.with_suffix(".json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
     output_base.with_suffix(".md").write_text(render_markdown_report(report), encoding="utf-8")
+    if output_base.name == "latest":
+        run_id = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+        versioned_base = output_base.with_name(run_id)
+        versioned_base.with_suffix(".json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        versioned_base.with_suffix(".md").write_text(render_markdown_report(report), encoding="utf-8")
 
 
 def render_markdown_report(report: dict[str, Any]) -> str:
     lines = [
         "# Evaluation report",
         "",
+        f"- Schema version: {report.get('schema_version', 'unknown')}",
+        f"- Generated at: {report.get('generated_at', 'unknown')}",
         f"- Total questions: {report['total_questions']}",
         f"- Answered 200: {report['answered_200']}",
         f"- With evidence: {report['with_evidence']}",

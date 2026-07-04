@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Header, Query, Request
 from pydantic import BaseModel, Field
 
 from shared.contracts import (
+    ExportPayload,
     GraphSubgraph,
     QueryRunPayload,
     SearchResultPayload,
@@ -23,6 +24,11 @@ class QueryRequest(BaseModel):
     question: str = Field(min_length=1)
     filters: dict[str, Any] = Field(default_factory=dict)
     limit: int = Field(default=20, ge=1, le=100)
+
+
+class ExportRequest(BaseModel):
+    query_run_id: UUID
+    format: str = Field(pattern="^(markdown|json)$")
 
 
 def raise_service_error(error: GatewayServiceError) -> None:
@@ -64,6 +70,26 @@ async def get_run(
     try:
         return QueryRunPayload.model_validate(
             await service.get_query_run(run_id, authorization, request.state.request_id)
+        )
+    except GatewayServiceError as error:
+        raise_service_error(error)
+
+
+@router.post("/export", response_model=ExportPayload)
+async def export_run(
+    request: Request,
+    payload: ExportRequest,
+    authorization: Annotated[str, Header()],
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],
+    service: Annotated[GatewayService, Depends(get_gateway_service)],
+) -> ExportPayload:
+    try:
+        return ExportPayload.model_validate(
+            await service.export_query_run(
+                payload.model_dump(mode="json"),
+                authorization,
+                request.state.request_id,
+            )
         )
     except GatewayServiceError as error:
         raise_service_error(error)
