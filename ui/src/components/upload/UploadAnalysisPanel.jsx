@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { DeleteIcon } from '../admin/AdminIcons.jsx';
 import Loader from '../shared/Loader.jsx';
 
 const TASK_STATUS_STYLES = {
@@ -17,7 +18,13 @@ function Metric({ label, value }) {
   );
 }
 
-export default function UploadAnalysisPanel({ task, loading }) {
+export default function UploadAnalysisPanel({
+  task,
+  loading,
+  uploadedDocuments = [],
+  onDeleteDocument,
+  deletingDocumentId,
+}) {
   const { t } = useTranslation();
   const report = task?.report;
 
@@ -61,19 +68,35 @@ export default function UploadAnalysisPanel({ task, loading }) {
             </div>
           )}
 
-          {report?.sources?.length > 0 && (
+          {uploadedDocuments.length > 0 && (
             <div className="min-h-0">
               <p className="mb-2 text-xs font-medium uppercase tracking-wide text-nn-gray dark:text-slate-400">
                 {t('upload.sourcesTitle')}
               </p>
               <ul className="scrollbar-thin scrollbar-thumb-nn-border dark:scrollbar-thumb-slate-600 max-h-28 space-y-1 overflow-y-auto pr-1 text-xs">
-                {report.sources.map((source) => (
+                {uploadedDocuments.map((document) => (
                   <li
-                    key={source.sha256 ?? source.object_key}
-                    className="truncate rounded-md bg-nn-gray-light px-2 py-1 text-gray-900 dark:bg-slate-800 dark:text-slate-100"
-                    title={source.original_filename}
+                    key={document.id}
+                    className="flex items-center gap-2 rounded-md bg-nn-gray-light px-2 py-1 text-gray-900 dark:bg-slate-800 dark:text-slate-100"
                   >
-                    {source.original_filename}
+                    <span className="min-w-0 flex-1 truncate" title={document.filename}>
+                      {document.filename}
+                    </span>
+                    <span className="shrink-0 rounded-full bg-white px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-nn-gray dark:bg-slate-900 dark:text-slate-400">
+                      {t(`upload.fileKinds.${document.kind}`, { defaultValue: document.kind })}
+                    </span>
+                    {onDeleteDocument && (
+                      <button
+                        type="button"
+                        onClick={() => onDeleteDocument(document)}
+                        disabled={deletingDocumentId === document.id}
+                        className="inline-flex shrink-0 rounded-md p-1 text-nn-gray transition-colors hover:bg-white hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100"
+                        title={t('upload.deleteDocument')}
+                        aria-label={t('upload.deleteDocument')}
+                      >
+                        <DeleteIcon className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>

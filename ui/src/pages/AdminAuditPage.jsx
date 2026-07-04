@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import PageShell from '../components/shared/PageShell.jsx';
 import Loader from '../components/shared/Loader.jsx';
 import { AdminSubNav, AuditLogTable, SourceViewer } from '../components/admin/index.js';
 import PdfDownloadButton from '../components/shared/PdfDownloadButton.jsx';
 import { apiGet } from '../api/client.js';
+import { deleteDocument } from '../api/upload.js';
 import { captureElementImage } from '../utils/captureElement.js';
 import { exportAdminAuditPdf } from '../utils/pagePdfExport.js';
 
@@ -16,6 +17,8 @@ export default function AdminAuditPage() {
   const [auditEvents, setAuditEvents] = useState([]);
   const [selectedEventId, setSelectedEventId] = useState(null);
   const [selectedSpan, setSelectedSpan] = useState(null);
+  const [deletingDocumentId, setDeletingDocumentId] = useState(null);
+  const [error, setError] = useState(null);
   const auditExportRef = useRef(null);
 
   useEffect(() => {
@@ -48,6 +51,27 @@ export default function AdminAuditPage() {
       .catch(() => setSelectedSpan(null));
   }, [auditEvents, selectedEventId]);
 
+  const handleDeleteDocument = async (event, documentId) => {
+    const label = event.object || documentId;
+    if (!window.confirm(t('admin.confirmDeleteDocument', { name: label }))) {
+      return;
+    }
+    setDeletingDocumentId(documentId);
+    setError(null);
+    try {
+      await deleteDocument(documentId);
+      setAuditEvents((current) => current.filter((item) => item.id !== event.id));
+      if (selectedEventId === event.id) {
+        setSelectedEventId(null);
+        setSelectedSpan(null);
+      }
+    } catch (deleteError) {
+      setError(deleteError?.message ?? 'delete_failed');
+    } finally {
+      setDeletingDocumentId(null);
+    }
+  };
+
   const handleExportPdf = async () => {
     const auditImage = await captureElementImage(auditExportRef.current, { fullContent: true });
     await exportAdminAuditPdf({
@@ -64,6 +88,11 @@ export default function AdminAuditPage() {
     <PageShell>
       <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
         <AdminSubNav action={<PdfDownloadButton onExport={handleExportPdf} />} />
+        {error && (
+          <p className="text-sm text-red-600 dark:text-red-400">
+            {t(`upload.errors.${error}`, { defaultValue: error })}
+          </p>
+        )}
         <div
           ref={auditExportRef}
           className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[1fr_360px]"
@@ -72,6 +101,8 @@ export default function AdminAuditPage() {
             events={auditEvents}
             selectedId={selectedEventId}
             onSelect={(event) => setSelectedEventId(event.id)}
+            onDeleteDocument={handleDeleteDocument}
+            deletingDocumentId={deletingDocumentId}
             fullHeight
           />
           <SourceViewer span={selectedSpan} />

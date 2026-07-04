@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { canDeleteAuditDocument, resolveDocumentIdFromAuditEvent } from '../../api/upload.js';
 import AdminPanelShell from './AdminPanelShell.jsx';
+import { DeleteIcon } from './AdminIcons.jsx';
 
 const ACTION_FILTERS = [
   'all',
@@ -25,7 +27,14 @@ function formatTime(iso, locale) {
   }
 }
 
-export default function AuditLogTable({ events, selectedId, onSelect, fullHeight = false }) {
+export default function AuditLogTable({
+  events,
+  selectedId,
+  onSelect,
+  onDeleteDocument,
+  deletingDocumentId,
+  fullHeight = false,
+}) {
   const { t, i18n } = useTranslation();
   const [actionFilter, setActionFilter] = useState('all');
 
@@ -73,44 +82,68 @@ export default function AuditLogTable({ events, selectedId, onSelect, fullHeight
               <th className="border-b border-nn-border px-2 py-2 font-medium dark:border-slate-600">
                 {t('admin.auditObject')}
               </th>
+              <th className="w-10 border-b border-nn-border px-2 py-2 font-medium dark:border-slate-600">
+                <span className="sr-only">{t('admin.auditActions')}</span>
+              </th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((event) => (
-              <tr
-                key={event.id}
-                onClick={() => onSelect?.(event)}
-                className={`cursor-pointer transition-colors ${
-                  selectedId === event.id
-                    ? 'bg-nn-blue-light dark:bg-slate-800'
-                    : 'hover:bg-nn-gray-light dark:hover:bg-slate-800/60'
-                }`}
-              >
-                <td className="border-b border-nn-border px-2 py-2 tabular-nums text-nn-gray dark:border-slate-700 dark:text-slate-400">
-                  {formatTime(event.timestamp, i18n.language)}
-                </td>
-                <td className="border-b border-nn-border px-2 py-2 dark:border-slate-700">
-                  <p className="font-medium text-gray-900 dark:text-slate-100">{event.user}</p>
-                  <p className="text-[10px] text-nn-gray dark:text-slate-500">
-                    {t(`roles.${event.role}`)}
-                  </p>
-                </td>
-                <td className="border-b border-nn-border px-2 py-2 dark:border-slate-700">
-                  <span
-                    className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                      event.action === 'access_denied'
-                        ? 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300'
-                        : 'bg-nn-blue-light text-nn-blue dark:bg-slate-800 dark:text-sky-300'
-                    }`}
-                  >
-                    {t(`admin.actions.${event.action}`, { defaultValue: event.action })}
-                  </span>
-                </td>
-                <td className="border-b border-nn-border px-2 py-2 text-gray-800 dark:border-slate-700 dark:text-slate-200">
-                  {event.object}
-                </td>
-              </tr>
-            ))}
+            {filtered.map((event) => {
+              const documentId = resolveDocumentIdFromAuditEvent(event);
+              const canDelete = canDeleteAuditDocument(event);
+              return (
+                <tr
+                  key={event.id}
+                  onClick={() => onSelect?.(event)}
+                  className={`cursor-pointer transition-colors ${
+                    selectedId === event.id
+                      ? 'bg-nn-blue-light dark:bg-slate-800'
+                      : 'hover:bg-nn-gray-light dark:hover:bg-slate-800/60'
+                  }`}
+                >
+                  <td className="border-b border-nn-border px-2 py-2 tabular-nums text-nn-gray dark:border-slate-700 dark:text-slate-400">
+                    {formatTime(event.timestamp, i18n.language)}
+                  </td>
+                  <td className="border-b border-nn-border px-2 py-2 dark:border-slate-700">
+                    <p className="font-medium text-gray-900 dark:text-slate-100">{event.user}</p>
+                    <p className="text-[10px] text-nn-gray dark:text-slate-500">
+                      {t(`roles.${event.role}`)}
+                    </p>
+                  </td>
+                  <td className="border-b border-nn-border px-2 py-2 dark:border-slate-700">
+                    <span
+                      className={`inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                        event.action === 'access_denied'
+                          ? 'bg-gray-100 text-gray-700 dark:bg-slate-800 dark:text-slate-300'
+                          : 'bg-nn-blue-light text-nn-blue dark:bg-slate-800 dark:text-sky-300'
+                      }`}
+                    >
+                      {t(`admin.actions.${event.action}`, { defaultValue: event.action })}
+                    </span>
+                  </td>
+                  <td className="border-b border-nn-border px-2 py-2 text-gray-800 dark:border-slate-700 dark:text-slate-200">
+                    {event.object}
+                  </td>
+                  <td className="border-b border-nn-border px-2 py-2 text-center dark:border-slate-700">
+                    {canDelete && onDeleteDocument && (
+                      <button
+                        type="button"
+                        onClick={(clickEvent) => {
+                          clickEvent.stopPropagation();
+                          onDeleteDocument(event, documentId);
+                        }}
+                        disabled={deletingDocumentId === documentId}
+                        className="inline-flex rounded-md p-1 text-nn-gray transition-colors hover:bg-nn-gray-light hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+                        title={t('admin.deleteDocument')}
+                        aria-label={t('admin.deleteDocument')}
+                      >
+                        <DeleteIcon className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

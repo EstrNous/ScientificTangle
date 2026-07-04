@@ -335,6 +335,9 @@
     "auditUser": "User",
     "auditAction": "Action",
     "auditObject": "Object",
+    "auditActions": "Actions",
+    "deleteDocument": "Delete document",
+    "confirmDeleteDocument": "Delete document «{{name}}» from the database?",
     "filterAll": "All actions",
     "actions": {
       "query_created": "query",
@@ -454,8 +457,9 @@
     "subtitle": "Upload documents, review analysis, and manage extracted entities",
     "dropTitle": "Drop files here",
     "dropActive": "Release to upload files",
-    "dropHint": "PDF, DOCX, or TXT — up to 100 MB per batch",
+    "dropHint": "PDF, DOCX, or TXT — up to 100 MB per batch. Dictionaries — JSON.",
     "selectFiles": "Select files",
+    "selectDictionary": "Upload dictionary",
     "filesCount": "Files: {{count}}",
     "startUpload": "Upload",
     "uploading": "Uploading…",
@@ -471,7 +475,13 @@
     "saveEntity": "Save",
     "cancelEntity": "Cancel",
     "deleteEntity": "Delete",
+    "deleteDocument": "Delete document",
+    "confirmDeleteDocument": "Delete document «{{name}}» from the database?",
     "entityNamePlaceholder": "Entity name",
+    "fileKinds": {
+      "document": "document",
+      "dictionary": "dictionary"
+    },
     "fileStatus": {
       "queued": "queued",
       "uploading": "uploading",
@@ -493,7 +503,8 @@
       "indexed": "Indexed"
     },
     "errors": {
-      "upload_failed": "Failed to upload files"
+      "upload_failed": "Failed to upload files",
+      "delete_failed": "Failed to delete document"
     }
   }
 }
