@@ -4,11 +4,32 @@
 
 ## Ключевые файлы
 
-- `services/gateway/app/` — маршрутизация, валидация DTO, request_id, streaming
-- `shared/contracts/` — внешние DTO
+- `services/gateway/app/api/query.py` — query, runs, export, source, subgraph, search
+- `services/gateway/app/api/chat.py` — chat sessions и messages
+- `services/gateway/app/api/graph.py` — graph catalog
+- `services/gateway/app/api/documents.py` — upload, task status
+- `services/gateway/app/api/admin.py` — admin stats, audit events, strategic/lab
+- `services/gateway/app/service/chat_service.py` — chat → orchestrator query
+- `services/gateway/app/service/analytics_service.py` — graph/strategic/lab через knowledge/retrieval
+- `infra/postgres/chat_ui_db/` — ChatSession, ChatMessage
 
-Query API включает синхронный запуск с сохранением результата, чтение run, SourceSpan, локального графа и access-aware поиск.
+## Внешние API (root `/api`)
+
+| Группа | Endpoints |
+|--------|-----------|
+| Documents | upload, task status |
+| Query | run, runs, export, source, subgraph, search |
+| Chat | sessions CRUD, messages |
+| Graph | graph, catalog |
+| Admin | stats, audit, strategic metrics/evaluation, lab coverage, users/policies |
+
+JWT validation через JWKS (`auth_audit`). `X-Request-ID` сквозной.
 
 ## Зависимости
 
-Все внутренние сервисы; health-агрегация для UI.
+orchestrator (основной proxy), auth_audit (JWKS), PostgreSQL chat_ui_db, knowledge/retrieval (analytics).
+
+## Gaps
+
+- Admin user/policy PATCH без полного persist
+- Strategic/lab данные частично из knowledge + eval fixtures

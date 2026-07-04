@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "Scientific Tangle"
+    "title": "NorSintez"
   },
   "nav": {
     "chat": "AI R&D Assistant",
@@ -29,6 +29,13 @@
     "downloadPdf": "Download PDF",
     "downloadingPdf": "PDF…",
     "exportedAt": "Exported: {{date}}"
+  },
+  "notifications": {
+    "bell": "Notifications",
+    "title": "Notifications",
+    "empty": "No notifications",
+    "loading": "Loading…",
+    "markAllRead": "Mark all read"
   },
   "auth": {
     "loginTitle": "Sign in",
@@ -147,7 +154,51 @@
       "processFile": "Processing fragments from «{{file}}»",
       "filterAccess": "Filtering results by access level",
       "synthesize": "Building answer with source citations",
-      "methodHybrid": "BM25 + semantic search"
+      "methodHybrid": "BM25 + semantic search",
+      "retrievedCount": "Retrieved fragments: {{count}}"
+    },
+    "streaming": {
+      "draftTitle": "Building answer"
+    },
+    "lifecycle": {
+      "title": "Answer preparation",
+      "sessionWaiting": "Waiting for server response…",
+      "degraded": "Answer prepared with limited confidence",
+      "error": "Could not complete answer preparation",
+      "phases": {
+        "parsing": "Parsing query",
+        "retrieval": "Corpus retrieval",
+        "verification": "Evidence verification",
+        "synthesis": "Answer synthesis",
+        "citations": "Source citations"
+      }
+    },
+    "answer": {
+      "degradedBanner": "Answer prepared with limited accessible evidence",
+      "partialBanner": "Partial answer — insufficient confirmed observations",
+      "confirmedTitle": "Confirmed observations",
+      "candidateTitle": "Candidates for review",
+      "candidateHint": "Not treated as established facts until verified",
+      "limitationsTitle": "Limitations",
+      "conflictsTitle": "Source conflicts",
+      "gapsTitle": "Data gaps",
+      "followUpTitle": "Follow-up steps",
+      "reasonCodes": {
+        "missing_source_span": "missing source span",
+        "low_confidence": "low confidence",
+        "ambiguous_alias": "ambiguous alias",
+        "conflicting_values": "conflicting values",
+        "needs_unit_check": "unit check needed",
+        "access_filtered": "access filtered",
+        "schema_candidate": "schema candidate",
+        "outside_time_range": "outside time range",
+        "geo_mismatch": "geo mismatch",
+        "unit_mismatch": "unit mismatch",
+        "unsupported_claim": "unsupported claim",
+        "unresolved_alias": "unresolved alias",
+        "inaccessible_source": "inaccessible source",
+        "insufficient_accessible_evidence": "insufficient accessible evidence"
+      }
     }
   },
   "graph": {
@@ -328,6 +379,9 @@
     "auditUser": "User",
     "auditAction": "Action",
     "auditObject": "Object",
+    "auditActions": "Actions",
+    "deleteDocument": "Delete document",
+    "confirmDeleteDocument": "Delete document «{{name}}» from the database?",
     "filterAll": "All actions",
     "actions": {
       "query_created": "query",
@@ -447,8 +501,9 @@
     "subtitle": "Upload documents, review analysis, and manage extracted entities",
     "dropTitle": "Drop files here",
     "dropActive": "Release to upload files",
-    "dropHint": "PDF, DOCX, or TXT — up to 100 MB per batch",
+    "dropHint": "PDF, DOCX, or TXT — up to 100 MB per batch. Dictionaries — JSON.",
     "selectFiles": "Select files",
+    "selectDictionary": "Upload dictionary",
     "filesCount": "Files: {{count}}",
     "startUpload": "Upload",
     "uploading": "Uploading…",
@@ -464,7 +519,13 @@
     "saveEntity": "Save",
     "cancelEntity": "Cancel",
     "deleteEntity": "Delete",
+    "deleteDocument": "Delete document",
+    "confirmDeleteDocument": "Delete document «{{name}}» from the database?",
     "entityNamePlaceholder": "Entity name",
+    "fileKinds": {
+      "document": "document",
+      "dictionary": "dictionary"
+    },
     "fileStatus": {
       "queued": "queued",
       "uploading": "uploading",
@@ -486,7 +547,8 @@
       "indexed": "Indexed"
     },
     "errors": {
-      "upload_failed": "Failed to upload files"
+      "upload_failed": "Failed to upload files",
+      "delete_failed": "Failed to delete document"
     }
   }
 }

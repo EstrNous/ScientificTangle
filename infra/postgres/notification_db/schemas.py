@@ -1,13 +1,16 @@
+from datetime import datetime
 from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
 class NotificationResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: UUID
-    user_id: UUID
+    title: str
+    reason: str
     type: str
-    message: str
-    is_read: bool
+    reference_id: str | None
+    read: bool
+    created_at: datetime
 
 class UserInterestRequest(BaseModel):
     raw_text: str

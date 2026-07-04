@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "Научный Клубок"
+    "title": "НорСинтез"
   },
   "nav": {
     "chat": "AI R&D Ассистент",
@@ -29,6 +29,13 @@
     "downloadPdf": "Скачать PDF",
     "downloadingPdf": "PDF…",
     "exportedAt": "Экспорт: {{date}}"
+  },
+  "notifications": {
+    "bell": "Уведомления",
+    "title": "Уведомления",
+    "empty": "Нет уведомлений",
+    "loading": "Загрузка…",
+    "markAllRead": "Прочитать все"
   },
   "auth": {
     "loginTitle": "Вход",
@@ -147,7 +154,51 @@
       "processFile": "Обрабатываю фрагменты из «{{file}}»",
       "filterAccess": "Фильтрую результаты по уровню доступа",
       "synthesize": "Формирую ответ с привязкой к источникам",
-      "methodHybrid": "BM25 + семантический поиск"
+      "methodHybrid": "BM25 + семантический поиск",
+      "retrievedCount": "Найдено фрагментов: {{count}}"
+    },
+    "streaming": {
+      "draftTitle": "Формирование ответа"
+    },
+    "lifecycle": {
+      "title": "Подготовка ответа",
+      "sessionWaiting": "Ожидание ответа сервера…",
+      "degraded": "Ответ сформирован с ограниченной уверенностью",
+      "error": "Не удалось завершить подготовку ответа",
+      "phases": {
+        "parsing": "Разбор запроса",
+        "retrieval": "Поиск по корпусу",
+        "verification": "Проверка доказательств",
+        "synthesis": "Синтез ответа",
+        "citations": "Привязка источников"
+      }
+    },
+    "answer": {
+      "degradedBanner": "Ответ сформирован с ограничениями по доступным доказательствам",
+      "partialBanner": "Ответ неполный — подтверждённых наблюдений недостаточно",
+      "confirmedTitle": "Подтверждённые наблюдения",
+      "candidateTitle": "Кандидаты на проверку",
+      "candidateHint": "Не считаются установленными фактами до верификации",
+      "limitationsTitle": "Ограничения",
+      "conflictsTitle": "Конфликты в источниках",
+      "gapsTitle": "Пробелы в данных",
+      "followUpTitle": "Следующие шаги",
+      "reasonCodes": {
+        "missing_source_span": "нет привязки к источнику",
+        "low_confidence": "низкая уверенность",
+        "ambiguous_alias": "неоднозначный синоним",
+        "conflicting_values": "противоречивые значения",
+        "needs_unit_check": "требуется проверка единиц",
+        "access_filtered": "отфильтровано по доступу",
+        "schema_candidate": "кандидат схемы",
+        "outside_time_range": "вне временного диапазона",
+        "geo_mismatch": "несовпадение географии",
+        "unit_mismatch": "несовпадение единиц",
+        "unsupported_claim": "неподтверждённое утверждение",
+        "unresolved_alias": "неразрешённый синоним",
+        "inaccessible_source": "источник недоступен",
+        "insufficient_accessible_evidence": "недостаточно доступных доказательств"
+      }
     }
   },
   "graph": {
@@ -328,6 +379,9 @@
     "auditUser": "Пользователь",
     "auditAction": "Действие",
     "auditObject": "Объект",
+    "auditActions": "Действия",
+    "deleteDocument": "Удалить документ",
+    "confirmDeleteDocument": "Удалить документ «{{name}}» из базы?",
     "filterAll": "Все действия",
     "actions": {
       "query_created": "запрос",
@@ -447,8 +501,9 @@
     "subtitle": "Загрузка документов, анализ содержимого и проверка извлечённых сущностей",
     "dropTitle": "Перетащите файлы сюда",
     "dropActive": "Отпустите файлы для загрузки",
-    "dropHint": "PDF, DOCX или TXT — до 100 МБ на пакет",
+    "dropHint": "PDF, DOCX или TXT — до 100 МБ на пакет. Словари — JSON.",
     "selectFiles": "Выбрать файлы",
+    "selectDictionary": "Загрузить словарь",
     "filesCount": "Файлов: {{count}}",
     "startUpload": "Загрузить",
     "uploading": "Загрузка…",
@@ -464,7 +519,13 @@
     "saveEntity": "Сохранить",
     "cancelEntity": "Отмена",
     "deleteEntity": "Удалить",
+    "deleteDocument": "Удалить документ",
+    "confirmDeleteDocument": "Удалить документ «{{name}}» из базы?",
     "entityNamePlaceholder": "Название сущности",
+    "fileKinds": {
+      "document": "документ",
+      "dictionary": "словарь"
+    },
     "fileStatus": {
       "queued": "в очереди",
       "uploading": "загрузка",
@@ -486,7 +547,8 @@
       "indexed": "Индекс"
     },
     "errors": {
-      "upload_failed": "Не удалось загрузить файлы"
+      "upload_failed": "Не удалось загрузить файлы",
+      "delete_failed": "Не удалось удалить документ"
     }
   }
 }

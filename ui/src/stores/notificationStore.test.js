@@ -8,6 +8,8 @@ describe('notificationStore', () => {
       { id: '2', read: true },
     ]);
     expect(useNotificationStore.getState().unreadCount).toBe(1);
+    useNotificationStore.getState().markRead('1');
+    expect(useNotificationStore.getState().unreadCount).toBe(0);
     useNotificationStore.getState().markAllRead();
     expect(useNotificationStore.getState().unreadCount).toBe(0);
   });

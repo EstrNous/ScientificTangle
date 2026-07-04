@@ -22,6 +22,7 @@ except ImportError:
 
 from shared.contracts import (
     AnswerPayload,
+    EvidenceItem,
     GeoContext,
     NormalizedDocument,
     Quantity,
@@ -41,6 +42,8 @@ from .contracts import (
     EmbeddingItem,
     EmbeddingRequest,
     EmbeddingResponse,
+    EvidenceLayerItem,
+    EvidenceSynthesisLayers,
     ExtractionArtifact,
     GapSuggestion,
     GapSuggestionRequest,
@@ -56,6 +59,7 @@ from .contracts import (
     RerankRequest,
     RerankResponse,
     ScoredEvidenceItem,
+    ScientificAnswerPayload,
     StructuredExtractionRequest,
     StructuredExtractionResponse,
     UnsupportedWarning,
@@ -641,6 +645,7 @@ def add_span_artifacts(
             warnings.append(UnsupportedWarning(statement=alias_value, reason_codes=reason_codes))
 
     for quantity in extract_numeric_constraints(span.text):
+        quantity = quantity.model_copy(update={"source_span_id": span_id})
         value = format_quantity_value(quantity)
         add_artifact(
             ExtractionArtifact(
@@ -755,6 +760,7 @@ def add_table_artifacts(
                 continue
             if source:
                 span_id, span = source
+                quantities = [quantity.model_copy(update={"source_span_id": span_id}) for quantity in quantities]
                 artifact = ExtractionArtifact(
                     kind="measurement",
                     value=row_text,
@@ -1387,11 +1393,127 @@ def constraint_match_score(filters: dict[str, Any], text: str) -> float:
     return min(score, 1.0)
 
 
+def synthesize_evidence_layers(
+    query_ir: QueryIR,
+    evidence_items: list[EvidenceItem],
+    candidate_items: list[ExtractionArtifact],
+) -> EvidenceSynthesisLayers:
+    layers = EvidenceSynthesisLayers()
+    for index, item in enumerate(evidence_items):
+        reason_codes = evidence_reason_codes(query_ir, item)
+        layer = layer_name_for_reason_codes(reason_codes)
+        layer_item = EvidenceLayerItem(
+            layer=layer,
+            statement=compact_snippet(item.source_span.text),
+            confidence=max(0.0, min(item.relevance_score, 1.0)),
+            reason_codes=reason_codes,
+            source_span_ids=[item.source_span.id],
+            evidence_item_index=index,
+            metadata={
+                "extraction_method": item.extraction_method,
+                "claim_ids": item.claim_ids,
+                "entity_ids": item.entity_ids,
+            },
+        )
+        getattr(layers, layer).append(layer_item)
+    for artifact in candidate_items:
+        reason_codes = stable_unique([str(code) for code in artifact.reason_codes] or ["unsupported_claim"])
+        layer = layer_name_for_reason_codes(reason_codes)
+        layer_item = EvidenceLayerItem(
+            layer=layer,
+            statement=artifact.value,
+            confidence=artifact.confidence,
+            reason_codes=reason_codes,
+            source_span_ids=artifact.source_span_ids,
+            artifact_id=artifact.id,
+            metadata={"kind": artifact.kind, **artifact.metadata},
+        )
+        getattr(layers, layer).append(layer_item)
+    return layers
+
+
+def evidence_reason_codes(query_ir: QueryIR, item: EvidenceItem) -> list[str]:
+    span = item.source_span
+    text = span.text or ""
+    filters = query_ir.filters
+    reason_codes: list[str] = []
+    if not span.id or not text.strip():
+        reason_codes.append("missing_source_span")
+    if filters.get("numeric_constraints") and not numeric_constraints_covered(filters.get("numeric_constraints", []), text):
+        requested_units = {
+            normalize_unit(str(constraint.get("unit", "")))
+            for constraint in filters.get("numeric_constraints", [])
+            if isinstance(constraint, dict) and constraint.get("unit")
+        }
+        evidence_units = {quantity.unit for quantity in extract_numeric_constraints(text) if quantity.unit}
+        if requested_units and evidence_units and requested_units.isdisjoint(evidence_units):
+            reason_codes.append("unit_mismatch")
+        else:
+            reason_codes.append("unsupported_claim")
+    if filters.get("geo_constraints") and not geo_constraints_covered(filters.get("geo_constraints", []), text):
+        reason_codes.append("geo_mismatch")
+    if filters.get("time_constraints") and not time_constraints_covered(filters.get("time_constraints", {}), text):
+        reason_codes.append("outside_time_range")
+    source_types = [str(value).lower() for value in filters.get("source_type_constraints", [])]
+    if source_types and not any(value in text.lower() for value in source_types):
+        reason_codes.append("inaccessible_source")
+    query_entities = [str(value).lower() for value in query_ir.entities]
+    if query_entities and not any(value and value in text.lower() for value in query_entities):
+        reason_codes.append("unresolved_alias")
+    return stable_unique(reason_codes)
+
+
+def layer_name_for_reason_codes(reason_codes: list[str]) -> str:
+    if not reason_codes:
+        return "verified"
+    if any(code in {"conflicting_values", "needs_unit_check"} for code in reason_codes):
+        return "conflicting"
+    if any(code in {"missing_source_span", "unsupported_claim", "inaccessible_source"} for code in reason_codes):
+        return "unsupported"
+    return "candidate"
+
+
+def build_scientific_answer_payload(
+    answer_text: str,
+    layers: EvidenceSynthesisLayers,
+    evidence_bundle_gaps: list[str],
+    evidence_bundle_conflicts: list[str],
+) -> ScientificAnswerPayload:
+    limitations = []
+    if layers.candidate:
+        limitations.append("candidate_evidence_requires_review")
+    if layers.unsupported:
+        limitations.append("unsupported_claims_excluded")
+    if layers.conflicting:
+        limitations.append("conflicting_evidence_requires_resolution")
+    follow_up = []
+    if evidence_bundle_gaps or layers.unsupported:
+        follow_up.append("collect_or_link_missing_sources")
+    if evidence_bundle_conflicts or layers.conflicting:
+        follow_up.append("resolve_conflicting_measurements_or_conditions")
+    if layers.candidate:
+        follow_up.append("review_candidate_reason_codes")
+    return ScientificAnswerPayload(
+        short_answer=answer_text,
+        facts=[item.statement for item in layers.verified],
+        limitations=stable_unique(limitations),
+        conflicts=[*evidence_bundle_conflicts, *[item.statement for item in layers.conflicting]],
+        gaps=evidence_bundle_gaps,
+        follow_up=stable_unique(follow_up),
+        sources_count=len(layers.verified),
+    )
+
+
 def synthesize_answer(request: AnswerSynthesisRequest) -> AnswerSynthesisResponse:
-    evidence_items = request.evidence_bundle.evidence_items
+    layers = synthesize_evidence_layers(request.query_ir, request.evidence_bundle.evidence_items, request.candidate_items)
+    evidence_items = [
+        request.evidence_bundle.evidence_items[item.evidence_item_index]
+        for item in layers.verified
+        if item.evidence_item_index is not None
+    ]
     unsupported_warnings = [
-        UnsupportedWarning(statement=item.value, reason_codes=item.reason_codes)
-        for item in request.candidate_items
+        UnsupportedWarning(statement=item.statement, reason_codes=item.reason_codes, source_span_ids=item.source_span_ids)
+        for item in [*layers.candidate, *layers.conflicting, *layers.unsupported]
     ]
     warnings = []
     if not evidence_items:
@@ -1438,6 +1560,13 @@ def synthesize_answer(request: AnswerSynthesisRequest) -> AnswerSynthesisRespons
         answer=answer,
         unsupported_warnings=unsupported_warnings,
         candidate_count=len(request.candidate_items),
+        evidence_layers=layers,
+        answer_v2=build_scientific_answer_payload(
+            answer_text,
+            layers,
+            request.evidence_bundle.gaps,
+            request.evidence_bundle.conflicts,
+        ),
         warnings=warnings,
     )
     return AnswerSynthesisResponse.model_validate(response.model_dump())

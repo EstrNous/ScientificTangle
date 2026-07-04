@@ -1,13 +1,15 @@
 import ingestion from './ingestion.json';
 import audit from './audit.json';
 import admin from './admin.json';
-import notifications from './notifications.json';
+import notificationsSeed from './notifications.json';
+
+let notificationItems = notificationsSeed.items.map((item) => ({ ...item }));
 
 export const mockData = {
   ingestion,
   audit,
   admin,
-  notifications,
+  notifications: { items: notificationItems },
 };
 
 export async function mockFetch(resource, options = {}) {
@@ -38,7 +40,18 @@ export async function mockFetch(resource, options = {}) {
     return admin;
   }
   if (resource === 'notifications') {
-    return notifications.items;
+    return notificationItems.map((item) => ({ ...item }));
+  }
+  if (resource === 'notifications/read-all') {
+    notificationItems = notificationItems.map((item) => ({ ...item, read: true }));
+    return { ok: true };
+  }
+  if (resource.startsWith('notifications/') && resource.endsWith('/read')) {
+    const id = resource.slice('notifications/'.length, -'/read'.length);
+    notificationItems = notificationItems.map((item) =>
+      item.id === id ? { ...item, read: true } : item,
+    );
+    return { ok: true };
   }
   if (resource === 'api/query' || resource === 'query') {
     const { runMockChatQuery } = await import('./chatQuery.js');

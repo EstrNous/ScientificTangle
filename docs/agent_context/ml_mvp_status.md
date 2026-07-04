@@ -1,5 +1,7 @@
 # Статус ML MVP
 
+**Обновлено:** 2026-07-04
+
 ## Закрыто в model service
 
 - Evidence-first контракты model service: confirmed/candidate layers, reason codes, unsupported warnings.
@@ -14,8 +16,8 @@
 - Model routing разведен по задачам: long-context для structured extraction, fast model для Query IR, multilingual model для alias/user-interest задач, chat model для answer synthesis.
 - Alias mining расширен: seed aliases, русско-английские соответствия, транслитерация, нормализация дефисов/формул и fuzzy matching через `thefuzz`.
 - In-memory model cache добавлен для embeddings, Query IR и structured extraction.
-- Добавлен тонкий internal integration slice: ingestion normalize, knowledge extraction handoff, retrieval query, orchestrator query run, gateway query proxy.
-- Добавлен live Yandex smoke test без секретов в коде; тест пропускается, если `YANDEX_API_KEY` и `YANDEX_FOLDER_ID` не настроены.
+- Internal integration slice: ingestion normalize, knowledge extraction handoff, retrieval query, orchestrator query run, gateway query proxy.
+- Live Yandex smoke test без секретов в коде; тест пропускается, если `YANDEX_API_KEY` и `YANDEX_FOLDER_ID` не настроены.
 - `eval/run_eval.py` умеет прогонять `/api/query` с auth token из env, нормализовать raw eval documents через ingestion `/v1/documents/normalize` и писать dashboard-ready JSON/Markdown.
 - Alias mining получил локальный embedding-similarity слой без привязки к Qdrant.
 - Conflict detection усилен на ML-стороне: сравнивает только сопоставимые артефакты с учетом свойства, материала, процесса, оборудования, географии, времени, условий и единиц.
@@ -23,20 +25,31 @@
 - Notification matching усилен metadata-aware scoring и штрафами для candidate/low-confidence artifacts.
 - JSON-LD enrichment расширен provenance-полями QueryIR, EvidenceBundle, SourceSpan, gaps/conflicts и не экспортирует candidates как facts.
 - Eval/perf отчеты получили versioned `eval/reports/*` artifacts, access leak и JSON-LD provenance метрики.
+- Eval regression получил pinned input manifest `eval/pinned_demo_artifact.json`, suite-разбиение `eval/regression_suites.json` и comparison report в `eval/run_eval.py`.
 
-## Что ещё не закрыто до полного ML MVP
+## Закрыто в интеграции (не только model)
 
-- Нет полноценной записи model outputs в Knowledge/Neo4j: графовая часть остается задачей отдельной DB/graph-интеграции. Qdrant MVP slice добавлен в Retrieval через `st_evidence_v1`, demo seed и live Yandex targets.
-- Нет UI/evaluation dashboard; доступны Markdown/JSON eval reports.
-- Нет зафиксированного командного live eval artifact на общем demo corpus: runner готов, но результат зависит от поднятого стэка, auth token и предоставленных raw/normalized documents.
+- Запись structured extraction в Neo4j через `Neo4jKnowledgeAdapter` (knowledge service).
+- Индексация source spans и table rows в Qdrant `st_evidence_v1` (retrieval service).
+- Query pipeline: query-ir → Qdrant search → rerank → gaps → subgraph → answer synthesis (orchestrator).
+
+## Что ещё не закрыто до полного ML/MVP
+
+- Гибридный retrieval по ТЗ: graph/table/lexical channels и fusion поверх vector search.
+- Geo/numeric constraints из Query IR не enforced в Qdrant search (только в gap suggestions).
+- Нет UI evaluation dashboard; доступны Markdown/JSON eval reports.
+- Нет зафиксированного командного live eval artifact с реальными ответами на общем demo corpus; E4 закрепил только входы и правила regression comparison.
+- Export service wiring: JSON-LD endpoint готов в model, HTTP export service — заглушка.
+- Notification service wiring: ML matching готов, HTTP notification service — заглушка.
 
 ## Top-1 ML backlog
 
 - Live eval artifact на общем demo corpus с поднятым стеком и Yandex secrets.
-- Gap precision на реальном корпусе после end-to-end retrieval.
+- Graph/table/lexical fusion в retrieval.
+- Gap precision на реальном корпусе после полного hybrid retrieval.
 - Access filtering correctness в связке с backend/Auth/retrieval через live eval gate.
-- JSON-LD enrichment в финальном export service остается задачей export-интеграции; ML endpoint готовит export-ready payload.
-- Notification service wiring остается задачей notification-интеграции; ML endpoint готовит matching scores.
+- JSON-LD enrichment в финальном export service.
+- Notification service wiring.
 - p50/p95 latency по живому стэку, а не только локальная проверка отчета.
 
 ## VL/OCR позиция

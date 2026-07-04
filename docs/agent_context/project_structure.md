@@ -42,6 +42,13 @@
 - `docs/agent_context/project_structure.md` — этот файл, карта структуры проекта для агентов.
 - `docs/agent_context/sync_rules.md` — правила синхронизации контекста между агентами.
 - `docs/agent_context/ml_mvp_status.md` — текущий статус ML MVP, открытые gaps и позиция по VL/OCR.
+- `docs/agent_context/implementation_quality_report.md` — оценка реализации vs ТЗ по сервисам, стеку и gaps.
+- `docs/agent_context/query_pipeline.md` — сквозной пайплайн запроса user → answer.
+- `docs/agent_context/top1_parallel_execution_plan.md` — поэтапный план параллельной работы двух Backend/ML-специалистов и одного Frontend-специалиста.
+- `docs/agent_context/top1_e0_contract_audit.md` — аудит контрактов query path и freeze points для этапов E1–E4.
+- `docs/agent_context/top1_e1_bm2_ml_policy.md` — E1 policy для классов запросов, retrieval planner rules, verification reason codes и synthesis/AnswerPayloadV2 expectations.
+- `docs/agent_context/top1_e4_bm1_eval_regression.md` — E4 pinned demo artifact, eval suites и comparison gate для regression checks.
+- `docs/agent_context/audit_report.md` — P0/P1 аудит репозитория и статусы инфраструктуры.
 
 ### Общий код (`shared/`)
 
@@ -144,7 +151,9 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 - `eval/gold_questions.json` — эталонные MVP-вопросы с ожидаемыми сущностями, числовыми, географическими и временными constraints.
 - `eval/gold_mining.py` — dev-only генератор corpus-derived gold candidates из `NormalizedDocument` и `SourceSpan`.
 - `eval/yandex_disk_corpus.py` — dev-only загрузчик публичного корпуса с Яндекс.Диска в локальную ignored-директорию.
-- `eval/run_eval.py` — скрипт для запуска оценки через API, опциональной нормализации raw eval documents через ingestion, расчёта evidence-first/top-1 метрик и записи Markdown/JSON отчётов с dashboard-ready блоком.
+- `eval/run_eval.py` — скрипт для запуска оценки через API, выбора regression suite, опциональной нормализации raw eval documents через ingestion, расчёта evidence-first/top-1 метрик, comparison report и записи Markdown/JSON отчётов с dashboard-ready блоком.
+- `eval/pinned_demo_artifact.json` — зафиксированный manifest входов demo/eval с sha256 и правилами обновления.
+- `eval/regression_suites.json` — разбиение eval на official, hybrid retrieval, access filtering, unsupported claims и answer completeness suites.
 - `eval/reports/` — отчёты оценки.
 
 ### Демо (`demo/`)
@@ -181,8 +190,9 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 - `services/knowledge/app/api/extraction.py` — internal handoff `NormalizedDocument` → model structured extraction → `Neo4jKnowledgeAdapter.write_bundle` с закреплённой версией справочника.
 - `services/knowledge/app/api/graph.py` — bootstrap/reset/subgraph/neighbors/aliases/conflicts/gaps/entities/filter/measurements/evidence/claims-rank.
 - `services/knowledge/adapters/` — `Neo4jKnowledgeAdapter`, DTO, mapper, Query IR compiler, graph operations.
-- `services/retrieval/app/api/indexing.py` — legacy internal mock boundary индексации документов, не подключается в FastAPI app.
-- `services/retrieval/app/api/query.py` — Query IR, dense/lexical/table/graph retrieval, детерминированный fusion, проверка доступа и model rerank.
+- `services/retrieval/app/api/query.py` — internal Query IR, Qdrant bootstrap/index/reset, vector search с access filter и model rerank; `StorageWriteResult.mode=live`.
+- `services/retrieval/app/qdrant_adapter.py` — live Qdrant adapter, collection `st_evidence_v1`.
+- `services/retrieval/app/api/indexing.py` — legacy endpoint, не смонтирован в FastAPI app.
 - `services/orchestrator/app/api/query.py` и `services/gateway/app/api/query.py` — тонкий query run/proxy path для eval-compatible ответа через `EvidenceBundle` и answer synthesis.
 
 ### services/auth_audit/
@@ -242,10 +252,12 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 
 ### services/gateway/
 
-Внешний API для загрузки документов, чтения статуса ingestion-задач, чата, графа знаний и поиска. Проверяет JWT через JWKS, создаёт или принимает `request_id`, нормализует ошибки и передаёт запросы в Orchestrator.
+Внешний API для загрузки документов, чтения статуса ingestion-задач, чата, графа знаний и поиска. Проверяет JWT через JWKS, создаёт или принимает `request_id`, нормализует ошибки и передаёт запросы в Orchestrator. Chat history в `chat_ui_db`.
 
-- `app/api/graph.py` — `GET /graph`, `GET /search`.
-- `app/service/graph_service.py` — отдача GraphPayload и SearchResultsPayload (пока пустые структуры до подключения Neo4j).
+- `app/api/query.py` — query, runs, export, source, subgraph, search.
+- `app/api/chat.py` — chat sessions и messages.
+- `app/api/graph.py` — `GET /graph`, `GET /graph/catalog`.
+- `app/service/analytics_service.py` — GraphPayload через knowledge/retrieval; strategic/lab dashboards.
 
 ### services/orchestrator/
 

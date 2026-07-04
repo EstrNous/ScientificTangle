@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import AppLogo from '../components/shared/AppLogo.jsx';
 import DarkModeToggle from '../components/shared/DarkModeToggle.jsx';
 import { useLocaleStore } from '../stores/localeStore.js';
 import i18n from '../i18n/index.js';
@@ -13,9 +14,7 @@ export default function AuthLayout() {
     <div className="flex min-h-screen flex-col bg-nn-gray-light text-gray-900 dark:bg-slate-950 dark:text-slate-100">
       <header className="flex items-center justify-between border-b border-nn-border bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-900">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-nn-blue text-sm font-bold text-white">
-            НК
-          </div>
+          <AppLogo />
           <span className="text-lg font-semibold">{t('app.title')}</span>
         </div>
         <div className="flex items-center gap-3">

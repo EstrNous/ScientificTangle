@@ -1,5 +1,9 @@
 # Отчёт аудита репозитория
 
+**Обновлено:** 2026-07-04  
+**Сводка реализации vs ТЗ:** [`implementation_quality_report.md`](implementation_quality_report.md)  
+**Пайплайн запроса:** [`query_pipeline.md`](query_pipeline.md)
+
 Статусы: `open` | `planned` | `closed`
 
 ## P0 — антипаттерны кода
@@ -22,25 +26,33 @@
 | P0-15 | `infra/scripts/` в project_structure без папки | closed |
 | P0-16 | Отсутствие CI workflow | closed |
 
-## P1 — продуктовые gaps (не блокер)
+## P1 — продуктовые gaps (не блокер MVP)
 
 | ID | Проблема | Статус |
 |----|----------|--------|
-| P1-01 | UI auth без JWT (локальный RoleSwitcher) | planned |
-| P1-02 | UploadPage / SearchPage / AdminPage — placeholder | planned |
-| P1-03 | ТЗ §420: «auth stub» (auth уже реализован) | planned |
-| P1-04 | `EVAL_AUTH_TOKEN` вручную для eval | planned |
+| P1-01 | UI auth: RoleSwitcher остаётся в dev; prod должен опираться на JWT session | open |
+| P1-02 | UploadPage / SearchPage / AdminPage — частично реализованы (real API), но Admin persist и source catalog через mock | open |
+| P1-03 | ТЗ §420: «auth stub» — auth реализован, пункт устарел | closed |
+| P1-04 | `EVAL_AUTH_TOKEN` вручную для eval | open |
+| P1-05 | Гибридный retrieval: vector + rerank есть; graph/table/lexical fusion и geo/numeric filter в Qdrant — нет | open |
+| P1-06 | UI source refs: 10 компонентов импортируют `ui/src/api/mock/` даже в real-режиме | open |
+| P1-07 | Нет зафиксированного live eval artifact на demo corpus | open |
 
-## Planned-инфра (не дефекты)
+## Инфраструктура и адаптеры
 
-| Компонент | Статус | Назначение |
-|-----------|--------|------------|
-| Neo4j | planned | граф claims в knowledge/retrieval |
-| Qdrant | planned | vector search в retrieval |
-| Redis | planned | очереди orchestrator, кэш model/gateway/retrieval, pub/sub notification |
-| chat_ui_db / export_db / notification_db | not_wired | заготовки DB-слоёв |
-| `adapter_pending` в knowledge | planned | запись в Neo4j |
-| `documents` в теле query | interim | до Qdrant/Neo4j |
+| Компонент | Статус | Факт в коде |
+|-----------|--------|-------------|
+| Neo4j | **closed** | `Neo4jKnowledgeAdapter` в knowledge; subgraph, conflicts, gaps, claims |
+| Qdrant | **closed** | `QdrantRetrievalStorageAdapter`, collection `st_evidence_v1`, `mode=live` |
+| Redis | **closed** | В compose; config в сервисах |
+| MinIO | **closed** | Ingestion bucket `source-files` |
+| PostgreSQL DB-per-service | **closed** | auth_audit, orchestrator, chat_ui, export, notification |
+| `chat_ui_db` | **closed** | Gateway: ChatSession, ChatMessage |
+| `orchestrator_db` | **closed** | IngestionTask, QueryRun, ExportJob, audit_events |
+| `export_db` | **not_wired** | Схема есть; export service — заглушка |
+| `notification_db` | **not_wired** | Схема есть; notification service — заглушка |
+| Export microservice | **not_wired** | Export через orchestrator in-memory + ExportJob в PG |
+| Notification microservice | **not_wired** | ML endpoint `/v1/notifications/match` готов; HTTP-сервис — заглушка |
 
 ## Граф compose depends_on (целевой)
 

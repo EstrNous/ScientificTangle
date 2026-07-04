@@ -438,4 +438,136 @@ RETURN c.claim_id AS claim_id,
        c.claim_last_updated_at AS claim_last_updated_at
 """
 
+GRAPH_ENTITY_PROPERTY = """
+MATCH (e:Entity)
+WHERE e.entity_id IN $entity_ids
+   OR toLower(e.canonical_name) IN [hint IN $entity_hints | toLower(hint)]
+MATCH (c:Claim)-[:VALIDATED_BY|RELATED_TO|EXPERT_IN]->(e)
+MATCH (c)-[:DESCRIBED_IN]->(s:SourceSpan)-[:PART_OF]->(d:Document)
+WHERE d.access_level IN $access_levels
+  AND ($geo_name IS NULL OR EXISTS {
+      MATCH (c)-[:APPLIED_IN_GEOGRAPHY]->(g:Geography)
+      WHERE toLower(g.name) CONTAINS toLower($geo_name)
+  })
+  AND ($numeric_min IS NULL OR EXISTS {
+      MATCH (c)-[:QUANTIFIED_BY]->(m:Measurement)
+      WHERE m.normalized_value >= $numeric_min
+  })
+  AND ($numeric_max IS NULL OR EXISTS {
+      MATCH (c)-[:QUANTIFIED_BY]->(m:Measurement)
+      WHERE m.normalized_value <= $numeric_max
+  })
+  AND ($published_after IS NULL OR c.source_published_at >= $published_after)
+  AND ($published_before IS NULL OR c.source_published_at <= $published_before)
+OPTIONAL MATCH (c)-[:QUANTIFIED_BY]->(m:Measurement)
+RETURN DISTINCT c, s, d, e, m
+ORDER BY c.confidence DESC
+LIMIT $limit
+"""
+
+GRAPH_ENTITY_PROCESS_MEASUREMENT = """
+MATCH (proc:Entity)
+WHERE proc.domain_type = 'Process'
+  AND (
+    proc.entity_id IN $entity_ids
+    OR toLower(proc.canonical_name) IN [hint IN $entity_hints | toLower(hint)]
+  )
+MATCH (c:Claim)-[:VALIDATED_BY|RELATED_TO|OPERATES_AT_CONDITION|PRODUCES_OUTPUT|USES_MATERIAL]->(proc)
+MATCH (c)-[:DESCRIBED_IN]->(s:SourceSpan)-[:PART_OF]->(d:Document)
+WHERE d.access_level IN $access_levels
+OPTIONAL MATCH (c)-[:USES_MATERIAL|PRODUCES_OUTPUT]->(mat:Entity)
+WHERE mat IS NULL OR mat.domain_type IN ['Material', 'Substance']
+OPTIONAL MATCH (c)-[:QUANTIFIED_BY]->(m:Measurement)
+WHERE ($numeric_min IS NULL OR m.normalized_value >= $numeric_min)
+  AND ($numeric_max IS NULL OR m.normalized_value <= $numeric_max)
+RETURN DISTINCT c, s, d, proc AS e, m
+ORDER BY c.confidence DESC
+LIMIT $limit
+"""
+
+GRAPH_GEO_INDICATOR = """
+MATCH (c:Claim)-[:APPLIED_IN_GEOGRAPHY]->(g:Geography)
+MATCH (c)-[:DESCRIBED_IN]->(s:SourceSpan)-[:PART_OF]->(d:Document)
+WHERE d.access_level IN $access_levels
+  AND ($geo_name IS NULL OR toLower(g.name) CONTAINS toLower($geo_name))
+OPTIONAL MATCH (c)-[:VALIDATED_BY|RELATED_TO]->(e:Entity)
+OPTIONAL MATCH (c)-[:QUANTIFIED_BY]->(m:Measurement)
+RETURN DISTINCT c, s, d, e, m, g
+ORDER BY c.confidence DESC
+LIMIT $limit
+"""
+
+GRAPH_PERIOD_OBSERVATION = """
+MATCH (c:Claim)-[:DESCRIBED_IN]->(s:SourceSpan)-[:PART_OF]->(d:Document)
+WHERE d.access_level IN $access_levels
+  AND ($published_after IS NULL OR c.source_published_at >= $published_after)
+  AND ($published_before IS NULL OR c.source_published_at <= $published_before)
+OPTIONAL MATCH (c)-[:DEGRADED_TO]->(o:Observation)
+OPTIONAL MATCH (c)-[:VALIDATED_BY|RELATED_TO]->(e:Entity)
+OPTIONAL MATCH (c)-[:QUANTIFIED_BY]->(m:Measurement)
+RETURN DISTINCT c, s, d, e, m, o
+ORDER BY c.source_published_at DESC, c.confidence DESC
+LIMIT $limit
+"""
+
+GRAPH_COMPARISON = """
+MATCH (c:Claim)-[:QUANTIFIED_BY]->(m:Measurement)
+MATCH (c)-[:DESCRIBED_IN]->(s:SourceSpan)-[:PART_OF]->(d:Document)
+WHERE d.access_level IN $access_levels
+  AND coalesce(m.dimension, m.unit, 'default') IN [$group_a_key, $group_b_key]
+OPTIONAL MATCH (c)-[:VALIDATED_BY|RELATED_TO]->(e:Entity)
+RETURN DISTINCT c, s, d, e, m
+ORDER BY m.dimension, c.confidence DESC
+LIMIT $limit
+"""
+
+GRAPH_CONFLICTS = """
+MATCH (e:Entity)
+WHERE e.entity_id IN $entity_ids
+   OR toLower(e.canonical_name) IN [hint IN $entity_hints | toLower(hint)]
+MATCH (e)<-[:VALIDATED_BY|RELATED_TO|OPERATES_AT_CONDITION|USES_MATERIAL]-(c:Claim)
+MATCH (c)-[:DESCRIBED_IN]->(s:SourceSpan)-[:PART_OF]->(d:Document)
+WHERE d.access_level IN $access_levels
+MATCH (e)<-[:VALIDATED_BY|RELATED_TO|OPERATES_AT_CONDITION|USES_MATERIAL]-(c2:Claim)
+WHERE c.claim_id < c2.claim_id
+  AND (
+    EXISTS { (c)-[:CONTRADICTS]->(c2) }
+    OR EXISTS {
+        MATCH (c)-[:QUANTIFIED_BY]->(m:Measurement)
+        MATCH (c2)-[:QUANTIFIED_BY]->(m2:Measurement)
+        WHERE m.unit = m2.unit
+          AND m.unit <> ''
+          AND m.value IS NOT NULL
+          AND m2.value IS NOT NULL
+          AND m.value <> m2.value
+    }
+  )
+OPTIONAL MATCH (c)-[:QUANTIFIED_BY]->(m:Measurement)
+RETURN DISTINCT c, s, d, e, m, c2.claim_id AS conflicting_claim_id
+LIMIT $limit
+"""
+
+GRAPH_MISSING_DATA = """
+MATCH (proc:Entity)
+WHERE proc.domain_type = 'Process'
+MATCH (mat:Entity)
+WHERE mat.domain_type IN ['Material', 'Substance']
+OPTIONAL MATCH (proc)<-[:VALIDATED_BY|RELATED_TO]-(c:Claim)-[:USES_MATERIAL|RELATED_TO|PRODUCES_OUTPUT]->(mat)
+OPTIONAL MATCH (c)-[:QUANTIFIED_BY]->(m:Measurement)
+WITH proc, mat, count(m) AS measurement_count
+WHERE measurement_count = 0
+RETURN proc AS e, mat AS related_entity, 'missing_output_measurement' AS gap_type
+LIMIT $limit
+"""
+
+GRAPH_PATTERN_QUERIES = {
+    "entity_property": GRAPH_ENTITY_PROPERTY,
+    "entity_process_measurement": GRAPH_ENTITY_PROCESS_MEASUREMENT,
+    "geo_indicator": GRAPH_GEO_INDICATOR,
+    "period_observation": GRAPH_PERIOD_OBSERVATION,
+    "comparison": GRAPH_COMPARISON,
+    "conflicts": GRAPH_CONFLICTS,
+    "missing_data": GRAPH_MISSING_DATA,
+}
+
 PING = "RETURN 1 AS ok"

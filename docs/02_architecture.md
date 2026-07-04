@@ -111,3 +111,22 @@ make logs    # логи (SERVICE=<name> для фильтра)
 `eval/` содержит:
 - `gold_questions.json` — эталонные вопросы с ожидаемыми типами ответов
 - `run_eval.py` — скрипт для запуска оценки через API
+
+## Статус реализации (2026-07-04)
+
+Ядро end-to-end pipeline реализовано: ingestion → Neo4j → Qdrant → query → answer в UI.
+
+| Компонент | Статус |
+|-----------|--------|
+| 9 backend-сервисов в compose | ✅ все подняты |
+| auth_audit (JWT, RBAC, audit) | ✅ |
+| ingestion (parsers, MinIO) | ✅ |
+| knowledge (Neo4j live) | ✅ |
+| retrieval (Qdrant live) | ⚠️ vector + rerank; graph/table/lexical fusion — backlog |
+| model (13 v1 endpoints, Yandex + fallback) | ✅ |
+| orchestrator (ingestion + query + export) | ✅ |
+| gateway (BFF, chat_db) | ✅ |
+| export / notification microservices | ⚠️ HTTP-заглушки; логика частично в orchestrator/model |
+| UI (15 страниц, real API) | ⚠️ mock source catalog в части компонентов |
+
+Детали: [`docs/agent_context/implementation_quality_report.md`](agent_context/implementation_quality_report.md), пайплайн запроса: [`docs/agent_context/query_pipeline.md`](agent_context/query_pipeline.md).

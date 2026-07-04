@@ -36,7 +36,7 @@ function buildSourceDocumentHtml(entry) {
 
   return `
     <div style="font-family:'Segoe UI',sans-serif;padding:32px;color:#111827;">
-      <p style="margin:0 0 4px;font-size:12px;color:#6B7280;">Научный Клубок</p>
+      <p style="margin:0 0 4px;font-size:12px;color:#6B7280;">НорСинтез</p>
       <h1 style="margin:0 0 8px;font-size:20px;color:#0057B8;">${escapeHtml(entry.title)}</h1>
       <p style="margin:0 0 24px;font-size:12px;color:#6B7280;">Полный документ · ${pages.length} стр.</p>
       ${pageBlocks}

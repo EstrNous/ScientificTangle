@@ -15,6 +15,7 @@ from .api.documents import router as documents_router
 from .api.dictionaries import router as dictionaries_router
 from .api.graph import router as graph_router
 from .api.health import router as health_router
+from .api.notifications import router as notifications_router
 from .api.query import router as query_router
 from .core.config import settings
 from .core.logging import setup_logging
@@ -69,3 +70,4 @@ app.include_router(query_router)
 app.include_router(chat_router)
 app.include_router(graph_router)
 app.include_router(admin_router)
+app.include_router(notifications_router)

@@ -31,8 +31,11 @@ export async function apiPost(path, body, options = {}) {
   if (useMock && !options.real) {
     return mockFetch(path.replace(/^\//, ''), { ...options, method: 'POST', body });
   }
-  const { data } = await http.post(path, body, await authorizedConfig(options));
-  return data;
+  const response = await http.post(path, body, await authorizedConfig(options));
+  if (response.status === 204) {
+    return null;
+  }
+  return response.data;
 }
 
 export async function apiDelete(path, options = {}) {
@@ -43,17 +46,24 @@ export async function apiDelete(path, options = {}) {
   return data;
 }
 
-function mapQueryResponseToMessage(payload, queryText) {
+function mapQueryResponseToMessage(payload) {
   const answer = payload?.answer ?? payload;
   return {
     id: `m-${Date.now()}`,
     role: 'assistant',
-    content: answer?.summary ?? answer?.text ?? JSON.stringify(answer),
-    expanded_synonyms: answer?.expanded_synonyms ?? [],
-    confidence: answer?.confidence ?? null,
+    content:
+      answer?.short_answer ??
+      answer?.summary ??
+      answer?.text ??
+      answer?.answer_text ??
+      JSON.stringify(answer),
+    expanded_synonyms: answer?.expanded_synonyms ?? payload?.expanded_synonyms ?? [],
+    confidence: answer?.confidence ?? payload?.confidence ?? null,
     sources: answer?.sources ?? payload?.sources ?? [],
     evidence_table: answer?.evidence_table ?? payload?.evidence_table,
     retrieval_trace: payload?.retrieval_trace ?? answer?.retrieval_trace,
+    scientific_answer: answer?.scientific_answer ?? payload?.scientific_answer ?? null,
+    warnings: answer?.warnings ?? payload?.warnings ?? [],
   };
 }
 

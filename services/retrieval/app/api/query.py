@@ -26,6 +26,7 @@ from shared.contracts import (
 from shared.utils.source_span import compute_source_span_id as source_span_id
 
 from ..core.config import settings
+from ..retrieval_planner import RetrievalPlan, build_retrieval_plan
 from ..storage import RetrievalStorageAdapter, StorageAdapterNotReady, access_allowed
 
 router = APIRouter(prefix="/v1", tags=["retrieval"])
@@ -56,6 +57,12 @@ class RetrievalSearchRequest(BaseModel):
     question: str = ""
     filters: dict[str, Any] = Field(default_factory=dict)
     access_roles: list[str] = Field(default_factory=list)
+    limit: int = Field(default=20, ge=1, le=100)
+
+
+class RetrievalPlanRequest(BaseModel):
+    question: str = Field(min_length=1)
+    filters: dict[str, Any] = Field(default_factory=dict)
     limit: int = Field(default=20, ge=1, le=100)
 
 
@@ -202,6 +209,23 @@ async def index_documents(
     )
 
 
+@router.post("/plan", response_model=RetrievalPlan)
+async def build_plan(
+    request: RetrievalPlanRequest,
+    app_request: Request,
+) -> RetrievalPlan:
+    client: httpx.AsyncClient = app_request.app.state.http_client
+    query_ir_response = await client.post(
+        f"{settings.model_url.rstrip('/')}/v1/query-ir",
+        json={"raw_query": request.question, "limit": request.limit},
+    )
+    query_ir_response.raise_for_status()
+    query_ir = QueryIR.model_validate(query_ir_response.json()["query_ir"])
+    query_ir.filters = {**query_ir.filters, **request.filters}
+    query_ir.limit = request.limit
+    return build_retrieval_plan(query_ir)
+
+
 @router.post("/query", response_model=RetrievalQueryResponse)
 async def run_query(
     request: RetrievalQueryRequest,
@@ -217,6 +241,9 @@ async def run_query(
     query_ir = QueryIR.model_validate(query_ir_response.json()["query_ir"])
     query_ir.filters = {**query_ir.filters, **request.filters}
     query_ir.limit = request.limit
+    query_ir.filters = {**query_ir.filters, **request.filters}
+    query_ir.limit = request.limit
+
     if request.dictionary_version_id is not None:
         enrichment_response = await client.post(
             f"{settings.knowledge_url.rstrip('/')}/v1/dictionaries/{request.dictionary_version_id}/enrich-query-ir",
@@ -224,6 +251,7 @@ async def run_query(
         )
         enrichment_response.raise_for_status()
         query_ir = QueryIR.model_validate(enrichment_response.json())
+
     time_constraints = query_ir.filters.get("time_constraints") or {}
     if isinstance(time_constraints, dict) and time_constraints.get("relative_years"):
         years = int(time_constraints["relative_years"])
@@ -233,10 +261,13 @@ async def run_query(
             "start_year": current_year - years,
             "end_year": current_year,
         }
+
+    retrieval_plan = build_retrieval_plan(query_ir)
+    query_ir.filters = retrieval_plan.filters
     try:
         dense_results = await adapter.search(
             request.question,
-            query_ir.filters,
+            retrieval_plan.filters,
             request.access_roles,
             request.limit,
         )
@@ -324,6 +355,7 @@ async def run_query(
             "fused": len(fused_items),
             "accessible": len(evidence_items),
             "reranked": len(ranked_items),
+            "planner": retrieval_plan.model_dump(mode="json"),
         },
         warnings=[
             *query_ir_response.json().get("warnings", []),

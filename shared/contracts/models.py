@@ -7,6 +7,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from shared.contracts.facts import AliasRef, TimeConstraint
+
 
 class UserRole(StrEnum):
     ADMIN = "admin"
@@ -156,6 +158,7 @@ class Quantity(BaseModel):
     operator: Literal["eq", "lt", "le", "gt", "ge", "range"] = "eq"
     range_min: float | None = None
     range_max: float | None = None
+    source_span_id: str | None = None
 
 
 class GeoContext(BaseModel):
@@ -163,6 +166,7 @@ class GeoContext(BaseModel):
     latitude: float | None = None
     longitude: float | None = None
     region: str | None = None
+    source_span_id: str | None = None
 
 
 class AccessPolicy(BaseModel):
@@ -179,6 +183,8 @@ class NormalizedDocument(BaseModel):
     table_blocks: list[TableBlock] = Field(default_factory=list)
     quantities: list[Quantity] = Field(default_factory=list)
     geo_contexts: list[GeoContext] = Field(default_factory=list)
+    time_contexts: list[TimeConstraint] = Field(default_factory=list)
+    alias_refs: list[AliasRef] = Field(default_factory=list)
     metadata: dict = Field(default_factory=dict)
     access_policy: AccessPolicy = Field(default_factory=AccessPolicy)
     created_at: datetime = Field(default_factory=datetime.utcnow)

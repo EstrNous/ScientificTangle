@@ -5,6 +5,8 @@ from fastapi import UploadFile, status
 
 from shared.contracts import ApiError, DictionaryVersionPayload, IngestionTaskPayload
 
+from ..core.config import settings
+
 
 class GatewayServiceError(Exception):
     def __init__(
@@ -143,7 +145,7 @@ class GatewayService:
             "/query/run",
             authorization,
             request_id,
-            json_body=payload,
+            json_body=self._with_scientific_query_flag(payload),
         )
         if response.status_code != status.HTTP_200_OK:
             raise self._downstream_error(response)
@@ -263,6 +265,15 @@ class GatewayService:
             raise GatewayServiceError(504, "orchestrator_timeout", "Orchestrator request timed out") from error
         except httpx.HTTPError as error:
             raise GatewayServiceError(503, "orchestrator_unavailable", "Orchestrator is unavailable") from error
+
+    @staticmethod
+    def _with_scientific_query_flag(payload: dict) -> dict:
+        body = dict(payload)
+        filters = dict(body.get("filters") or {})
+        if "top1_scientific_query" not in filters and settings.top1_scientific_query_enabled:
+            filters["top1_scientific_query"] = True
+        body["filters"] = filters
+        return body
 
     @staticmethod
     def _downstream_error(response: httpx.Response) -> GatewayServiceError:

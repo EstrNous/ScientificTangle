@@ -1,29 +1,11 @@
 import { useSourceDocument } from '../../context/SourceDocumentContext.jsx';
-import { resolveSourceRef } from '../../api/mock/sourceCatalog.js';
-import { useMock } from '../../api/client.js';
+import { useSourceRefRenderer } from '../../hooks/useSourceRefRenderer.js';
 
 export default function SourceLink({ sourceRef, source, children, className = '', onOpen }) {
   const { openSource } = useSourceDocument();
-  const label = children ?? sourceRef ?? source?.title;
-  const spanId = source?.source_span_id ?? sourceRef;
-  const resolved = useMock ? resolveSourceRef(sourceRef) ?? resolveSourceRef(source) : null;
+  const { label, openRef, isInteractive } = useSourceRefRenderer({ sourceRef, source, children });
 
-  if (!useMock && spanId) {
-    return (
-      <button
-        type="button"
-        onClick={() => {
-          openSource(spanId);
-          onOpen?.();
-        }}
-        className={`text-left text-nn-blue hover:underline dark:text-sky-400 ${className}`}
-      >
-        {label}
-      </button>
-    );
-  }
-
-  if (!resolved) {
+  if (!isInteractive) {
     return <span className={className}>{label}</span>;
   }
 
@@ -31,7 +13,7 @@ export default function SourceLink({ sourceRef, source, children, className = ''
     <button
       type="button"
       onClick={() => {
-        openSource(resolved);
+        openSource(openRef);
         onOpen?.();
       }}
       className={`text-left text-nn-blue hover:underline dark:text-sky-400 ${className}`}

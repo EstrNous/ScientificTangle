@@ -20,7 +20,7 @@ const S = {
 function wrapPage(title, subtitle, body) {
   return `
     <div style="font-family:'Segoe UI',sans-serif;padding:28px;color:#111827;">
-      <p style="margin:0 0 4px;font-size:11px;color:#6B7280;">Научный Клубок</p>
+      <p style="margin:0 0 4px;font-size:11px;color:#6B7280;">НорСинтез</p>
       <h1 style="margin:0 0 6px;font-size:20px;color:#0057B8;">${escapeHtml(title)}</h1>
       <p style="margin:0 0 20px;font-size:11px;color:#6B7280;">${escapeHtml(subtitle)}</p>
       ${body}

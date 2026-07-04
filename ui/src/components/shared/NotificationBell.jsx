@@ -1,5 +1,10 @@
-import { useEffect, useState } from 'react';
-import { apiGet } from '../../api/client.js';
+import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import {
+  fetchNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from '../../api/notifications.js';
 import { useNotificationStore } from '../../stores/notificationStore.js';
 
 function BellIcon() {
@@ -10,50 +15,156 @@ function BellIcon() {
   );
 }
 
+function formatRelativeTime(value, locale) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const diffMs = Date.now() - date.getTime();
+  const minutes = Math.floor(diffMs / 60000);
+  if (minutes < 1) return locale === 'ru' ? 'только что' : 'just now';
+  if (minutes < 60) {
+    return locale === 'ru' ? `${minutes} мин назад` : `${minutes}m ago`;
+  }
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) {
+    return locale === 'ru' ? `${hours} ч назад` : `${hours}h ago`;
+  }
+  const days = Math.floor(hours / 24);
+  return locale === 'ru' ? `${days} дн назад` : `${days}d ago`;
+}
+
 export default function NotificationBell() {
+  const { t, i18n } = useTranslation();
+  const panelRef = useRef(null);
   const [open, setOpen] = useState(false);
   const items = useNotificationStore((s) => s.items);
   const unreadCount = useNotificationStore((s) => s.unreadCount);
+  const loading = useNotificationStore((s) => s.loading);
   const setItems = useNotificationStore((s) => s.setItems);
+  const setLoading = useNotificationStore((s) => s.setLoading);
+  const markRead = useNotificationStore((s) => s.markRead);
   const markAllRead = useNotificationStore((s) => s.markAllRead);
 
   useEffect(() => {
-    apiGet('/notifications').then(setItems).catch(() => {});
-  }, [setItems]);
+    let active = true;
+    setLoading(true);
+    fetchNotifications()
+      .then((data) => {
+        if (active) setItems(Array.isArray(data) ? data : data?.items ?? []);
+      })
+      .catch(() => {
+        if (active) setItems([]);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [setItems, setLoading]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const handlePointerDown = (event) => {
+      if (panelRef.current && !panelRef.current.contains(event.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    return () => document.removeEventListener('mousedown', handlePointerDown);
+  }, [open]);
+
+  const handleToggle = () => setOpen((value) => !value);
+
+  const handleMarkAll = async () => {
+    markAllRead();
+    try {
+      await markAllNotificationsRead();
+    } catch {
+    }
+  };
+
+  const handleItemClick = async (item) => {
+    if (!item.read) {
+      markRead(item.id);
+      try {
+        await markNotificationRead(item.id);
+      } catch {
+      }
+    }
+  };
 
   return (
-    <div className="relative">
+    <div className="relative" ref={panelRef}>
       <button
         type="button"
-        aria-label="Уведомления"
-        onClick={() => {
-          setOpen(!open);
-          if (!open) markAllRead();
-        }}
+        aria-label={t('notifications.bell')}
+        aria-expanded={open}
+        onClick={handleToggle}
         className="relative rounded-lg border border-nn-border p-2 hover:bg-nn-gray-light dark:border-slate-600 dark:hover:bg-slate-800"
       >
         <BellIcon />
         {unreadCount > 0 && (
-          <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-xs text-white">
-            {unreadCount}
+          <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-1 text-xs text-white">
+            {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
       </button>
       {open && (
-        <div className="absolute right-0 z-50 mt-2 max-h-64 w-72 overflow-auto rounded-xl border border-nn-border bg-white shadow-card dark:border-slate-700 dark:bg-slate-900">
-          {items.length === 0 ? (
-            <p className="p-3 text-sm text-nn-gray dark:text-slate-400">Нет уведомлений</p>
-          ) : (
-            items.map((n) => (
-              <div
-                key={n.id}
-                className="border-b border-nn-border p-3 text-sm last:border-0 dark:border-slate-700"
+        <div className="absolute right-0 z-50 mt-2 w-80 overflow-hidden rounded-xl border border-nn-border bg-white shadow-card dark:border-slate-700 dark:bg-slate-900">
+          <div className="flex items-center justify-between border-b border-nn-border px-4 py-3 dark:border-slate-700">
+            <span className="text-sm font-semibold text-gray-900 dark:text-slate-100">
+              {t('notifications.title')}
+            </span>
+            {unreadCount > 0 && (
+              <button
+                type="button"
+                onClick={handleMarkAll}
+                className="text-xs font-medium text-nn-blue hover:underline"
               >
-                <p className="font-medium text-gray-900 dark:text-slate-100">{n.title}</p>
-                <p className="mt-1 text-xs text-nn-gray dark:text-slate-400">{n.reason}</p>
-              </div>
-            ))
-          )}
+                {t('notifications.markAllRead')}
+              </button>
+            )}
+          </div>
+          <div className="max-h-80 overflow-auto">
+            {loading && items.length === 0 ? (
+              <p className="p-4 text-sm text-nn-gray dark:text-slate-400">
+                {t('notifications.loading')}
+              </p>
+            ) : items.length === 0 ? (
+              <p className="p-4 text-sm text-nn-gray dark:text-slate-400">
+                {t('notifications.empty')}
+              </p>
+            ) : (
+              items.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => handleItemClick(item)}
+                  className={`flex w-full gap-3 border-b border-nn-border px-4 py-3 text-left last:border-0 dark:border-slate-700 ${
+                    item.read
+                      ? 'bg-white dark:bg-slate-900'
+                      : 'bg-nn-blue-light/40 dark:bg-slate-800/80'
+                  }`}
+                >
+                  {!item.read && (
+                    <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-nn-blue" aria-hidden />
+                  )}
+                  <span className={`min-w-0 flex-1 ${item.read ? 'pl-5' : ''}`}>
+                    <span className="block text-sm font-medium text-gray-900 dark:text-slate-100">
+                      {item.title}
+                    </span>
+                    <span className="mt-1 block text-xs text-nn-gray dark:text-slate-400">
+                      {item.reason}
+                    </span>
+                    <span className="mt-1 block text-xs text-nn-gray/80 dark:text-slate-500">
+                      {formatRelativeTime(item.created_at, i18n.language)}
+                    </span>
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
         </div>
       )}
     </div>

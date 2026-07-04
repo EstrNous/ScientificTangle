@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { useTranslation } from 'react-i18next';
+import { DeleteIcon } from '../admin/AdminIcons.jsx';
 
 function formatSize(bytes) {
   if (bytes < 1024) return `${bytes} B`;
@@ -14,6 +15,20 @@ const STATUS_STYLES = {
   completed: 'text-green-600 dark:text-green-400',
   failed: 'text-red-600 dark:text-red-400',
 };
+
+const DOCUMENT_ACCEPT = {
+  'application/pdf': ['.pdf'],
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
+  'text/plain': ['.txt'],
+};
+
+const DICTIONARY_ACCEPT = {
+  'application/json': ['.json'],
+};
+
+function fileKey(entry) {
+  return `${entry.kind}:${entry.file.name}`;
+}
 
 export default function UploadDropzone({
   files,
@@ -29,35 +44,62 @@ export default function UploadDropzone({
   const onDrop = useCallback(
     (accepted) => {
       if (!accepted.length || disabled) return;
-      onFilesSelected?.(accepted);
+      const documents = [];
+      const dictionaries = [];
+      accepted.forEach((file) => {
+        if (file.name.toLowerCase().endsWith('.json')) {
+          dictionaries.push(file);
+        } else {
+          documents.push(file);
+        }
+      });
+      if (documents.length) {
+        onFilesSelected?.(documents, 'document');
+      }
+      if (dictionaries.length) {
+        onFilesSelected?.(dictionaries, 'dictionary');
+      }
     },
     [disabled, onFilesSelected],
   );
 
-  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
+  const documentDropzone = useDropzone({
     onDrop,
     disabled: disabled || loading,
     multiple: true,
     noClick: true,
     noKeyboard: true,
     accept: {
-      'application/pdf': ['.pdf'],
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-      'text/plain': ['.txt'],
+      ...DOCUMENT_ACCEPT,
+      ...DICTIONARY_ACCEPT,
     },
   });
+
+  const dictionaryDropzone = useDropzone({
+    onDrop: (accepted) => {
+      if (!accepted.length || disabled) return;
+      onFilesSelected?.(accepted, 'dictionary');
+    },
+    disabled: disabled || loading,
+    multiple: true,
+    noClick: true,
+    noKeyboard: true,
+    accept: DICTIONARY_ACCEPT,
+  });
+
+  const isDragActive = documentDropzone.isDragActive || dictionaryDropzone.isDragActive;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4">
       <div
-        {...getRootProps()}
+        {...documentDropzone.getRootProps()}
         className={`flex min-h-[280px] flex-1 flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-10 text-center transition-colors ${
           isDragActive
             ? 'border-nn-blue bg-nn-blue-light/60 dark:border-sky-500 dark:bg-slate-800'
             : 'border-nn-border bg-nn-gray-light/40 dark:border-slate-600 dark:bg-slate-800/40'
         } ${disabled || loading ? 'pointer-events-none opacity-60' : ''}`}
       >
-        <input {...getInputProps()} />
+        <input {...documentDropzone.getInputProps()} />
         <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-white text-nn-blue shadow-card dark:bg-slate-900 dark:text-sky-400">
           <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
             <path
@@ -72,14 +114,24 @@ export default function UploadDropzone({
           {isDragActive ? t('upload.dropActive') : t('upload.dropTitle')}
         </p>
         <p className="mt-2 max-w-md text-sm text-nn-gray dark:text-slate-400">{t('upload.dropHint')}</p>
-        <button
-          type="button"
-          onClick={open}
-          disabled={disabled || loading}
-          className="mt-5 rounded-lg bg-nn-blue px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-nn-blue-dark disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {t('upload.selectFiles')}
-        </button>
+        <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={documentDropzone.open}
+            disabled={disabled || loading}
+            className="rounded-lg bg-nn-blue px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-nn-blue-dark disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {t('upload.selectFiles')}
+          </button>
+          <button
+            type="button"
+            onClick={dictionaryDropzone.open}
+            disabled={disabled || loading}
+            className="rounded-lg border border-nn-blue bg-white px-5 py-2.5 text-sm font-medium text-nn-blue transition-colors hover:bg-nn-blue-light disabled:cursor-not-allowed disabled:opacity-50 dark:border-sky-500 dark:bg-slate-900 dark:text-sky-400 dark:hover:bg-slate-800"
+          >
+            {t('upload.selectDictionary')}
+          </button>
+        </div>
       </div>
 
       {files.length > 0 && (
@@ -98,16 +150,23 @@ export default function UploadDropzone({
             </button>
           </div>
           <ul className="scrollbar-thin scrollbar-thumb-nn-border dark:scrollbar-thumb-slate-600 max-h-48 space-y-2 overflow-y-auto pr-1">
-            {files.map((file, index) => {
-              const status = fileStatuses[file.name] ?? 'queued';
+            {files.map((entry, index) => {
+              const status = fileStatuses[fileKey(entry)] ?? 'queued';
               return (
                 <li
-                  key={`${file.name}-${index}`}
+                  key={`${fileKey(entry)}-${index}`}
                   className="flex items-center gap-3 rounded-lg border border-nn-border bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-900"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-medium text-gray-900 dark:text-slate-100">{file.name}</p>
-                    <p className="text-xs text-nn-gray dark:text-slate-400">{formatSize(file.size)}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="truncate font-medium text-gray-900 dark:text-slate-100">
+                        {entry.file.name}
+                      </p>
+                      <span className="shrink-0 rounded-full bg-nn-gray-light px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-nn-gray dark:bg-slate-800 dark:text-slate-400">
+                        {t(`upload.fileKinds.${entry.kind}`, { defaultValue: entry.kind })}
+                      </span>
+                    </div>
+                    <p className="text-xs text-nn-gray dark:text-slate-400">{formatSize(entry.file.size)}</p>
                   </div>
                   <span className={`shrink-0 text-xs font-medium ${STATUS_STYLES[status] ?? STATUS_STYLES.queued}`}>
                     {t(`upload.fileStatus.${status}`, { defaultValue: status })}
@@ -116,9 +175,11 @@ export default function UploadDropzone({
                     <button
                       type="button"
                       onClick={() => onRemoveFile?.(index)}
-                      className="shrink-0 rounded-md px-2 py-1 text-xs text-nn-gray hover:bg-nn-gray-light hover:text-gray-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+                      className="inline-flex shrink-0 rounded-md p-1 text-nn-gray transition-colors hover:bg-nn-gray-light hover:text-gray-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+                      title={t('upload.removeFile')}
+                      aria-label={t('upload.removeFile')}
                     >
-                      {t('upload.removeFile')}
+                      <DeleteIcon className="h-3.5 w-3.5" />
                     </button>
                   )}
                 </li>

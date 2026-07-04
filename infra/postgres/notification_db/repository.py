@@ -14,7 +14,8 @@ class NotificationData:
 
 class NotificationRepository(Protocol):
     async def get_user_notifications(self, user_id: UUID, limit: int = 20) -> list[Notification]: ...
-    async def mark_as_read(self, notification_id: UUID) -> bool: ...
+    async def mark_as_read(self, notification_id: UUID, user_id: UUID) -> bool: ...
+    async def mark_all_as_read(self, user_id: UUID) -> int: ...
     async def create_notification(self, data: NotificationData) -> Notification: ...
     async def update_user_interests(self, user_id: UUID, raw_text: str, entities: dict) -> UserInterest: ...
 
@@ -31,14 +32,23 @@ class SqlAlchemyNotificationRepository:
         )
         return list(result)
 
-    async def mark_as_read(self, notification_id: UUID) -> bool:
+    async def mark_as_read(self, notification_id: UUID, user_id: UUID) -> bool:
         result = await self._session.execute(
             update(Notification)
-            .where(Notification.id == notification_id)
+            .where(Notification.id == notification_id, Notification.user_id == user_id)
             .values(is_read=True)
         )
         await self._session.commit()
         return bool(result.rowcount)
+
+    async def mark_all_as_read(self, user_id: UUID) -> int:
+        result = await self._session.execute(
+            update(Notification)
+            .where(Notification.user_id == user_id, Notification.is_read.is_(False))
+            .values(is_read=True)
+        )
+        await self._session.commit()
+        return int(result.rowcount or 0)
 
     async def create_notification(self, data: NotificationData) -> Notification:
         note = Notification(

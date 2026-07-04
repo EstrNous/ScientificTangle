@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import AppLogo from '../components/shared/AppLogo.jsx';
 import DarkModeToggle from '../components/shared/DarkModeToggle.jsx';
 import NotificationBell from '../components/shared/NotificationBell.jsx';
 import RoleSwitcher from '../components/shared/RoleSwitcher.jsx';
@@ -15,18 +16,13 @@ export default function TopBar() {
     <header className="shrink-0 border-b border-nn-border bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-900">
       <div className="flex items-center justify-between gap-6">
         <div className="flex shrink-0 items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-nn-blue text-sm font-bold text-white">
-            НК
-          </div>
+          <AppLogo />
           <span className="text-lg font-semibold text-gray-900 dark:text-slate-100">
             {t('app.title')}
           </span>
         </div>
 
         <div className="flex shrink-0 items-center gap-3">
-          <span className="text-lg font-semibold text-gray-900 dark:text-slate-100">
-            {t('common.team')}
-          </span>
           <RoleSwitcher />
           <DarkModeToggle />
           <button

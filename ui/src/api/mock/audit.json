@@ -52,7 +52,14 @@
       "action": "ingestion_upload",
       "object": "pilot_hl_nickel.zip",
       "timestamp": "2026-07-03T11:05:00Z",
-      "source_span_id": null
+      "source_span_id": null,
+      "resource_type": "ingestion_task",
+      "resource_id": "task-pilot-hl-nickel",
+      "details": {
+        "document_id": "doc-pilot-hl-nickel",
+        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "status": "completed"
+      }
     },
     {
       "id": "a7",

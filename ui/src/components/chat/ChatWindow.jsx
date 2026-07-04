@@ -1,6 +1,8 @@
 import { useEffect, useRef } from 'react';
 import AnswerRenderer from './AnswerRenderer.jsx';
+import ChatAnswerStatus from './ChatAnswerStatus.jsx';
 import RetrievalProgress from './RetrievalProgress.jsx';
+import StreamingAnswerDraft from './StreamingAnswerDraft.jsx';
 
 function AttachmentList({ attachments }) {
   if (!attachments?.length) return null;
@@ -18,12 +20,20 @@ function AttachmentList({ attachments }) {
   );
 }
 
-export default function ChatWindow({ messages, retrievalTrace }) {
+export default function ChatWindow({
+  messages,
+  retrievalTrace,
+  answerPhase,
+  answerMode,
+  streamingDraft,
+  streamingComplete,
+  streamingUxEnabled = false,
+}) {
   const bottomRef = useRef(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, retrievalTrace]);
+  }, [messages, retrievalTrace, answerPhase, streamingDraft]);
 
   return (
     <div className="min-h-0 flex-1 space-y-4 overflow-auto pr-2">
@@ -51,6 +61,14 @@ export default function ChatWindow({ messages, retrievalTrace }) {
           )}
         </div>
       ))}
+      <ChatAnswerStatus phase={answerPhase} mode={answerMode} streamingUxEnabled={streamingUxEnabled} />
+      {streamingUxEnabled && (
+        <StreamingAnswerDraft
+          phase={answerPhase}
+          draft={streamingDraft}
+          complete={streamingComplete}
+        />
+      )}
       {retrievalTrace && <RetrievalProgress trace={retrievalTrace} />}
       <div ref={bottomRef} />
     </div>

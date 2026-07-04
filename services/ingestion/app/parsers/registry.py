@@ -16,6 +16,8 @@ from pptx import Presentation
 
 from shared.contracts import AccessPolicy, NormalizedDocument, SourceSpan, TableBlock
 
+from ..normalization import enrich_normalized_document
+
 
 class ParserError(Exception):
     def __init__(self, code: str, message: str) -> None:
@@ -413,7 +415,7 @@ class ParserRegistry:
         }
         if source.archive_entry is not None:
             metadata["archive_entry"] = source.archive_entry
-        return NormalizedDocument(
+        document = NormalizedDocument(
             id=document_id,
             source_type=Path(source.original_filename).suffix.lower().lstrip("."),
             title=source.original_filename,
@@ -423,6 +425,7 @@ class ParserRegistry:
             metadata=metadata,
             access_policy=access_policy,
         )
+        return enrich_normalized_document(document)
 
     def _safe_archive_path(self, entry: zipfile.ZipInfo) -> str:
         if entry.flag_bits & 0x1:
