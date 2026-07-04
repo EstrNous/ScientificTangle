@@ -1,4 +1,8 @@
-from shared.web.auth import INTERNAL_SERVICE_TOKEN_HEADER, require_internal_service, require_principal
+from shared.web.auth import (
+    INTERNAL_SERVICE_TOKEN_HEADER,
+    require_internal_service,
+    require_principal,
+)
 from shared.web.errors import ServiceError, install_error_handlers
 from shared.web.request_id import request_id_middleware
 

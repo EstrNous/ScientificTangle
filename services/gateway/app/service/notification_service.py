@@ -11,7 +11,6 @@ from shared.contracts import (
     UserInterestsUpdatePayload,
 )
 from shared.security import AuthenticatedPrincipal
-
 from shared.web import INTERNAL_SERVICE_TOKEN_HEADER
 
 from ..core.config import settings
