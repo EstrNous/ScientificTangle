@@ -10,6 +10,7 @@ from neo4j import AsyncDriver
 from infra.neo4j.migrator import migrate_schema, reset_graph
 
 from .dto import BootstrapResultDTO
+from .mapper import entity_id_for_name
 
 
 def repo_root() -> Path:
@@ -34,6 +35,7 @@ async def seed_schema_registry(driver: AsyncDriver, request_id: str | None = Non
     relation_types = 0
     validation_rules = 0
     aliases = 0
+    domain_entities = 0
     async with driver.session() as session:
         core_path = root / "ontology" / "core_schema.yaml"
         if core_path.exists():
@@ -79,12 +81,52 @@ async def seed_schema_registry(driver: AsyncDriver, request_id: str | None = Non
                     expression=item.get("check", ""),
                 )
                 validation_rules += 1
+        domain_path = root / "ontology" / "domain_pack_mining_metallurgy.yaml"
+        if domain_path.exists():
+            domain_pack = yaml.safe_load(domain_path.read_text(encoding="utf-8"))
+            pack = domain_pack.get("domain_pack", {})
+            for section, domain_type in (
+                ("material_classes", "Material"),
+                ("equipment_types", "Equipment"),
+                ("process_types", "Process"),
+            ):
+                for group in domain_pack.get(section, []):
+                    if not isinstance(group, dict):
+                        continue
+                    for key, payload in group.items():
+                        examples = payload.get("examples", []) if isinstance(payload, dict) else []
+                        names = [key, *examples] if isinstance(examples, list) else [key]
+                        for name in names:
+                            entity_id = entity_id_for_name(str(name), domain_type)
+                            await session.run(
+                                """
+                                MERGE (e:Entity {entity_id: $entity_id})
+                                SET e.canonical_name = $canonical_name,
+                                    e.domain_type = $domain_type,
+                                    e.created_at = coalesce(e.created_at, datetime())
+                                """,
+                                entity_id=entity_id,
+                                canonical_name=str(name),
+                                domain_type=domain_type,
+                            )
+                            domain_entities += 1
+            profile_name = str(pack.get("name", "mining-metallurgy"))
+            await session.run(
+                """
+                MERGE (sv:SchemaVersion {version: $version})
+                SET sv.domain_pack = $domain_pack,
+                    sv.applied_at = datetime(),
+                    sv.status = 'domain_pack_seeded'
+                """,
+                version=f"domain_pack:{profile_name}",
+                domain_pack=profile_name,
+            )
         aliases_path = root / "dictionaries" / "aliases_mvp.json"
         if aliases_path.exists():
             payload = json.loads(aliases_path.read_text(encoding="utf-8"))
             for entry in payload.get("aliases", []):
                 canonical = entry["canonical"]
-                entity_id = uuid.uuid5(uuid.NAMESPACE_DNS, f"entity:{canonical}").hex[:16]
+                entity_id = entity_id_for_name(canonical, "Material")
                 await session.run(
                     """
                     MERGE (e:Entity {entity_id: $entity_id})

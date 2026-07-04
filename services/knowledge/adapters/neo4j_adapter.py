@@ -14,11 +14,14 @@ from .dto import (
     ConflictDTO,
     EntityID,
     EvidenceRecordDTO,
+    FactVersionDTO,
+    FactVersionHistoryDTO,
     GapDTO,
     GraphNeighborhood,
     GraphSubgraphDTO,
     GroupComparisonDTO,
     MeasurementAggregateDTO,
+    NeighborhoodFallbackResultDTO,
     RankedClaimDTO,
     SourceSpanDTO,
 )
@@ -28,6 +31,7 @@ from .operations import (
     path_records_to_neighborhood,
     rank_claim_records,
     records_to_subgraph,
+    subgraph_dto_to_contract,
     write_bundle_tx,
 )
 from .query_compiler import compile_query_ir
@@ -137,6 +141,25 @@ class Neo4jKnowledgeAdapter:
                 entity_hints=plan.entity_hints,
                 access_levels=plan.access_levels,
                 limit=plan.limit,
+            )
+            records = [record async for record in result]
+        return records_to_subgraph(records)
+
+    async def build_subgraph_by_evidence(
+        self,
+        claim_ids: list[str],
+        entity_ids: list[str],
+        source_span_ids: list[str],
+        request_id: str | None = None,
+    ) -> GraphSubgraphDTO:
+        if not claim_ids and not entity_ids and not source_span_ids:
+            return GraphSubgraphDTO()
+        async with self._driver.session() as session:
+            result = await session.run(
+                queries.BUILD_SUBGRAPH_BY_EVIDENCE,
+                claim_ids=claim_ids,
+                entity_ids=entity_ids,
+                source_span_ids=source_span_ids,
             )
             records = [record async for record in result]
         return records_to_subgraph(records)
@@ -259,15 +282,91 @@ class Neo4jKnowledgeAdapter:
         request_id: str | None = None,
     ) -> list[EvidenceRecordDTO]:
         plan = compile_query_ir(query_ir, access_levels=access_levels)
+        numeric = query_ir.numeric_filter
+        time_constraints = query_ir.filters.get("time_constraints", {}) if isinstance(query_ir.filters, dict) else {}
         async with self._driver.session() as session:
             result = await session.run(
                 queries.RETRIEVE_EVIDENCE,
                 access_levels=plan.access_levels,
                 entity_hints=plan.entity_hints,
+                geo_name=query_ir.geo_filter.location_name if query_ir.geo_filter else None,
+                numeric_min=numeric.range_min if numeric else None,
+                numeric_max=numeric.range_max if numeric else None,
+                published_after=time_constraints.get("from") if isinstance(time_constraints, dict) else None,
+                published_before=time_constraints.get("to") if isinstance(time_constraints, dict) else None,
                 limit=plan.limit,
             )
             records = [record async for record in result]
         return [claim_record_to_evidence(record) for record in records]
+
+    async def neighborhood_fallback(
+        self,
+        query_ir: QueryIR,
+        access_levels: list[str] | None = None,
+        request_id: str | None = None,
+    ) -> NeighborhoodFallbackResultDTO:
+        evidence = await self.retrieve_evidence(query_ir, access_levels=access_levels, request_id=request_id)
+        if evidence:
+            return NeighborhoodFallbackResultDTO(evidence=evidence, used_fallback=False)
+        expanded_entity_ids: list[str] = []
+        seed_entity_ids: list[str] = []
+        for hint in query_ir.entities:
+            seed_entity_ids.extend(await self.resolve_aliases(hint, request_id=request_id))
+        for entity_id in list(dict.fromkeys(seed_entity_ids))[:3]:
+            neighborhood = await self.expand_neighbors(entity_id, depth=1, request_id=request_id)
+            neighbor_entities = [
+                node.id for node in neighborhood.nodes if node.node_type == "Entity" and node.id != entity_id
+            ]
+            expanded_entity_ids.extend(neighbor_entities)
+        expanded_entity_ids = list(dict.fromkeys(expanded_entity_ids))[:10]
+        if not expanded_entity_ids:
+            return NeighborhoodFallbackResultDTO(evidence=[], used_fallback=True)
+        expanded_ir = query_ir.model_copy(
+            update={"entities": list(dict.fromkeys([*query_ir.entities, *expanded_entity_ids]))}
+        )
+        fallback_evidence = await self.retrieve_evidence(
+            expanded_ir,
+            access_levels=access_levels,
+            request_id=request_id,
+        )
+        return NeighborhoodFallbackResultDTO(
+            evidence=fallback_evidence,
+            used_fallback=True,
+            expanded_entity_ids=expanded_entity_ids,
+        )
+
+    async def get_fact_versions(
+        self,
+        claim_id: str,
+        request_id: str | None = None,
+    ) -> FactVersionHistoryDTO:
+        async with self._driver.session() as session:
+            result = await session.run(queries.GET_FACT_VERSIONS, claim_id=claim_id)
+            record = await result.single()
+        if record is None:
+            return FactVersionHistoryDTO(claim_id=claim_id, claim_version=0, status="unknown")
+        versions: list[FactVersionDTO] = []
+        for node in record.get("versions", []):
+            if node is None:
+                continue
+            props = dict(node)
+            versions.append(
+                FactVersionDTO(
+                    fact_version_id=str(props.get("fact_version_id", "")),
+                    claim_id=str(props.get("claim_id", claim_id)),
+                    version=int(props.get("version") or 0),
+                    status=str(props.get("status", "")),
+                    recorded_at=str(props.get("recorded_at")) if props.get("recorded_at") is not None else None,
+                )
+            )
+        superseded = [str(item) for item in record.get("superseded_claim_ids", []) if item]
+        return FactVersionHistoryDTO(
+            claim_id=str(record.get("claim_id", claim_id)),
+            claim_version=int(record.get("claim_version") or 0),
+            status=str(record.get("status", "")),
+            versions=versions,
+            superseded_claim_ids=superseded,
+        )
 
     async def rank_claims(
         self,

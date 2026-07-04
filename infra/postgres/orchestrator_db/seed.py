@@ -4,7 +4,7 @@ from uuid import uuid4
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from shared.contracts import IngestionTaskStatus, QueryRunStatus
 
-from .models import IngestionTask, QueryRun
+from .models import IngestionTask, Permission, QueryRun, Role, RolePermission
 from .config import settings
 
 
@@ -14,7 +14,28 @@ async def seed_orchestrator() -> None:
     async_session = async_sessionmaker(engine, expire_on_commit=False)
 
     async with async_session() as session:
-        # Создаем тестовые задачи Ingestion
+        roles = [
+            Role(name="admin", description="Полный доступ"),
+            Role(name="researcher", description="Исследователь"),
+            Role(name="partner", description="Внешний партнёр"),
+        ]
+        permissions = [
+            Permission(name="query.run", description="Запуск запросов"),
+            Permission(name="ingestion.upload", description="Загрузка документов"),
+            Permission(name="export.create", description="Экспорт отчётов"),
+            Permission(name="admin.read", description="Просмотр админки"),
+        ]
+        role_permissions = [
+            RolePermission(role_name="admin", permission_name="query.run"),
+            RolePermission(role_name="admin", permission_name="ingestion.upload"),
+            RolePermission(role_name="admin", permission_name="export.create"),
+            RolePermission(role_name="admin", permission_name="admin.read"),
+            RolePermission(role_name="researcher", permission_name="query.run"),
+            RolePermission(role_name="researcher", permission_name="ingestion.upload"),
+            RolePermission(role_name="researcher", permission_name="export.create"),
+            RolePermission(role_name="partner", permission_name="query.run"),
+        ]
+        session.add_all(roles + permissions + role_permissions)
         tasks = [
             IngestionTask(id=uuid4(), user_id=uuid4(), status=IngestionTaskStatus.COMPLETED.value),
             IngestionTask(id=uuid4(), user_id=uuid4(), status=IngestionTaskStatus.PROCESSING.value),

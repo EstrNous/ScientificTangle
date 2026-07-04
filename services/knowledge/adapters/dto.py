@@ -99,6 +99,12 @@ class ObservationDTO(BaseModel):
     context_raw: str = ""
 
 
+class ExperimentDTO(BaseModel):
+    experiment_id: str
+    description: str = ""
+    performed_at: str | None = None
+
+
 class ReviewDecisionDTO(BaseModel):
     decision_id: str
     reviewer_id: str = "system"
@@ -117,6 +123,7 @@ class ClaimsBundleDTO(BaseModel):
     documents: list[DocumentDTO] = Field(default_factory=list)
     geographies: list[GeographyDTO] = Field(default_factory=list)
     observations: list[ObservationDTO] = Field(default_factory=list)
+    experiments: list[ExperimentDTO] = Field(default_factory=list)
     candidate_entities: list[dict[str, Any]] = Field(default_factory=list)
     candidate_relations: list[dict[str, Any]] = Field(default_factory=list)
     candidate_classes: list[dict[str, Any]] = Field(default_factory=list)
@@ -216,6 +223,28 @@ class GroupComparisonDTO(BaseModel):
     group_b_avg: float | None = None
     delta: float | None = None
     unit: str = ""
+
+
+class FactVersionDTO(BaseModel):
+    fact_version_id: str
+    claim_id: str
+    version: int
+    status: str
+    recorded_at: str | None = None
+
+
+class FactVersionHistoryDTO(BaseModel):
+    claim_id: str
+    claim_version: int
+    status: str
+    versions: list[FactVersionDTO] = Field(default_factory=list)
+    superseded_claim_ids: list[str] = Field(default_factory=list)
+
+
+class NeighborhoodFallbackResultDTO(BaseModel):
+    evidence: list[EvidenceRecordDTO] = Field(default_factory=list)
+    used_fallback: bool = False
+    expanded_entity_ids: list[str] = Field(default_factory=list)
 
 
 class BootstrapResultDTO(BaseModel):

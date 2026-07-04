@@ -5,6 +5,8 @@ from typing import Any
 
 from neo4j import AsyncTransaction
 
+from shared.contracts import GraphLink, GraphNode, GraphSubgraph
+
 from . import queries
 from .dto import (
     ClaimsBundleDTO,
@@ -110,6 +112,9 @@ async def write_bundle_tx(tx: AsyncTransaction, bundle: ClaimsBundleDTO) -> int:
     for observation in bundle.observations:
         await tx.run(queries.WRITE_OBSERVATION, **observation.model_dump())
         written += 1
+    for experiment in bundle.experiments:
+        await tx.run(queries.WRITE_EXPERIMENT, **experiment.model_dump())
+        written += 1
     for candidate in bundle.candidate_entities:
         await tx.run(queries.WRITE_CANDIDATE_ENTITY, **candidate)
         written += 1
@@ -144,7 +149,18 @@ async def write_bundle_tx(tx: AsyncTransaction, bundle: ClaimsBundleDTO) -> int:
                 relation["type"],
             )
         written += 1
+    await tx.run(queries.LINK_CONTRADICTS)
     return written
+
+
+def subgraph_dto_to_contract(dto: GraphSubgraphDTO) -> GraphSubgraph:
+    return GraphSubgraph(
+        nodes=[GraphNode(id=node.id, label=node.label, type=node.node_type) for node in dto.nodes],
+        links=[
+            GraphLink(source=edge.source, target=edge.target, type=edge.edge_type)
+            for edge in dto.edges
+        ],
+    )
 
 
 def records_to_subgraph(records: list[Any]) -> GraphSubgraphDTO:

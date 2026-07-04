@@ -4,6 +4,7 @@ import httpx
 import structlog
 from adapters.driver import create_driver, verify_connectivity
 from adapters.neo4j_adapter import Neo4jKnowledgeAdapter
+from adapters.neo4j_storage_adapter import Neo4jStorageAdapter
 from adapters.schema import seed_schema_registry
 from fastapi import FastAPI
 
@@ -25,18 +26,19 @@ async def lifespan(app: FastAPI):
     logger = structlog.get_logger()
     http_client = httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=5.0))
     app.state.http_client = http_client
-    app.state.storage_adapter = PendingKnowledgeStorageAdapter()
     driver = create_driver(settings.neo4j_url, settings.neo4j_user, settings.neo4j_password)
     app.state.neo4j_driver = driver
     adapter = Neo4jKnowledgeAdapter(driver)
     app.state.neo4j_adapter = adapter
     if await verify_connectivity(driver):
+        app.state.storage_adapter = Neo4jStorageAdapter(adapter)
         try:
             await seed_schema_registry(driver)
             logger.info("neo4j_schema_bootstrapped", service=settings.service_name)
         except Exception as exc:
             logger.warning("neo4j_schema_bootstrap_failed", error=str(exc))
     else:
+        app.state.storage_adapter = PendingKnowledgeStorageAdapter()
         logger.warning("neo4j_unavailable", service=settings.service_name)
     logger.info("service_started", service=settings.service_name, port=settings.port)
     yield
