@@ -296,9 +296,21 @@ Offline DB fixtures для user workflows E3 (`workflow_state.json`).
 - `storage/versions/0001_create_notification_tables.py` — стартовая миграция.
 - `storage/versions/0002_add_core_notification_storage.py` — `reference_type`, `extracted_entities`, `notification_match_results`, индексы poll/unread.
 
+Миграции Alembic запускаются при старте `services/notification` (не gateway).
+
+### services/notification/
+
+Владелец `notification_db`: interests CRUD, notification list/read, internal events и interest matching через model. JWT через JWKS; gateway проксирует user-facing API.
+
+- `app/api/factory.py` — lifespan, DB, JWKS, httpx client.
+- `app/api/interests.py`, `app/api/notifications.py` — продуктовые routes.
+- `app/api/events.py` — `POST /internal/v1/events`, `POST /internal/v1/match`.
+- `app/service/notification_service.py`, `app/service/matching_service.py` — бизнес-логика.
+- `Dockerfile` — COPY `infra/postgres/notification_db`, Alembic upgrade на старте.
+
 ### services/gateway/
 
-Внешний API для загрузки документов, чтения статуса ingestion-задач, чата, графа знаний и поиска. Проверяет JWT через JWKS, создаёт или принимает `request_id`, нормализует ошибки и передаёт запросы в Orchestrator. Chat history в `chat_ui_db`.
+Внешний API для загрузки документов, чтения статуса ingestion-задач, чата, графа знаний и поиска. Проверяет JWT через JWKS, создаёт или принимает `request_id`, нормализует ошибки и передаёт запросы в Orchestrator. Chat history в `chat_ui_db`. Interests и notifications проксируются в notification service (`NOTIFICATION_URL`); `conflict_detected` из chat — через internal events.
 
 - `app/api/query.py` — query, runs, export, source, subgraph, search.
 - `app/api/chat.py` — chat sessions и messages.

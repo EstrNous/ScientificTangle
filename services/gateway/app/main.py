@@ -21,6 +21,7 @@ from .api.query import router as query_router
 from .api.review import router as review_router
 from .core.config import settings
 from .core.logging import setup_logging
+from .service.notification_service import NotificationService
 from .service.service import GatewayService
 
 setup_logging(settings.service_name)
@@ -46,6 +47,7 @@ async def lifespan(app: FastAPI):
         orchestrator_url=settings.orchestrator_url,
         upload_limit_bytes=settings.upload_limit_bytes,
     )
+    app.state.notification_service = NotificationService(http_client)
     app.state.jwt_validator = jwt_validator
     logger.info("service_started", service=settings.service_name, port=settings.port)
     yield

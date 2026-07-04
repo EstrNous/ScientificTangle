@@ -132,6 +132,8 @@ services:
         condition: service_healthy
       orchestrator:
         condition: service_healthy
+      notification:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - st-net
@@ -298,10 +300,7 @@ services:
   notification:
     build:
       context: .
-      dockerfile: infra/docker/Dockerfile.python-service
-      args:
-        SERVICE_DIR: services/notification
-        SERVICE_PORT: 8008
+      dockerfile: services/notification/Dockerfile
     container_name: st-notification
     ports:
       - "8008:8008"
@@ -310,6 +309,8 @@ services:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      auth_audit:
         condition: service_healthy
     restart: unless-stopped
     networks:

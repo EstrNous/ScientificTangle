@@ -17,7 +17,7 @@ logs:
 
 seed:
 	docker compose exec auth_audit auth-seed-users
-	docker compose exec gateway sh -c "cd /app/infra/postgres/notification_db && PYTHONPATH=. python seed.py"
+	docker compose exec notification sh -c "cd /app/infra/postgres/notification_db && PYTHONPATH=. python seed.py"
 	python scripts/seed_demo.py
 
 ingest-demo:

@@ -2,9 +2,9 @@ import json
 from uuid import UUID
 
 from infra.postgres.chat_ui_db.repository import ChatRepository
-from infra.postgres.notification_db.repository import NotificationData, NotificationRepository
 from shared.security import AuthenticatedPrincipal
 
+from .notification_service import NotificationService
 from .service import GatewayService, GatewayServiceError
 
 
@@ -21,11 +21,11 @@ class ChatService:
         self,
         repository: ChatRepository,
         gateway_service: GatewayService,
-        notification_repository: NotificationRepository | None = None,
+        notification_service: NotificationService | None = None,
     ) -> None:
         self._repository = repository
         self._gateway_service = gateway_service
-        self._notification_repository = notification_repository
+        self._notification_service = notification_service
 
     async def list_sessions(self, principal: AuthenticatedPrincipal) -> list[dict]:
         sessions = await self._repository.list_sessions(principal.user_id)
@@ -65,7 +65,7 @@ class ChatService:
         except GatewayServiceError as error:
             raise ChatServiceError(error.status_code, error.code, error.message) from error
 
-        await self._maybe_notify_conflicts(principal, query_response)
+        await self._maybe_notify_conflicts(principal, query_response, request_id)
         assistant_payload = self._map_query_response(query_response, principal)
         saved = await self._repository.save_message(
             session_id,
@@ -78,28 +78,28 @@ class ChatService:
         self,
         principal: AuthenticatedPrincipal,
         query_response: dict,
+        request_id: str,
     ) -> None:
-        if self._notification_repository is None:
+        if self._notification_service is None:
             return
         evidence_bundle = query_response.get("evidence_bundle") or {}
         conflicts = evidence_bundle.get("conflicts") or []
         if not conflicts:
             return
         run_id = query_response.get("id")
-        await self._notification_repository.create_notification(
-            NotificationData(
-                user_id=principal.user_id,
-                type="conflict_detected",
-                message="Обнаружено противоречие в ответе на запрос",
-                reference_id=str(run_id) if run_id else None,
-                reference_type="query_run",
-                match_score=1.0,
-                match_reason="query_conflict_detected",
-                match_payload={
-                    "conflict_count": len(conflicts),
-                    "query_run_id": str(run_id) if run_id else "",
-                },
-            )
+        await self._notification_service.create_conflict_event(
+            user_id=principal.user_id,
+            event_type="conflict_detected",
+            message="Обнаружено противоречие в ответе на запрос",
+            reference_id=str(run_id) if run_id else None,
+            reference_type="query_run",
+            match_score=1.0,
+            match_reason="query_conflict_detected",
+            match_payload={
+                "conflict_count": len(conflicts),
+                "query_run_id": str(run_id) if run_id else "",
+            },
+            request_id=request_id,
         )
 
     async def _require_session(self, principal: AuthenticatedPrincipal, session_id: UUID) -> None:
