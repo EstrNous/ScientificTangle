@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getDocumentViewPages } from '../../api/mock/sourceCatalog.js';
+import { getDocumentViewPages } from '../../api/sourceResolver/index.js';
 import { downloadSourceDocumentPdf } from '../../utils/downloadSource.js';
 import HighlightedText from './HighlightedText.jsx';
 

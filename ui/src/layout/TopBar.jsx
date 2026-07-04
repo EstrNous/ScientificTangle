@@ -5,6 +5,7 @@ import NotificationBell from '../components/shared/NotificationBell.jsx';
 import RoleSwitcher from '../components/shared/RoleSwitcher.jsx';
 import ProfileButton from '../components/shared/ProfileButton.jsx';
 import { useLocaleStore } from '../stores/localeStore.js';
+import { isDevRoleSwitcherEnabled } from '../utils/uiFeatureFlags.js';
 import i18n from '../i18n/index.js';
 
 export default function TopBar() {
@@ -23,7 +24,7 @@ export default function TopBar() {
         </div>
 
         <div className="flex shrink-0 items-center gap-3">
-          <RoleSwitcher />
+          {isDevRoleSwitcherEnabled() && <RoleSwitcher />}
           <DarkModeToggle />
           <button
             type="button"

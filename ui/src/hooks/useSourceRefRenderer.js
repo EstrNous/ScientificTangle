@@ -16,7 +16,7 @@ export function useSourceRefRenderer({ sourceRef, source, children }) {
       mode,
       label,
       spanId,
-      resolved,
+      resolved: resolved ?? (mode === 'live' ? resolveSourceRef(sourceRef) ?? resolveSourceRef(source) : null),
       openRef,
       isInteractive: mode === 'live' ? Boolean(spanId) : Boolean(resolved),
     };
