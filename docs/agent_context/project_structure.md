@@ -50,6 +50,8 @@
 - `docs/agent_context/top1_e4_bm1_eval_regression.md` — E4 pinned demo artifact, eval suites и comparison gate для regression checks.
 - `docs/agent_context/top1_e5_bm1_integration_eval.md` — E5 integration eval report по внешним backend merges, contract drift и обязательным fixes перед E6.
 - `docs/agent_context/audit_report.md` — P0/P1 аудит репозитория и статусы инфраструктуры.
+- `docs/agent_context/prod_readiness_analysis.md` — план глубокого production-readiness анализа: scenarios, gates, gaps и offline verification без live model calls.
+- `docs/agent_context/prod_readiness_task_cards.md` — пул task cards для закрытия production-readiness gaps с зависимостями и acceptance criteria.
 
 ### Общий код (`shared/`)
 
