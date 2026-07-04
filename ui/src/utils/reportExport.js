@@ -15,8 +15,29 @@ export function buildReportPayload(sessionId, sessionTitle, messages) {
       role: m.role,
       content: m.content || '',
       attachments: m.attachments ?? [],
+      sources: m.sources ?? [],
+      warnings: m.warnings ?? [],
     })),
   };
+}
+
+function formatSourceLabel(source) {
+  if (!source) return '';
+  if (typeof source === 'string') return source;
+  return source.title || source.document_title || source.document_id || source.id || '';
+}
+
+function buildSourcesHtml(sources) {
+  const labels = sources.map(formatSourceLabel).filter(Boolean);
+  if (!labels.length) return '';
+  const items = labels.map((label) => `<li>${escapeHtml(label)}</li>`).join('');
+  return `<p style="margin:12px 0 0;font-size:12px;font-weight:600;color:#0057B8;">Источники</p><ul style="margin:4px 0 0;padding-left:18px;font-size:12px;line-height:1.45;color:#374151;">${items}</ul>`;
+}
+
+function buildWarningsHtml(warnings) {
+  if (!warnings?.length) return '';
+  const items = warnings.map((warning) => `<li>${escapeHtml(warning)}</li>`).join('');
+  return `<p style="margin:12px 0 0;font-size:12px;font-weight:600;color:#B45309;">Предупреждения</p><ul style="margin:4px 0 0;padding-left:18px;font-size:12px;line-height:1.45;color:#92400E;">${items}</ul>`;
 }
 
 function buildReportHtml(payload) {
@@ -27,11 +48,15 @@ function buildReportHtml(payload) {
         m.attachments.length > 0
           ? `<p style="margin:8px 0 0;font-size:12px;color:#0057B8;">Файлы: ${m.attachments.map(escapeHtml).join(', ')}</p>`
           : '';
+      const sources = m.role === 'assistant' ? buildSourcesHtml(m.sources) : '';
+      const warnings = m.role === 'assistant' ? buildWarningsHtml(m.warnings) : '';
       return `
         <section style="margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid #E5E7EB;">
           <p style="margin:0 0 8px;font-size:12px;font-weight:600;color:#0057B8;text-transform:uppercase;">${roleLabel}</p>
           <p style="margin:0;font-size:14px;line-height:1.5;color:#111827;white-space:pre-wrap;">${escapeHtml(m.content)}</p>
           ${attachments}
+          ${sources}
+          ${warnings}
         </section>
       `;
     })

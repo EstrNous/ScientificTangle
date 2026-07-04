@@ -199,6 +199,7 @@
     "exportUnavailable": "недоступно",
     "exportJsonLdUnavailable": "JSON-LD экспорт пока не поддерживается сервером",
     "exportPdfUnavailable": "PDF экспорт на сервере в backlog",
+    "exportPdfClientHint": "PDF формируется в браузере из текущей сессии",
     "exportErrors": {
       "export_failed": "Не удалось выполнить экспорт",
       "export_no_query_run": "Нет завершённого запроса для экспорта",
