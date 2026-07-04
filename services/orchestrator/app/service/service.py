@@ -1,5 +1,6 @@
 import json
 import time
+from collections.abc import AsyncIterator
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -42,6 +43,15 @@ from shared.contracts import (
 from shared.security import AuthenticatedPrincipal
 
 from ..core.config import settings
+from .query_stream import (
+    QueryEventEmitter,
+    auth_context,
+    emit_answer_chunks,
+    emit_phase,
+    emit_retrieval_trace,
+    terminal_phase,
+    wrap_stream_query,
+)
 from .scientific_query import (
     access_levels_for_role,
     apply_conflict_signals,
@@ -507,6 +517,40 @@ class OrchestratorService:
         request_id: str,
         limit: int,
     ) -> QueryRunPayload:
+        return QueryRunPayload.model_validate(
+            await self._execute_query(principal, question, filters, request_id, limit)
+        )
+
+    async def stream_query(
+        self,
+        principal: AuthenticatedPrincipal,
+        question: str,
+        filters: dict,
+        request_id: str,
+        limit: int,
+    ) -> AsyncIterator[str]:
+        async def runner(on_event: QueryEventEmitter) -> dict:
+            return await self._execute_query(
+                principal,
+                question,
+                filters,
+                request_id,
+                limit,
+                on_event=on_event,
+            )
+
+        async for chunk in wrap_stream_query(runner, principal):
+            yield chunk
+
+    async def _execute_query(
+        self,
+        principal: AuthenticatedPrincipal,
+        question: str,
+        filters: dict,
+        request_id: str,
+        limit: int,
+        on_event: QueryEventEmitter | None = None,
+    ) -> dict:
         repository = self._require_query_repository()
         if self._enforce_active_dictionary:
             active_dictionary = await self._active_dictionary(request_id)
@@ -529,6 +573,7 @@ class OrchestratorService:
         )
         started_at = time.perf_counter()
         await repository.mark_processing(run)
+        await emit_phase(on_event, "parsing")
         try:
             retrieval_response = await self._request_downstream(
                 "POST",
@@ -564,6 +609,8 @@ class OrchestratorService:
                     },
                     request_id,
                 )
+            await emit_phase(on_event, "retrieval")
+            await emit_retrieval_trace(on_event, retrieval_trace)
             candidate_items: list[dict] = []
             if scientific_query_enabled(settings.top1_scientific_query_enabled, filters):
                 evidence_bundle, retrieval_trace, candidate_items, scientific_warnings = (
@@ -578,8 +625,10 @@ class OrchestratorService:
                 warnings.extend(scientific_warnings)
             else:
                 retrieval_trace["pipeline_mode"] = "legacy"
+            await emit_phase(on_event, "verification")
             graph = GraphSubgraph()
             if evidence_bundle.evidence_items:
+                await emit_phase(on_event, "synthesis")
                 gaps_response = await self._request_downstream(
                     "POST",
                     self._model_url,
@@ -653,6 +702,7 @@ class OrchestratorService:
                         continue
                     reason_codes = unsupported.get("reason_codes") or ["unsupported_claim"]
                     warnings.extend(str(code) for code in reason_codes)
+                await emit_answer_chunks(on_event, answer.answer_text)
             else:
                 warning = "insufficient_accessible_evidence"
                 warnings.append(warning)
@@ -667,6 +717,8 @@ class OrchestratorService:
                     sources_count=0,
                     model_used="none",
                 )
+                await emit_answer_chunks(on_event, answer.answer_text)
+            await emit_phase(on_event, "citations")
             latency_ms = round((time.perf_counter() - started_at) * 1000)
             await repository.mark_completed(
                 run,
@@ -678,7 +730,13 @@ class OrchestratorService:
                 list(dict.fromkeys(warnings)),
                 latency_ms,
             )
-            return self._query_payload(run)
+            await emit_phase(
+                on_event,
+                terminal_phase(answer.confidence, list(dict.fromkeys(warnings)), evidence_bundle),
+            )
+            payload = self._query_payload(run).model_dump(mode="json")
+            payload["auth_context"] = auth_context(principal)
+            return payload
         except OrchestratorServiceError as error:
             latency_ms = round((time.perf_counter() - started_at) * 1000)
             await repository.mark_failed(run, error.code, error.message, latency_ms)
@@ -1100,6 +1158,8 @@ class OrchestratorService:
             "question": payload.question,
             "status": payload.status.value,
             "role": role,
+            "user_role": role,
+            "access_scope": access_levels_for_role(UserRole(role)),
             "generated_at": generated_at.isoformat(),
             "answer": answer.answer_text,
             "confidence": answer.confidence,
@@ -1122,6 +1182,7 @@ class OrchestratorService:
             "",
             f"- Question: {document['question']}",
             f"- Role: {document['role']}",
+            f"- Access scope: {', '.join(document['access_scope'])}",
             f"- Dictionary version: {document['dictionary_version_id'] or ''}",
             f"- Generated at: {document['generated_at']}",
             f"- Status: {document['status']}",

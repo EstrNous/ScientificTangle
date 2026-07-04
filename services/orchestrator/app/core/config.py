@@ -16,6 +16,7 @@ class Settings(ServiceSettings):
     auth_jwks_cache_seconds: int = 300
     auth_clock_skew_seconds: int = 30
     top1_scientific_query_enabled: bool = False
+    top1_live_stream_enabled: bool = False
     model_config = SettingsConfigDict(env_prefix="", env_file=".env", extra="ignore")
 
 

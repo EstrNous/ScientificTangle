@@ -1,3 +1,5 @@
+import json
+from collections.abc import AsyncIterator
 from uuid import UUID
 
 import httpx
@@ -151,6 +153,29 @@ class GatewayService:
             raise self._downstream_error(response)
         return self._json_payload(response)
 
+    async def stream_query(
+        self,
+        payload: dict,
+        authorization: str,
+        request_id: str,
+    ) -> AsyncIterator[bytes]:
+        try:
+            async with self._client.stream(
+                "POST",
+                f"{self._orchestrator_url}/query/stream",
+                json=self._with_scientific_query_flag(payload),
+                headers={"Authorization": authorization, "X-Request-ID": request_id},
+            ) as response:
+                if response.status_code != status.HTTP_200_OK:
+                    body = await response.aread()
+                    raise self._downstream_error_from_body(response.status_code, body)
+                async for chunk in response.aiter_bytes():
+                    yield chunk
+        except httpx.TimeoutException as error:
+            raise GatewayServiceError(504, "orchestrator_timeout", "Orchestrator request timed out") from error
+        except httpx.HTTPError as error:
+            raise GatewayServiceError(503, "orchestrator_unavailable", "Orchestrator is unavailable") from error
+
     async def get_query_run(
         self,
         run_id: UUID,
@@ -274,6 +299,22 @@ class GatewayService:
             filters["top1_scientific_query"] = True
         body["filters"] = filters
         return body
+
+    @staticmethod
+    def _downstream_error_from_body(status_code: int, body: bytes) -> GatewayServiceError:
+        code_status = status_code if 400 <= status_code < 600 else 502
+        try:
+            payload = ApiError.model_validate(json.loads(body))
+            return GatewayServiceError(
+                code_status,
+                payload.code,
+                payload.message,
+                payload.query_run_id,
+            )
+        except (ValueError, TypeError):
+            return GatewayServiceError(
+                code_status, "downstream_error", "Downstream service request failed"
+            )
 
     @staticmethod
     def _downstream_error(response: httpx.Response) -> GatewayServiceError:

@@ -36,6 +36,7 @@ def get_chat_service(
     return ChatService(
         repository=ChatRepository(session),
         gateway_service=request.app.state.gateway_service,
+        notification_repository=SqlAlchemyNotificationRepository(session),
     )
 
 

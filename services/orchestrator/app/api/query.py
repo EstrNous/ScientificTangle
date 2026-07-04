@@ -1,7 +1,8 @@
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from shared.contracts import (
@@ -14,6 +15,7 @@ from shared.contracts import (
 from shared.security import AuthenticatedPrincipal
 from shared.web import ServiceError, require_principal
 
+from ..core.config import settings
 from ..core.dependencies import get_orchestrator_service
 from ..service.service import OrchestratorService, OrchestratorServiceError
 
@@ -54,6 +56,35 @@ async def run_query(
             filters=payload.filters,
             request_id=request.state.request_id,
             limit=payload.limit,
+        )
+    except OrchestratorServiceError as error:
+        raise_service_error(error)
+
+
+@router.post("/query/stream")
+async def stream_query(
+    request: Request,
+    payload: QueryRunRequest,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],
+    service: Annotated[OrchestratorService, Depends(get_orchestrator_service)],
+) -> StreamingResponse:
+    if not settings.top1_live_stream_enabled:
+        raise ServiceError(
+            status.HTTP_404_NOT_FOUND,
+            "stream_disabled",
+            "Live query stream is disabled",
+        )
+    try:
+        return StreamingResponse(
+            service.stream_query(
+                principal=principal,
+                question=payload.question,
+                filters=payload.filters,
+                request_id=request.state.request_id,
+                limit=payload.limit,
+            ),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
     except OrchestratorServiceError as error:
         raise_service_error(error)
