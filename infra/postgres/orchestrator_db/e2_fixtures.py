@@ -73,7 +73,26 @@ async def seed_e2_fixtures(session: AsyncSession) -> dict[str, int]:
             )
             counts["indexed_documents"] += 1
 
+    document_access: dict[str, tuple[str, list[str]]] = {}
+    for document in payload["indexed_documents"]:
+        metadata = document.get("metadata", {})
+        document_access[document["document_id"]] = (
+            document["access_level"],
+            list(metadata.get("allowed_roles", [])),
+        )
+
     for span in payload["source_span_lookup"]:
+        span_access_level = span.get("access_level")
+        span_allowed_roles = span.get("allowed_roles")
+        if span_access_level is None:
+            span_access_level, default_roles = document_access.get(
+                span["document_id"],
+                ("internal", []),
+            )
+            if span_allowed_roles is None:
+                span_allowed_roles = default_roles
+        if span_allowed_roles is None:
+            span_allowed_roles = []
         await storage.upsert_source_span_lookup(
             source_span_id=span["source_span_id"],
             document_id=span["document_id"],
@@ -84,6 +103,8 @@ async def seed_e2_fixtures(session: AsyncSession) -> dict[str, int]:
             text_snippet=span["text_snippet"],
             table_block_id=span.get("table_block_id"),
             table_row_id=span.get("table_row_id"),
+            access_level=span_access_level,
+            allowed_roles=span_allowed_roles,
         )
         counts["source_span_lookup"] += 1
 

@@ -1,0 +1,307 @@
+{
+  "users": [
+    {
+      "user_ref": "external_partner",
+      "role": "external_partner"
+    }
+  ],
+  "indexed_documents": [
+    {
+      "document_id": "e4-doc-public",
+      "title": "Обзор практик закачки шахтных вод",
+      "source_type": "article",
+      "source_spans_count": 1,
+      "indexed_points_count": 1,
+      "access_level": "public",
+      "metadata": {
+        "year": 2023,
+        "geo_bucket": "foreign",
+        "geo_country": "canada",
+        "dictionary_version_id": "dict-v1-active"
+      },
+      "deletion_status": "none"
+    },
+    {
+      "document_id": "e4-doc-internal",
+      "title": "Режимы электроэкстракции никеля",
+      "source_type": "report",
+      "source_spans_count": 2,
+      "indexed_points_count": 2,
+      "access_level": "internal",
+      "metadata": {
+        "year": 2024,
+        "geo_bucket": "domestic",
+        "geo_country": "russia",
+        "dictionary_version_id": "dict-v1-active"
+      },
+      "deletion_status": "none"
+    },
+    {
+      "document_id": "e4-doc-confidential",
+      "title": "Экономика закрытого контура обогащения",
+      "source_type": "internal_memo",
+      "source_spans_count": 1,
+      "indexed_points_count": 1,
+      "access_level": "restricted",
+      "metadata": {
+        "year": 2025,
+        "allowed_roles": ["admin", "manager"],
+        "dictionary_version_id": "dict-v1-active"
+      },
+      "deletion_status": "none"
+    }
+  ],
+  "source_span_lookup": [
+    {
+      "source_span_id": "e4span-public-injection-001",
+      "document_id": "e4-doc-public",
+      "page": 4,
+      "highlight_start": 80,
+      "highlight_end": 165,
+      "table_row_id": null,
+      "table_block_id": null,
+      "source_type": "text",
+      "text_snippet": "закачка шахтных вод в пласты применяется в Канаде и Австралии"
+    },
+    {
+      "source_span_id": "e4span-internal-nickel-001",
+      "document_id": "e4-doc-internal",
+      "page": 2,
+      "highlight_start": 40,
+      "highlight_end": 120,
+      "table_row_id": null,
+      "table_block_id": null,
+      "source_type": "text",
+      "text_snippet": "в России извлекаемость никеля составила 82 %"
+    },
+    {
+      "source_span_id": "e4span-internal-flow-table-001",
+      "document_id": "e4-doc-internal",
+      "page": 6,
+      "highlight_start": 0,
+      "highlight_end": 38,
+      "table_row_id": "tbl-flow:row:0",
+      "table_block_id": "tbl-flow:row:0",
+      "source_type": "table",
+      "text_snippet": "скорость потока католита: 0,4-0,6 м/с"
+    },
+    {
+      "source_span_id": "e4span-confidential-cost-001",
+      "document_id": "e4-doc-confidential",
+      "page": 1,
+      "highlight_start": 10,
+      "highlight_end": 95,
+      "table_row_id": null,
+      "table_block_id": null,
+      "source_type": "text",
+      "text_snippet": "CAPEX закрытого контура оценивается в 4,2 млрд руб.",
+      "access_level": "restricted",
+      "allowed_roles": ["admin", "manager"]
+    }
+  ],
+  "document_cascade_refs": [
+    {
+      "document_id": "e4-doc-public",
+      "source_span_ids": ["e4span-public-injection-001"],
+      "claim_ids": ["claim-e4-public-001"],
+      "vector_point_ids": ["pt-e4span-public-injection-001"],
+      "graph_node_refs": [
+        {"label": "Document", "node_id": "e4-doc-public"},
+        {"label": "SourceSpan", "node_id": "e4span-public-injection-001"}
+      ],
+      "minio_object_refs": [
+        {"bucket": "source-files", "object_key": "e4-doc-public/original.pdf"}
+      ]
+    },
+    {
+      "document_id": "e4-doc-internal",
+      "source_span_ids": ["e4span-internal-nickel-001", "e4span-internal-flow-table-001"],
+      "claim_ids": ["claim-e4-internal-001", "claim-e4-internal-002"],
+      "vector_point_ids": ["pt-e4span-internal-nickel-001", "pt-e4span-internal-flow-table-001"],
+      "graph_node_refs": [
+        {"label": "Document", "node_id": "e4-doc-internal"},
+        {"label": "Claim", "node_id": "claim-e4-internal-001"}
+      ],
+      "minio_object_refs": [
+        {"bucket": "source-files", "object_key": "e4-doc-internal/original.pdf"}
+      ]
+    },
+    {
+      "document_id": "e4-doc-confidential",
+      "source_span_ids": ["e4span-confidential-cost-001"],
+      "claim_ids": ["claim-e4-confidential-001"],
+      "vector_point_ids": ["pt-e4span-confidential-cost-001"],
+      "graph_node_refs": [
+        {"label": "Document", "node_id": "e4-doc-confidential"},
+        {"label": "Claim", "node_id": "claim-e4-confidential-001"}
+      ],
+      "minio_object_refs": [
+        {"bucket": "source-files", "object_key": "e4-doc-confidential/original.pdf"}
+      ]
+    }
+  ],
+  "qdrant_payloads": [
+    {
+      "point_id": "pt-e4span-public-injection-001",
+      "source_span_id": "e4span-public-injection-001",
+      "document_id": "e4-doc-public",
+      "access_level": "public",
+      "allowed_roles": [],
+      "source_type": "text",
+      "page": 4,
+      "highlight_start": 80,
+      "highlight_end": 165,
+      "table_row_id": "",
+      "numeric_min": null,
+      "numeric_max": null,
+      "units": [],
+      "geo_bucket": "foreign",
+      "geo_country": "canada",
+      "published_year": 2023,
+      "dictionary_version_id": "dict-v1-active",
+      "claim_ids": ["claim-e4-public-001"],
+      "graph_entity_ids": []
+    },
+    {
+      "point_id": "pt-e4span-internal-nickel-001",
+      "source_span_id": "e4span-internal-nickel-001",
+      "document_id": "e4-doc-internal",
+      "access_level": "internal",
+      "allowed_roles": [],
+      "source_type": "text",
+      "page": 2,
+      "highlight_start": 40,
+      "highlight_end": 120,
+      "table_row_id": "",
+      "numeric_min": 82.0,
+      "numeric_max": 82.0,
+      "units": ["%"],
+      "geo_bucket": "domestic",
+      "geo_country": "russia",
+      "published_year": 2024,
+      "dictionary_version_id": "dict-v1-active",
+      "claim_ids": ["claim-e4-internal-001"],
+      "graph_entity_ids": ["entity-nickel"]
+    },
+    {
+      "point_id": "pt-e4span-internal-flow-table-001",
+      "source_span_id": "e4span-internal-flow-table-001",
+      "document_id": "e4-doc-internal",
+      "access_level": "internal",
+      "allowed_roles": [],
+      "source_type": "table",
+      "page": 6,
+      "highlight_start": 0,
+      "highlight_end": 38,
+      "table_row_id": "tbl-flow:row:0",
+      "numeric_min": 0.4,
+      "numeric_max": 0.6,
+      "units": ["m/s"],
+      "geo_bucket": "domestic",
+      "geo_country": "russia",
+      "published_year": 2024,
+      "dictionary_version_id": "dict-v1-active",
+      "claim_ids": ["claim-e4-internal-002"],
+      "graph_entity_ids": []
+    },
+    {
+      "point_id": "pt-e4span-confidential-cost-001",
+      "source_span_id": "e4span-confidential-cost-001",
+      "document_id": "e4-doc-confidential",
+      "access_level": "restricted",
+      "allowed_roles": ["admin", "manager"],
+      "source_type": "text",
+      "page": 1,
+      "highlight_start": 10,
+      "highlight_end": 95,
+      "table_row_id": "",
+      "numeric_min": 4.2,
+      "numeric_max": 4.2,
+      "units": [],
+      "geo_bucket": "",
+      "geo_country": "",
+      "published_year": 2025,
+      "dictionary_version_id": "dict-v1-active",
+      "claim_ids": ["claim-e4-confidential-001"],
+      "graph_entity_ids": []
+    }
+  ],
+  "audit_events": [
+    {
+      "user_ref": "external_partner",
+      "action": "access_denied",
+      "resource_type": "source_span",
+      "resource_id": "e4span-confidential-cost-001",
+      "details": {
+        "source_span_id": "e4span-confidential-cost-001",
+        "document_id": "e4-doc-confidential",
+        "role": "external_partner",
+        "status": "denied",
+        "reason": "access_policy"
+      },
+      "request_id": "e4-fixture-audit-denied"
+    },
+    {
+      "user_ref": "external_partner",
+      "action": "source_viewed",
+      "resource_type": "source_span",
+      "resource_id": "e4span-public-injection-001",
+      "details": {
+        "source_span_id": "e4span-public-injection-001",
+        "document_id": "e4-doc-public",
+        "role": "external_partner",
+        "status": "success"
+      },
+      "request_id": "e4-fixture-audit-source"
+    },
+    {
+      "user_ref": "researcher",
+      "action": "search",
+      "resource_type": "search_query",
+      "resource_id": "никель Россия 2024",
+      "details": {
+        "query": "никель Россия 2024",
+        "role": "researcher",
+        "status": "success",
+        "result_count": 2,
+        "filters": {
+          "geo_constraints": ["Россия"],
+          "numeric_constraints": [{"value": 82, "unit": "%"}],
+          "time_constraints": [{"year_from": 2024, "year_to": 2024}]
+        }
+      },
+      "request_id": "e4-fixture-audit-search"
+    },
+    {
+      "user_ref": "researcher",
+      "action": "document_exported",
+      "resource_type": "export_job",
+      "resource_id": "e4-export-job-001",
+      "details": {
+        "query_run_id": "e4-query-run-001",
+        "format": "markdown",
+        "role": "researcher",
+        "status": "completed"
+      },
+      "request_id": "e4-fixture-audit-export"
+    }
+  ],
+  "access_expectations": {
+    "external_partner": {
+      "allowed_source_span_ids": ["e4span-public-injection-001"],
+      "forbidden_source_span_ids": [
+        "e4span-internal-nickel-001",
+        "e4span-internal-flow-table-001",
+        "e4span-confidential-cost-001"
+      ]
+    },
+    "researcher": {
+      "allowed_source_span_ids": [
+        "e4span-public-injection-001",
+        "e4span-internal-nickel-001",
+        "e4span-internal-flow-table-001"
+      ],
+      "forbidden_source_span_ids": ["e4span-confidential-cost-001"]
+    }
+  }
+}
