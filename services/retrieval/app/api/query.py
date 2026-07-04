@@ -466,6 +466,7 @@ def payload_indexes() -> dict[str, str]:
         "access_level": "keyword",
         "allowed_roles": "keyword",
         "table_block_id": "keyword",
+        "table_row_id": "keyword",
         "units": "keyword",
         "geo_bucket": "keyword",
         "geo_country": "keyword",
@@ -475,6 +476,9 @@ def payload_indexes() -> dict[str, str]:
         "numeric_min": "float",
         "numeric_max": "float",
         "published_year": "integer",
+        "page": "integer",
+        "highlight_start": "integer",
+        "highlight_end": "integer",
         "dictionary_version_id": "keyword",
     }
 
@@ -541,6 +545,7 @@ def build_payload(
     numeric_values = extract_numbers(span.text)
     units = extract_units(span.text)
     geo_bucket, geo_country = extract_geo(span.text)
+    table_row_id = span.table_block_id if span.table_block_id and ":row:" in span.table_block_id else None
     return {
         "schema_version": "qdrant_evidence.v1",
         "item_type": "table_row" if span.source_type == "table" else "source_span",
@@ -552,7 +557,10 @@ def build_payload(
         "page": span.page,
         "start_offset": span.start_offset,
         "end_offset": span.end_offset,
+        "highlight_start": span.start_offset,
+        "highlight_end": span.end_offset,
         "table_block_id": span.table_block_id or "",
+        "table_row_id": table_row_id or "",
         "source_type": span.source_type,
         "document_source_type": document.source_type,
         "access_level": document.access_policy.level,

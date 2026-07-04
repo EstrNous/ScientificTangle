@@ -36,13 +36,19 @@ def payload_allowed(payload: dict, access_roles: list[str]) -> bool:
 
 
 def payload_to_span(payload: dict) -> SourceSpan:
+    table_block_id = str(payload.get("table_block_id") or "") or None
+    table_row_id = str(payload.get("table_row_id") or "") or None
+    if table_row_id and not table_block_id:
+        table_block_id = table_row_id
     return SourceSpan(
         document_id=str(payload["document_id"]),
         page=int(payload.get("page") or 1),
-        start_offset=int(payload.get("start_offset") or 0),
-        end_offset=int(payload.get("end_offset") or len(str(payload.get("text", "")))),
+        start_offset=int(payload.get("highlight_start", payload.get("start_offset")) or 0),
+        end_offset=int(
+            payload.get("highlight_end", payload.get("end_offset")) or len(str(payload.get("text", "")))
+        ),
         text=str(payload.get("text", "")),
-        table_block_id=str(payload.get("table_block_id") or "") or None,
+        table_block_id=table_block_id,
         source_type=(
             payload.get("source_type")
             if payload.get("source_type") in {"text", "table", "figure", "caption"}

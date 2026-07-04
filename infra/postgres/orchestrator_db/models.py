@@ -244,6 +244,44 @@ class ExportJob(Base):
     )
 
 
+class SourceSpanLookup(Base):
+    __tablename__ = "source_span_lookup"
+    __table_args__ = (
+        Index("ix_source_span_lookup_document_id", "document_id"),
+        Index("ix_source_span_lookup_page", "page"),
+        Index("ix_source_span_lookup_table_row_id", "table_row_id"),
+        Index("ix_source_span_lookup_document_page", "document_id", "page"),
+    )
+
+    source_span_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    document_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    page: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    highlight_start: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    highlight_end: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    table_row_id: Mapped[str | None] = mapped_column(String(256))
+    table_block_id: Mapped[str | None] = mapped_column(String(256))
+    source_type: Mapped[str] = mapped_column(String(32), nullable=False, default="text")
+    text_snippet: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class DocumentCascadeRefs(Base):
+    __tablename__ = "document_cascade_refs"
+    __table_args__ = (Index("ix_document_cascade_refs_updated_at", "updated_at"),)
+
+    document_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    source_span_ids: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="[]")
+    claim_ids: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="[]")
+    vector_point_ids: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="[]")
+    graph_node_refs: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="[]")
+    minio_object_refs: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="[]")
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
 class ExportArtifact(Base):
     __tablename__ = "export_artifacts"
     __table_args__ = (

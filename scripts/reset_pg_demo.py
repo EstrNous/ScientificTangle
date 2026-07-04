@@ -13,6 +13,8 @@ DEFAULT_TABLES = (
     "notification_match_results",
     "extracted_entities",
     "review_decisions",
+    "document_cascade_refs",
+    "source_span_lookup",
     "audit_events",
     "role_permissions",
     "permissions",

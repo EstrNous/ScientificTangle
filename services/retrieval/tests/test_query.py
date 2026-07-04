@@ -285,8 +285,21 @@ def test_build_points_indexes_table_rows_as_evidence() -> None:
     payloads = [point["payload"] for point in points]
     assert all(payload["item_type"] == "table_row" for payload in payloads)
     assert payloads[0]["table_block_id"] == "table-1:row:0"
+    assert payloads[0]["table_row_id"] == "table-1:row:0"
+    assert payloads[0]["highlight_start"] == payloads[0]["start_offset"]
+    assert payloads[0]["highlight_end"] == payloads[0]["end_offset"]
     assert payloads[0]["units"] == ["m/s"]
     assert payloads[1]["units"] == ["%"]
+
+
+def test_payload_indexes_include_source_lookup_fields() -> None:
+    from app.api.query import payload_indexes
+
+    indexes = payload_indexes()
+    assert indexes["table_row_id"] == "keyword"
+    assert indexes["page"] == "integer"
+    assert indexes["highlight_start"] == "integer"
+    assert indexes["highlight_end"] == "integer"
 
 
 def test_payload_allowed_respects_roles_and_admin_bypass() -> None:

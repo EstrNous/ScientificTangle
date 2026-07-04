@@ -232,13 +232,20 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 
 База данных оркестратора (база `scientific_tangle`, таблица версий `alembic_version_orchestrator`). Управление задачами ингеста, запусками запросов и экспортом.
 
-- `models.py` — модели: `IngestionTask`, `QueryRun`, `ExportJob`, `ExportArtifact`, `IndexedDocument`, `ReviewDecision`, `AuditEvent`, RBAC-таблицы.
+- `models.py` — модели: `IngestionTask`, `QueryRun`, `ExportJob`, `ExportArtifact`, `IndexedDocument`, `ReviewDecision`, `SourceSpanLookup`, `DocumentCascadeRefs`, `AuditEvent`, RBAC-таблицы.
 - `repository.py` — `IngestionTaskRepository` (create/get/set_report/mark_failed).
+- `review_storage.py` — `ReviewStorageRepository` для review decisions, source span lookup и cascade refs.
+- `e2_fixtures.py`, `seed_e2_fixtures.py` — offline fixtures E2 review/source/delete.
 - `database.py` — `create_database()`, `get_session()`.
 - `config.py` — `OrchestratorDbSettings` (env prefix `ORCHESTRATOR_`).
 - Alembic: `services/orchestrator/alembic.ini`, миграции в `services/orchestrator/storage/versions/` (`0001` — ingestion_tasks, `0002` — query_runs/export_jobs, `0003` — совместимость query_runs с прежним init SQL, `0004` — полный сохраняемый результат query run).
 - `0007_add_dictionary_pinning.py` добавляет тип ingestion-задачи и закреплённую версию справочника для задач и query run.
 - `0008_add_core_storage_foundation.py` — `review_decisions`, `export_artifacts`, tombstone `indexed_documents`, cursor-индексы audit/export.
+- `0009_add_review_source_delete_storage.py` — `source_span_lookup`, `document_cascade_refs` для E2 review/source/delete.
+
+### infra/fixtures/e2/
+
+Offline DB fixtures для review/source/delete без live models (`review_source_delete.json`).
 
 ### infra/postgres/chat_ui_db/
 

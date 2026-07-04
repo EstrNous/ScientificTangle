@@ -14,7 +14,10 @@ SET s.document_id = $document_id,
     s.char_start = $char_start,
     s.char_end = $char_end,
     s.source_type = $source_type,
-    s.table_block_id = $table_block_id
+    s.table_block_id = $table_block_id,
+    s.table_row_id = $table_row_id,
+    s.highlight_start = $highlight_start,
+    s.highlight_end = $highlight_end
 WITH s
 MATCH (d:Document {document_id: $document_id})
 MERGE (s)-[:PART_OF]->(d)
@@ -223,6 +226,28 @@ SET rd.reviewer_id = $reviewer_id,
     rd.status = $status,
     rd.comment = $comment,
     rd.decided_at = $decided_at
+"""
+
+LIST_REVIEW_CANDIDATES = """
+MATCH (ce:CandidateEntity)
+RETURN ce.candidate_id AS candidate_id,
+       'entity' AS candidate_type,
+       ce.raw_data AS raw_data,
+       ce.extracted_at AS extracted_at
+UNION ALL
+MATCH (cr:CandidateRelation)
+RETURN cr.candidate_id AS candidate_id,
+       'relation' AS candidate_type,
+       cr.raw_data AS raw_data,
+       cr.extracted_at AS extracted_at
+UNION ALL
+MATCH (cc:CandidateClass)
+RETURN cc.candidate_id AS candidate_id,
+       'class' AS candidate_type,
+       cc.raw_data AS raw_data,
+       cc.extracted_at AS extracted_at
+ORDER BY extracted_at DESC
+LIMIT $limit
 """
 
 RESOLVE_ALIAS_FULLTEXT = """
