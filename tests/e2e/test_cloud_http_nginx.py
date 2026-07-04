@@ -33,4 +33,5 @@ def test_cloud_http_config_exposes_public_routes() -> None:
     assert "location /api/auth/" in content
     assert "location /grafana/" in content
     assert "listen 80;" in content
+    assert "client_max_body_size 200M;" in content
     assert "ssl_certificate" not in content

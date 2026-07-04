@@ -1,4 +1,4 @@
-.PHONY: bootstrap bootstrap-prod ensure-env up up-prod prod down down-prod build build-prod logs logs-prod seed seed-prod prod-demo ingest-demo e2e eval eval-offline-quality eval-yandex-live perf-smoke reset-demo lint test test-model test-neo4j-integration test-yandex-live export-demo deploy-cloud cloud-up cloud-ps cloud-logs cloud-down cloud-verify
+.PHONY: bootstrap bootstrap-prod ensure-env up up-prod prod down down-prod build build-prod logs logs-prod seed seed-prod prod-demo ingest-demo e2e eval eval-offline-quality eval-yandex-live perf-smoke reset-demo lint test test-model test-neo4j-integration test-yandex-live export-demo deploy-cloud cloud-up cloud-ps cloud-logs cloud-down cloud-verify test-cloud-nginx
 
 COMPOSE_DEV = docker compose -f docker-compose.yml -f docker-compose.dev.yml
 COMPOSE_PROD = docker compose -f docker-compose.yml -f docker-compose.prod.yml
@@ -125,3 +125,6 @@ cloud-down:
 
 cloud-verify:
 	bash scripts/cloud_verify.sh
+
+test-cloud-nginx:
+	python -m pytest tests/e2e/test_cloud_http_nginx.py -v

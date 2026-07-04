@@ -221,8 +221,15 @@ python3 scripts/seed_corpus_batches.py \
 ## Остановка и перезапуск
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloud.yml down
-docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloud.yml up -d
+make cloud-down
+make cloud-up
+```
+
+Или вручную (HTTP cloud):
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloud.yml -f docker-compose.cloud.http.yml down
+docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloud.yml -f docker-compose.cloud.http.yml up -d
 ```
 
 Полный сброс с удалением данных:
