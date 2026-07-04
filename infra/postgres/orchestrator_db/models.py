@@ -127,6 +127,8 @@ class AuditEvent(Base):
         Index("ix_audit_events_created_at", "created_at"),
         Index("ix_audit_events_user_created_id", "user_id", "created_at", "id"),
         Index("ix_audit_events_resource_type", "resource_type"),
+        Index("ix_audit_events_created_id", "created_at", "id"),
+        Index("ix_audit_events_action_created_id", "action", "created_at", "id"),
     )
 
     id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4)
@@ -142,6 +144,14 @@ class AuditEvent(Base):
 
 
 class DocumentDeletionStatus(StrEnum):
+    NONE = "none"
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class CascadeStatus(StrEnum):
     NONE = "none"
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
@@ -196,6 +206,7 @@ class ReviewDecision(Base):
         Index("ix_review_decisions_decided_at", "decided_at"),
         Index("ix_review_decisions_reviewer_user_id", "reviewer_user_id"),
         Index("ix_review_decisions_status_decided_at", "status", "decided_at"),
+        Index("ix_review_decisions_status_created_id", "status", "created_at", "id"),
     )
 
     id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4)
@@ -269,7 +280,10 @@ class SourceSpanLookup(Base):
 
 class DocumentCascadeRefs(Base):
     __tablename__ = "document_cascade_refs"
-    __table_args__ = (Index("ix_document_cascade_refs_updated_at", "updated_at"),)
+    __table_args__ = (
+        Index("ix_document_cascade_refs_updated_at", "updated_at"),
+        Index("ix_document_cascade_refs_cascade_status", "cascade_status"),
+    )
 
     document_id: Mapped[str] = mapped_column(String(128), primary_key=True)
     source_span_ids: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="[]")
@@ -277,6 +291,11 @@ class DocumentCascadeRefs(Base):
     vector_point_ids: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="[]")
     graph_node_refs: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="[]")
     minio_object_refs: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="[]")
+    cascade_status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=CascadeStatus.NONE.value
+    )
+    cascade_steps: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
+    last_error: Mapped[str | None] = mapped_column(Text)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
     )

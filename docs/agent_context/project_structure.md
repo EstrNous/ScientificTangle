@@ -238,17 +238,28 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 - `models.py` — модели: `IngestionTask`, `QueryRun`, `ExportJob`, `ExportArtifact`, `IndexedDocument`, `ReviewDecision`, `SourceSpanLookup`, `DocumentCascadeRefs`, `AuditEvent`, RBAC-таблицы.
 - `repository.py` — `IngestionTaskRepository` (create/get/set_report/mark_failed).
 - `review_storage.py` — `ReviewStorageRepository` для review decisions, source span lookup и cascade refs.
+- `workflow_storage.py` — `WorkflowStorageRepository` для E3 workflow state: review+audit, delete cascade, admin save+audit, audit cursor pagination.
 - `e2_fixtures.py`, `seed_e2_fixtures.py` — offline fixtures E2 review/source/delete.
+- `e3_fixtures.py`, `seed_e3_fixtures.py` — offline fixtures E3 user workflows.
 - `database.py` — `create_database()`, `get_session()`.
 - `config.py` — `OrchestratorDbSettings` (env prefix `ORCHESTRATOR_`).
 - Alembic: `services/orchestrator/alembic.ini`, миграции в `services/orchestrator/storage/versions/` (`0001` — ingestion_tasks, `0002` — query_runs/export_jobs, `0003` — совместимость query_runs с прежним init SQL, `0004` — полный сохраняемый результат query run).
 - `0007_add_dictionary_pinning.py` добавляет тип ingestion-задачи и закреплённую версию справочника для задач и query run.
 - `0008_add_core_storage_foundation.py` — `review_decisions`, `export_artifacts`, tombstone `indexed_documents`, cursor-индексы audit/export.
 - `0009_add_review_source_delete_storage.py` — `source_span_lookup`, `document_cascade_refs` для E2 review/source/delete.
+- `0010_add_workflow_state_storage.py` — cascade status/steps для delete workflow, cursor-индексы audit/review.
 
 ### infra/fixtures/e2/
 
 Offline DB fixtures для review/source/delete без live models (`review_source_delete.json`).
+
+### infra/fixtures/e3/
+
+Offline DB fixtures для user workflows E3 (`workflow_state.json`).
+
+### infra/postgres/common/
+
+Общие утилиты PostgreSQL-слоя: `cursor.py` — keyset encode/decode для audit/notifications.
 
 ### infra/postgres/chat_ui_db/
 
@@ -266,6 +277,8 @@ Offline DB fixtures для review/source/delete без live models (`review_sour
 База данных уведомлений (база `notification_db`). Профили интересов пользователей и уведомления.
 
 - `models.py` — модели: `UserInterest`, `Notification`, `ExtractedEntity`, `NotificationMatchResult`. JSONB для extracted_entities и match_payload.
+- `repository.py` — базовый `SqlAlchemyNotificationRepository`.
+- `workflow_repository.py` — `NotificationWorkflowRepository` для interests entities, match results и incremental poll.
 - `database.py` — фабрика `create_database()` (async engine + sessionmaker).
 - `config.py` — `NotificationDbSettings` (env prefix `NOTIFICATION_`).
 - `alembic.ini` — конфигурация Alembic, `script_location = storage`.

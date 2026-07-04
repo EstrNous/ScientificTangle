@@ -1,0 +1,89 @@
+{
+  "user_interests": [
+    {
+      "user_ref": "researcher",
+      "raw_text": "Интересуюсь электроэкстракцией никеля, очисткой шахтных вод и оптимизацией потока католита",
+      "extracted_entities_snapshot": {
+        "topics": ["электроэкстракция", "очистка воды", "никель", "католит"]
+      },
+      "extracted_entities": [
+        {
+          "entity_label": "электроэкстракция",
+          "entity_type": "topic",
+          "confidence": 0.92
+        },
+        {
+          "entity_label": "никель",
+          "entity_type": "material",
+          "confidence": 0.88,
+          "document_id": "e2-demo-desalination",
+          "source_span_id": "e2span-salts-001"
+        },
+        {
+          "entity_label": "католит",
+          "entity_type": "process",
+          "confidence": 0.85,
+          "document_id": "e2-demo-desalination",
+          "source_span_id": "e2span-flow-table-001"
+        }
+      ]
+    }
+  ],
+  "notification_matches": [
+    {
+      "user_ref": "researcher",
+      "type": "interest_match",
+      "message": "Новый документ совпал с интересом: католит",
+      "reference_id": "e2-demo-desalination",
+      "reference_type": "document",
+      "match_score": 0.81,
+      "match_payload": {
+        "interest_label": "католит",
+        "artifact_id": "e2-demo-desalination",
+        "reason": "offline_fixture_match"
+      }
+    },
+    {
+      "user_ref": "researcher",
+      "type": "ingestion_complete",
+      "message": "Ingestion завершён для e2-demo-desalination",
+      "reference_id": "e2-demo-desalination",
+      "reference_type": "document",
+      "match_score": null,
+      "match_payload": {
+        "event": "ingestion_complete",
+        "document_id": "e2-demo-desalination"
+      }
+    }
+  ],
+  "review_actions": [
+    {
+      "candidate_id": "cand-entity-ni-flow",
+      "candidate_type": "entity",
+      "status": "approved",
+      "document_id": "e2-demo-desalination",
+      "source_span_id": "e2span-flow-table-001",
+      "comment": "offline fixture approval"
+    }
+  ],
+  "admin_settings": [
+    {
+      "setting_key": "retrieval.default_top_k",
+      "setting_value": {"value": 12},
+      "description": "E3 workflow fixture"
+    }
+  ],
+  "document_deletion": {
+    "document_id": "e3-delete-target",
+    "title": "Документ для сценария удаления E3",
+    "source_type": "article",
+    "access_level": "internal",
+    "cascade_refs": {
+      "source_span_ids": ["e3span-delete-001"],
+      "claim_ids": ["claim-delete-001"],
+      "vector_point_ids": ["pt-e3span-delete-001"],
+      "graph_node_refs": [{"label": "Document", "node_id": "e3-delete-target"}],
+      "minio_object_refs": [{"bucket": "source-files", "object_key": "e3-delete-target/original.pdf"}]
+    }
+  }
+}
