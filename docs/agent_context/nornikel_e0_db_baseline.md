@@ -5,7 +5,7 @@
 **Этап:** E0 — baseline и аудит  
 **Область:** PostgreSQL (Alembic), MinIO, Neo4j, Qdrant, seed/reset scripts
 
-Связанные документы: [`nornikel_parallel_execution_plan.md`](nornikel_parallel_execution_plan.md), [`audit_report.md`](audit_report.md), [`project_structure.md`](project_structure.md).
+Связанные документы: [`nornikel_parallel_execution_plan.md`](nornikel_parallel_execution_plan.md), [`nornikel_e0_bml_contract_api_eval_baseline.md`](nornikel_e0_bml_contract_api_eval_baseline.md), [`nornikel_e0_fe_ui_audit.md`](nornikel_e0_fe_ui_audit.md), [`audit_report.md`](audit_report.md), [`project_structure.md`](project_structure.md).
 
 ---
 

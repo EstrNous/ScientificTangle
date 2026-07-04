@@ -4,6 +4,8 @@
 **Дата:** 2026-07-04
 **Scope:** только аудит `shared/contracts`, gateway/orchestrator/model/retrieval/export/notification API и eval inputs. Production behavior не менялся. Live model вызовы не запускались.
 
+Связанные документы: [`nornikel_parallel_execution_plan.md`](nornikel_parallel_execution_plan.md), [`nornikel_e0_db_baseline.md`](nornikel_e0_db_baseline.md), [`nornikel_e0_fe_ui_audit.md`](nornikel_e0_fe_ui_audit.md).
+
 ## 1. Текущее покрытие контрактов
 
 | Область | Текущий контракт | Статус | Файлы |
