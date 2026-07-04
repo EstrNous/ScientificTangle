@@ -64,7 +64,12 @@ class SourceStorage:
                 size_bytes, checksum = self._inspect(upload)
                 total_size += size_bytes
                 if total_size > self._upload_limit_bytes:
-                    raise InvalidUploadError(413, "upload_too_large", "Upload exceeds the 100 MB limit")
+                    limit_mb = self._upload_limit_bytes // (1024 * 1024)
+                    raise InvalidUploadError(
+                        413,
+                        "upload_too_large",
+                        f"Upload exceeds the {limit_mb} MB limit",
+                    )
                 object_key = (
                     f"uploads/{user_id}/{task_id}/{uuid4().hex}-{safe_filename}"
                 )
