@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMock } from '../../api/client.js';
 import { requestExport } from '../../api/export.js';
+import { ErrorBanner } from '../shared/PageState.jsx';
 import {
   buildReportPayload,
   downloadJsonReport,
@@ -133,9 +134,10 @@ export default function ExportPanel({ sessionId, sessionTitle, messages = [], in
         <p className="mb-2 text-xs text-amber-700 dark:text-amber-300">{t('chat.exportNeedsRun')}</p>
       )}
       {error && (
-        <p className="mb-2 text-xs text-red-600 dark:text-red-400">
-          {t(`chat.exportErrors.${error}`, { defaultValue: error })}
-        </p>
+        <ErrorBanner
+          className="mb-2"
+          message={t(`chat.exportErrors.${error}`, { defaultValue: error })}
+        />
       )}
       <div className="flex flex-col gap-2">
         <button
@@ -185,7 +187,7 @@ export default function ExportPanel({ sessionId, sessionTitle, messages = [], in
     </>
   );
 
-  if (inline) return <div className="shrink-0">{content}</div>;
+  if (inline) return <div className="min-w-0 shrink-0">{content}</div>;
 
-  return <div className="nn-card shrink-0 p-4">{content}</div>;
+  return <div className="nn-card min-w-0 shrink-0 p-4">{content}</div>;
 }

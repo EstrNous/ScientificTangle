@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import AnswerRenderer from './AnswerRenderer.jsx';
 import ChatAnswerStatus from './ChatAnswerStatus.jsx';
 import RetrievalProgress from './RetrievalProgress.jsx';
@@ -30,6 +31,7 @@ export default function ChatWindow({
   streamingComplete,
   streamingUxEnabled = false,
 }) {
+  const { t } = useTranslation();
   const bottomRef = useRef(null);
   const showRetrievalTrace = shouldShowRetrievalTrace(
     retrievalTrace,
@@ -45,8 +47,8 @@ export default function ChatWindow({
   return (
     <div className="min-h-0 flex-1 space-y-4 overflow-auto pr-2">
       {messages.length === 0 && !retrievalTrace && (
-        <div className="flex h-full items-center justify-center text-sm text-nn-gray dark:text-slate-400">
-          Задайте вопрос, чтобы начать диалог
+        <div className="flex h-full items-center justify-center px-4 text-center text-sm text-nn-gray dark:text-slate-400">
+          {t('chat.emptyPrompt')}
         </div>
       )}
       {messages.map((m) => (

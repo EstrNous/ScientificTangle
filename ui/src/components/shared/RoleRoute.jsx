@@ -1,5 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { EmptyState } from './PageState.jsx';
 import { useRoleAccess } from '../../hooks/useRoleAccess.js';
 
 export default function RoleRoute({ paths, children }) {
@@ -9,9 +10,11 @@ export default function RoleRoute({ paths, children }) {
 
   if (!allowed) {
     return (
-      <div className="h-full flex items-center justify-center text-slate-400">
-        {t('common.accessDenied')}
-      </div>
+      <EmptyState
+        className="h-full"
+        title={t('common.accessDenied')}
+        message={t('common.accessDeniedHint')}
+      />
     );
   }
 

@@ -6,6 +6,8 @@ import PageShell from '../components/shared/PageShell.jsx';
 
 import Loader from '../components/shared/Loader.jsx';
 
+import { EmptyState, ErrorBanner } from '../components/shared/PageState.jsx';
+
 import SourceLink from '../components/shared/SourceLink.jsx';
 
 import SearchFilters from '../components/search/SearchFilters.jsx';
@@ -204,7 +206,9 @@ export default function SearchPage() {
 
         {loading && <Loader />}
 
-        {error && <p className="text-sm text-red-600">{t(`search.errors.${error}`, { defaultValue: error })}</p>}
+        {error && (
+          <ErrorBanner message={t(`search.errors.${error}`, { defaultValue: error })} />
+        )}
 
 
 
@@ -220,6 +224,12 @@ export default function SearchPage() {
 
           </ul>
 
+        )}
+
+
+
+        {results && !loading && !results?.items?.length && (
+          <EmptyState message={t('pageState.searchEmpty')} />
         )}
 
 

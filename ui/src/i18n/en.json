@@ -21,6 +21,7 @@
   "common": {
     "loading": "Loading…",
     "accessDenied": "Access denied",
+    "accessDeniedHint": "Contact an administrator if you need access to this section.",
     "placeholder": "Section under development",
     "home": "Home",
     "searchPlaceholder": "Search",
@@ -29,7 +30,32 @@
     "profile": "Profile",
     "downloadPdf": "Download PDF",
     "downloadingPdf": "PDF…",
-    "exportedAt": "Exported: {{date}}"
+    "exportedAt": "Exported: {{date}}",
+    "retry": "Retry"
+  },
+  "errors": {
+    "boundaryTitle": "Interface error",
+    "boundaryMessage": "An unexpected error occurred. Try again or reload the page.",
+    "boundaryMockHint": "In development you can toggle VITE_USE_MOCK for local debugging.",
+    "retry": "Retry",
+    "reload": "Reload page"
+  },
+  "health": {
+    "label": "Service health",
+    "shortLabel": "Services",
+    "checkFailed": "Failed to check service health",
+    "degradedBanner": "Some services are degraded. Some features may be unavailable.",
+    "degradedBannerError": "Could not reach the backend. Check your connection and try again.",
+    "statuses": {
+      "ok": "All services healthy",
+      "degraded": "Partial degradation",
+      "down": "Services unavailable",
+      "checking": "Checking…"
+    }
+  },
+  "pageState": {
+    "empty": "Nothing to display",
+    "searchEmpty": "No results for this query. Try different wording or filters."
   },
   "notifications": {
     "bell": "Notifications",
@@ -184,6 +210,7 @@
     },
     "deleteSession": "Delete query",
     "backendError": "Backend error: {{message}}",
+    "emptyPrompt": "Ask a question to start the conversation",
     "retrievalTitle": "Search and processing",
     "evidenceRow": "Row {{index}}: {{label}}",
     "evidenceCellHint": "Show source documents for this row",
