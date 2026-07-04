@@ -1,7 +1,8 @@
+from datetime import datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from shared.contracts import (
     NotificationListPayload,
@@ -20,8 +21,9 @@ router = APIRouter(prefix="/notifications", tags=["notifications"])
 async def list_notifications(
     principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],
     service: Annotated[NotificationService, Depends(get_notification_service)],
+    since: datetime | None = Query(default=None),
 ) -> NotificationListPayload:
-    return await service.list_notifications(principal)
+    return await service.list_notifications(principal, since=since)
 
 
 @router.post("/read-all", response_model=NotificationMarkReadPayload)

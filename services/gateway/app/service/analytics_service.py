@@ -329,6 +329,13 @@ class AdminService:
         access_policy: AccessPolicy,
         authorization: str,
     ) -> dict:
+        response = await self._client.patch(
+            f"{self._orchestrator_url}/admin/policies/{document_id}",
+            headers={"Authorization": authorization},
+            json={"access_policy": access_policy.model_dump(mode="json")},
+        )
+        if response.status_code == 200:
+            return response.json()
         return {
             "document_id": document_id,
             "access_policy": access_policy.model_dump(mode="json"),

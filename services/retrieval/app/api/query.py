@@ -104,6 +104,12 @@ class ResetIndexResponse(BaseModel):
     bootstrapped: BootstrapIndexResponse
 
 
+class DeleteDocumentIndexResponse(BaseModel):
+    document_id: str
+    deleted: bool
+    warnings: list[str] = Field(default_factory=list)
+
+
 @router.post("/index/bootstrap", response_model=BootstrapIndexResponse)
 async def bootstrap_index(app_request: Request) -> BootstrapIndexResponse:
     client: httpx.AsyncClient = app_request.app.state.http_client
@@ -207,6 +213,35 @@ async def index_documents(
         ),
         warnings=warnings,
     )
+
+
+@router.delete("/documents/{document_id}/index", response_model=DeleteDocumentIndexResponse)
+async def delete_document_index(
+    document_id: str,
+    app_request: Request,
+) -> DeleteDocumentIndexResponse:
+    client: httpx.AsyncClient = app_request.app.state.http_client
+    warnings = []
+    response = await client.post(
+        qdrant_url(f"/collections/{COLLECTION_NAME}/points/delete"),
+        params={"wait": "true"},
+        json={
+            "filter": {
+                "must": [
+                    {"key": "document_id", "match": {"value": document_id}},
+                ]
+            }
+        },
+    )
+    if response.status_code == 404:
+        return DeleteDocumentIndexResponse(
+            document_id=document_id,
+            deleted=False,
+            warnings=["qdrant_collection_missing"],
+        )
+    if response.status_code >= 400:
+        response.raise_for_status()
+    return DeleteDocumentIndexResponse(document_id=document_id, deleted=True, warnings=warnings)
 
 
 @router.post("/plan", response_model=RetrievalPlan)

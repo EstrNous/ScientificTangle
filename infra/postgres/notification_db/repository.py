@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
@@ -14,9 +15,10 @@ class NotificationData:
     type: str
     message: str
     reference_id: str | None = None
+    reference_type: str | None = None
 
 class NotificationRepository(Protocol):
-    async def get_user_notifications(self, user_id: UUID, limit: int = 20) -> list[Notification]: ...
+    async def get_user_notifications(self, user_id: UUID, limit: int = 20, since: datetime | None = None) -> list[Notification]: ...
     async def mark_as_read(self, notification_id: UUID, user_id: UUID) -> bool: ...
     async def mark_all_as_read(self, user_id: UUID) -> int: ...
     async def create_notification(self, data: NotificationData) -> Notification: ...
@@ -27,10 +29,17 @@ class SqlAlchemyNotificationRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def get_user_notifications(self, user_id: UUID, limit: int = 20) -> list[Notification]:
+    async def get_user_notifications(
+        self,
+        user_id: UUID,
+        limit: int = 20,
+        since: datetime | None = None,
+    ) -> list[Notification]:
+        query = select(Notification).where(Notification.user_id == user_id)
+        if since is not None:
+            query = query.where(Notification.created_at > since)
         result = await self._session.scalars(
-            select(Notification)
-            .where(Notification.user_id == user_id)
+            query
             .order_by(Notification.created_at.desc())
             .limit(limit)
         )
@@ -59,7 +68,8 @@ class SqlAlchemyNotificationRepository:
             user_id=data.user_id,
             type=data.type,
             message=data.message,
-            reference_id=data.reference_id
+            reference_id=data.reference_id,
+            reference_type=data.reference_type,
         )
         self._session.add(note)
         await self._session.commit()

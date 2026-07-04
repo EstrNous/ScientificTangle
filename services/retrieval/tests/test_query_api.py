@@ -90,3 +90,23 @@ def test_health_smoke() -> None:
     with TestClient(app) as client:
         assert client.get("/health").status_code == 200
         assert client.get("/metrics").status_code == 200
+
+
+def test_delete_document_index_calls_qdrant_filter_delete() -> None:
+    captured: dict[str, object] = {}
+
+    async def mock_post(url, **kwargs):
+        captured["url"] = url
+        captured["json"] = kwargs["json"]
+        return httpx.Response(200, json={"result": "ok"}, request=httpx.Request("POST", url))
+
+    with TestClient(app) as client:
+        client.app.state.http_client.post = AsyncMock(side_effect=mock_post)
+        response = client.delete("/v1/documents/doc-1/index")
+        assert response.status_code == 200
+        assert response.json()["deleted"] is True
+
+    assert str(captured["url"]).endswith("/collections/st_evidence_v1/points/delete")
+    assert captured["json"] == {
+        "filter": {"must": [{"key": "document_id", "match": {"value": "doc-1"}}]}
+    }
