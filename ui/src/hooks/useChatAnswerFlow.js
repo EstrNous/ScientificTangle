@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { sendChatMessage } from '../api/chat.js';
 import { ensureAuth, authHeaders } from '../api/auth.js';
-import { uploadFiles } from '../api/uploadCore.js';
+import { uploadFiles, waitForIngestionTask } from '../api/uploadCore.js';
 import {
   isQueryStreamTransportAvailable,
   tryRunQueryEventStream,
@@ -101,7 +101,10 @@ export function useChatAnswerFlow() {
       beginQuery(queryMode);
 
       if (files.length > 0) {
-        await uploadFiles(files);
+        const task = await uploadFiles(files);
+        if (task?.id) {
+          await waitForIngestionTask(task.id);
+        }
       }
 
       let queryText = text.trim();

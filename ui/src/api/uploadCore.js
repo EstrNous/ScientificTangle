@@ -28,6 +28,31 @@ export async function uploadFiles(files, { kind = 'document' } = {}) {
   return response.json();
 }
 
+export async function waitForIngestionTask(
+  taskId,
+  { timeoutMs = 900000, intervalMs = 1500 } = {},
+) {
+  const token = await ensureAuth();
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const response = await fetch(`${baseURL}/tasks/${taskId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      throw new Error('upload_failed');
+    }
+    const payload = await response.json();
+    if (payload.status === 'completed') {
+      return payload;
+    }
+    if (payload.status === 'failed') {
+      throw new Error('upload_failed');
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  throw new Error('upload_failed');
+}
+
 export function resolveDocumentIdFromAuditEvent(event) {
   const details = event?.details ?? {};
   if (details.document_id) {
