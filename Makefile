@@ -47,6 +47,15 @@ reset-demo:
 	docker compose exec auth_audit auth-seed-users
 	python scripts/seed_demo.py
 
+seed-counts:
+	python scripts/seed_inventory.py --mode report --include-remote
+
+reset-reseed-offline:
+	python scripts/seed_inventory.py --mode offline --output tmp/seed_offline_report.json
+
+reset-reseed:
+	python scripts/seed_inventory.py --mode full --output tmp/seed_full_report.json
+
 lint:
 	ruff check shared services scripts tests
 	cd ui && npm run lint
