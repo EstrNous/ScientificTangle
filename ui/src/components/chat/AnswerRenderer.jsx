@@ -1,12 +1,14 @@
 import ReactMarkdown from 'react-markdown';
+import { extractScientificAnswer, normalizeWarnings } from '../../utils/answerPayload.js';
 import EvidenceTable from './EvidenceTable.jsx';
+import ScientificAnswerView from './ScientificAnswerView.jsx';
 import SynonymTransparency from './SynonymTransparency.jsx';
 import SourceCitation from './SourceCitation.jsx';
 import WarningsPanel from './WarningsPanel.jsx';
 
-export default function AnswerRenderer({ message }) {
+function LegacyAnswerView({ message }) {
   return (
-    <div className="space-y-3 text-sm">
+    <>
       <ReactMarkdown>{message.content}</ReactMarkdown>
       {message.evidence_table && <EvidenceTable table={message.evidence_table} />}
       {message.sources?.length > 0 && (
@@ -19,9 +21,35 @@ export default function AnswerRenderer({ message }) {
       {message.expanded_synonyms && (
         <SynonymTransparency synonyms={message.expanded_synonyms} />
       )}
-      {message.confidence != null && (
-        <WarningsPanel confidence={message.confidence} />
+    </>
+  );
+}
+
+export default function AnswerRenderer({ message }) {
+  const scientificAnswer = extractScientificAnswer(message);
+  const warnings = normalizeWarnings(message.warnings);
+
+  return (
+    <div className="space-y-3 text-sm">
+      {scientificAnswer ? (
+        <ScientificAnswerView answer={scientificAnswer} message={message} />
+      ) : (
+        <LegacyAnswerView message={message} />
       )}
+      {scientificAnswer && message.evidence_table && (
+        <EvidenceTable table={message.evidence_table} />
+      )}
+      {scientificAnswer && message.sources?.length > 0 && (
+        <div className="space-y-2">
+          {message.sources.map((s, i) => (
+            <SourceCitation key={i} source={s} />
+          ))}
+        </div>
+      )}
+      {scientificAnswer && message.expanded_synonyms && (
+        <SynonymTransparency synonyms={message.expanded_synonyms} />
+      )}
+      <WarningsPanel confidence={message.confidence} warnings={warnings} />
     </div>
   );
 }

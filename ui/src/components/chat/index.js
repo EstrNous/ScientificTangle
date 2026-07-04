@@ -10,3 +10,5 @@ export { default as ExportPanel } from './ExportPanel.jsx';
 export { default as WarningsPanel } from './WarningsPanel.jsx';
 export { default as RetrievalProgress } from './RetrievalProgress.jsx';
 export { default as ChatAnswerStatus } from './ChatAnswerStatus.jsx';
+export { default as ScientificAnswerView } from './ScientificAnswerView.jsx';
+export { default as ReasonCodeBadges } from './ReasonCodeBadges.jsx';

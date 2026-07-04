@@ -1,3 +1,5 @@
+import { buildScientificAnswerFixture } from './scientificAnswerFixtures.js';
+
 export function buildRetrievalSteps(fileNames, t) {
   const files =
     fileNames.length > 0
@@ -74,6 +76,13 @@ export function buildMockAssistantReply(query, fileNames) {
       files: fileNames.length > 0 ? fileNames : ['nickel_report.pdf', 'water_desalination.docx'],
       scopes: ['source_spans', 'claims', 'tables'],
     },
+    scientific_answer: buildScientificAnswerFixture(query, fileNames),
+    warnings: [
+      {
+        statement: 'Часть источников доступна только во внутреннем контуре.',
+        reason_codes: ['access_filtered'],
+      },
+    ],
   };
 }
 
