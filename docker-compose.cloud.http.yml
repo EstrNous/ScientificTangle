@@ -1,15 +1,14 @@
 services:
   nginx:
-    ports: !reset []
-    ports:
+    ports: !override
       - "80:80"
-    environment:
+    environment: !override
       NGINX_CONFIG: dev
       GRAFANA_NGINX_BASIC_USER: ${GRAFANA_NGINX_BASIC_USER:-grafana}
       GRAFANA_NGINX_BASIC_PASSWORD: ${GRAFANA_NGINX_BASIC_PASSWORD:-grafana123}
-    volumes:
+    volumes: !override
       - ./infra/nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
-    healthcheck:
+    healthcheck: !override
       test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/api/health || exit 1"]
       interval: 15s
       timeout: 5s
