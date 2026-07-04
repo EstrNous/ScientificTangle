@@ -1,3 +1,4 @@
+from shared.contracts.facts import AliasRef, TableEvidenceRef, TimeConstraint
 from shared.contracts.models import (
     AccessPolicy,
     AnswerPayload,
@@ -55,6 +56,7 @@ from shared.contracts.models import (
 
 __all__ = [
     "AccessPolicy",
+    "AliasRef",
     "ApiError",
     "AnswerPayload",
     "AuditEvent",
@@ -105,5 +107,7 @@ __all__ = [
     "StoredSource",
     "StorageWriteResult",
     "TableBlock",
+    "TableEvidenceRef",
+    "TimeConstraint",
     "UserRole",
 ]
