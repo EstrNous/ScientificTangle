@@ -95,12 +95,14 @@ class NotificationService:
     @staticmethod
     def _payload(note) -> NotificationPayload:
         title = TYPE_TITLES.get(note.type) or note.message.split(".")[0]
+        reference_type = getattr(note, "reference_type", None) or "document"
         return NotificationPayload(
             id=note.id,
             title=title,
             reason=note.message,
             type=note.type,
             reference_id=note.reference_id,
+            reference_type=reference_type,
             read=note.is_read,
             created_at=note.created_at,
         )

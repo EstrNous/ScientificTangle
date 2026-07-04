@@ -65,8 +65,10 @@ export async function mockFetch(resource, options = {}) {
       interests: interestsProfile.interests.map((item) => ({ ...item })),
     };
   }
-  if (resource === 'review/queue') {
-    const body = options.body ?? {};
+  if (resource === 'review/queue' || resource.startsWith('review/queue?')) {
+    const query = resource.includes('?') ? resource.split('?')[1] : '';
+    const params = Object.fromEntries(new URLSearchParams(query));
+    const body = options.method === 'POST' ? (options.body ?? {}) : params;
     let items = reviewQueue.items.map((item) => ({ ...item }));
     if (body.status) {
       items = items.filter((item) => item.status === body.status);

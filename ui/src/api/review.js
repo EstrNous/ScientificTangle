@@ -1,15 +1,15 @@
-import { apiPost, apiOptions } from './client.js';
+import { apiGet, apiPost, apiOptions } from './client.js';
 import { mapApiError } from './errors.js';
 import {
+  buildReviewQueueQuery,
   mapReviewDecisionResult,
   mapReviewQueue,
   serializeReviewDecision,
-  serializeReviewQueueRequest,
 } from './mappers/productApi.js';
 
 export async function fetchReviewQueue(filters = {}) {
   try {
-    const payload = await apiPost('/review/queue', serializeReviewQueueRequest(filters), apiOptions());
+    const payload = await apiGet(`/review/queue${buildReviewQueueQuery(filters)}`, apiOptions());
     return mapReviewQueue(payload);
   } catch (error) {
     throw new Error(mapApiError(error, 'review_queue_failed'));

@@ -81,6 +81,17 @@ export function serializeReviewQueueRequest(filters = {}) {
   };
 }
 
+export function buildReviewQueueQuery(filters = {}) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(serializeReviewQueueRequest(filters))) {
+    if (value != null && value !== '') {
+      params.set(key, String(value));
+    }
+  }
+  const query = params.toString();
+  return query ? `?${query}` : '';
+}
+
 export function serializeReviewDecision(payload = {}) {
   return {
     candidate_id: payload.candidateId ?? payload.candidate_id,
