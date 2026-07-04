@@ -1,7 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   CHAT_ANSWER_PHASES,
   canTransitionPhase,
+  isSimulatedLifecycleEnabled,
   isTerminalPhase,
   phaseIndex,
   resolveAnswerPhase,
@@ -11,6 +12,24 @@ import {
 } from './chatAnswerLifecycle.js';
 
 describe('chatAnswerLifecycle', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('disables simulated lifecycle in production backend mode', () => {
+    vi.stubEnv('VITE_USE_MOCK', 'false');
+    vi.stubEnv('VITE_CHAT_LIFECYCLE_SIMULATION', 'true');
+    expect(isSimulatedLifecycleEnabled()).toBe(false);
+  });
+
+  it('enables simulated lifecycle only in mock mode with explicit flag', () => {
+    vi.stubEnv('VITE_USE_MOCK', 'true');
+    vi.stubEnv('VITE_CHAT_LIFECYCLE_SIMULATION', 'true');
+    expect(isSimulatedLifecycleEnabled()).toBe(true);
+    vi.stubEnv('VITE_CHAT_LIFECYCLE_SIMULATION', 'false');
+    expect(isSimulatedLifecycleEnabled()).toBe(false);
+  });
+
   it('allows pipeline transitions', () => {
     expect(
       canTransitionPhase(CHAT_ANSWER_PHASES.PARSING, CHAT_ANSWER_PHASES.RETRIEVAL),

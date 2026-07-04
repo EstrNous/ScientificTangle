@@ -97,6 +97,9 @@ export function resolveAnswerPhase(message) {
 }
 
 export function isSimulatedLifecycleEnabled() {
+  if (import.meta.env.VITE_USE_MOCK === 'false') {
+    return false;
+  }
   return import.meta.env.VITE_CHAT_LIFECYCLE_SIMULATION === 'true';
 }
 
