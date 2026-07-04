@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import SourceLink from '../shared/SourceLink.jsx';
+import { useSourceDocument } from '../../context/SourceDocumentContext.jsx';
 
 const RISK_STYLES = {
   high: 'bg-gray-100 text-gray-800 dark:bg-slate-800 dark:text-slate-200',
@@ -7,10 +8,27 @@ const RISK_STYLES = {
   low: 'bg-nn-blue-light text-nn-blue dark:bg-slate-800 dark:text-sky-300',
 };
 
+function firstSourceRef(item) {
+  return item.source_a ?? item.sourceA ?? item.source_b ?? item.sourceB ?? null;
+}
+
 export default function GapConflictView({ contradictions, fill = false }) {
   const { t } = useTranslation();
+  const { openSource } = useSourceDocument();
 
   if (!contradictions?.length) return null;
+
+  const handleOpenSources = (item) => {
+    const primary = item.source_a ?? item.sourceA;
+    const secondary = item.source_b ?? item.sourceB;
+    if (primary) {
+      openSource(primary);
+      return;
+    }
+    if (secondary) {
+      openSource(secondary);
+    }
+  };
 
   return (
     <div
@@ -25,7 +43,18 @@ export default function GapConflictView({ contradictions, fill = false }) {
         {contradictions.map((item) => (
           <li
             key={item.id}
-            className="rounded-xl border border-nn-border bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
+            role="button"
+            tabIndex={0}
+            onClick={() => handleOpenSources(item)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                handleOpenSources(item);
+              }
+            }}
+            className={`rounded-xl border border-nn-border bg-white p-3 dark:border-slate-700 dark:bg-slate-900 ${
+              firstSourceRef(item) ? 'cursor-pointer hover:border-nn-blue dark:hover:border-sky-500' : ''
+            }`}
           >
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{item.process}</p>
@@ -42,14 +71,14 @@ export default function GapConflictView({ contradictions, fill = false }) {
               <div className="rounded-lg border border-nn-border bg-nn-gray-light p-2 dark:border-slate-600 dark:bg-slate-800">
                 <p className="font-medium text-gray-900 dark:text-slate-100">{item.claim_a}</p>
                 <p className="mt-1 text-nn-gray dark:text-slate-400">{item.condition_a}</p>
-                <p className="mt-1 text-[11px]">
+                <p className="mt-1 text-[11px]" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
                   <SourceLink sourceRef={item.source_a} />
                 </p>
               </div>
               <div className="rounded-lg border border-nn-border bg-nn-gray-light p-2 dark:border-slate-600 dark:bg-slate-800">
                 <p className="font-medium text-gray-900 dark:text-slate-100">{item.claim_b}</p>
                 <p className="mt-1 text-nn-gray dark:text-slate-400">{item.condition_b}</p>
-                <p className="mt-1 text-[11px]">
+                <p className="mt-1 text-[11px]" onClick={(event) => event.stopPropagation()} onKeyDown={(event) => event.stopPropagation()}>
                   <SourceLink sourceRef={item.source_b} />
                 </p>
               </div>

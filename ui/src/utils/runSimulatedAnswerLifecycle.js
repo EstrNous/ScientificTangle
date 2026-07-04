@@ -1,4 +1,7 @@
-import { buildMockAssistantReply, buildRetrievalSteps } from '../api/mock/chatQuery.js';
+import {
+  buildRetrievalSteps,
+  buildSimulatedAssistantReply,
+} from './simulation/answerLifecycleFixtures.js';
 import { CHAT_ANSWER_PHASES } from './chatAnswerLifecycle.js';
 
 function delay(ms) {
@@ -40,7 +43,7 @@ export async function runSimulatedAnswerLifecycle(
   onPhaseChange?.(CHAT_ANSWER_PHASES.SYNTHESIS);
   await delay(phaseDelayMs);
 
-  const reply = buildMockAssistantReply(text, fileNames);
+  const reply = buildSimulatedAssistantReply(text, fileNames);
 
   onPhaseChange?.(CHAT_ANSWER_PHASES.CITATIONS);
   await delay(phaseDelayMs);

@@ -4,14 +4,17 @@ import admin from './admin.json';
 import notificationsSeed from './notifications.json';
 import interestsSeed from './interests.json';
 import reviewSeed from './review.json';
+import dictionariesSeed from './dictionaries.json';
 
 let notificationItems = notificationsSeed.items.map((item) => ({ ...item }));
 let interestsProfile = { ...interestsSeed, interests: [...interestsSeed.interests] };
 let reviewQueue = {
   items: reviewSeed.items.map((item) => ({ ...item })),
   total: reviewSeed.total,
+  conflicts: (reviewSeed.conflicts ?? []).map((item) => ({ ...item })),
 };
 let adminSnapshot = JSON.parse(JSON.stringify(admin));
+let dictionaryVersions = dictionariesSeed.map((item) => ({ ...item }));
 
 export const mockData = {
   ingestion,
@@ -84,7 +87,12 @@ export async function mockFetch(resource, options = {}) {
       const toTs = new Date(`${body.to}T23:59:59Z`).getTime();
       items = items.filter((item) => new Date(item.updated_at).getTime() <= toTs);
     }
-    return { items, total: items.length, filters: body };
+    return {
+      items,
+      total: items.length,
+      filters: body,
+      conflicts: reviewQueue.conflicts ?? [],
+    };
   }
   if (resource === 'review/decisions') {
     const body = options.body ?? {};
@@ -180,6 +188,25 @@ export async function mockFetch(resource, options = {}) {
       item.id === id ? { ...item, read: true } : item,
     );
     return { ok: true };
+  }
+  if (resource === 'dictionaries') {
+    return dictionaryVersions.map((item) => ({ ...item }));
+  }
+  if (resource === 'dictionaries/active') {
+    const active = dictionaryVersions.find((item) => item.status === 'active');
+    if (!active) throw new Error('dictionaries_active_failed');
+    return { ...active };
+  }
+  if (resource.startsWith('dictionaries/') && resource.endsWith('/activate')) {
+    const versionId = resource.slice('dictionaries/'.length, -'/activate'.length);
+    dictionaryVersions = dictionaryVersions.map((item) => ({
+      ...item,
+      status: item.id === versionId ? 'active' : item.status === 'active' ? 'inactive' : item.status,
+      activated_at: item.id === versionId ? new Date().toISOString() : item.activated_at,
+    }));
+    const activated = dictionaryVersions.find((item) => item.id === versionId);
+    if (!activated) throw new Error('dictionary_activate_failed');
+    return { ...activated };
   }
   if (resource === 'api/query' || resource === 'query') {
     const { runMockChatQuery } = await import('./chatQuery.js');

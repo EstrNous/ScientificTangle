@@ -411,7 +411,9 @@
       "admin_user_save_failed": "Failed to save user",
       "admin_policy_save_failed": "Failed to save access policy",
       "admin_save_failed": "Failed to save changes",
-      "forbidden": "Insufficient permissions for this operation"
+      "forbidden": "Insufficient permissions for this operation",
+      "dictionaries_load_failed": "Failed to load dictionary versions",
+      "dictionary_activate_failed": "Failed to activate dictionary"
     },
     "filterAll": "All actions",
     "actions": {
@@ -423,6 +425,23 @@
       "role_changed": "role change"
     },
     "sourceTitle": "Source fragment",
+    "dictionariesTitle": "Dictionary versions",
+    "dictionariesEmpty": "No dictionaries uploaded yet",
+    "dictionaryActivate": "Activate",
+    "dictionaryActivating": "Activating…",
+    "dictionaryColumns": {
+      "version": "Version",
+      "status": "Status",
+      "files": "Files",
+      "created": "Created",
+      "actions": "Actions"
+    },
+    "dictionaryStatus": {
+      "active": "active",
+      "inactive": "inactive",
+      "validated": "validated",
+      "validation_failed": "validation failed"
+    },
     "sourceEmpty": "Select an audit event linked to a source",
     "sourceMeta": "Page {{page}} · {{section}}",
     "ops": {
@@ -577,12 +596,49 @@
       "candidates": "Candidates",
       "indexed": "Indexed"
     },
+    "stagesTitle": "Processing stages",
+    "stages": {
+      "upload": "Upload",
+      "parse": "Document parsing",
+      "extract": "Entity extraction",
+      "index": "Indexing",
+      "complete": "Complete",
+      "dictionary": "Dictionary"
+    },
+    "stageStatuses": {
+      "pending": "pending",
+      "active": "in progress",
+      "done": "done",
+      "failed": "failed"
+    },
     "errors": {
       "upload_failed": "Failed to upload files",
       "delete_failed": "Failed to delete document",
       "forbidden": "Insufficient permissions to delete this document",
       "not_found": "Document not found",
       "document_delete_not_implemented": "Document deletion is not yet available on the server"
+    }
+  },
+  "search": {
+    "resultsCount": "Showing {{shown}} of {{total}}",
+    "loadMore": "Load more",
+    "loadingMore": "Loading…",
+    "errors": {
+      "search_failed": "Search failed"
+    },
+    "filters": {
+      "geo": "Geography",
+      "geoPlaceholder": "Russia, Norilsk",
+      "yearFrom": "Year from",
+      "yearTo": "Year to",
+      "numeric": "Numeric filter",
+      "sourceTypes": "Source type"
+    },
+    "sourceTypes": {
+      "text": "text",
+      "table": "table",
+      "figure": "figure",
+      "caption": "caption"
     }
   },
   "review": {
