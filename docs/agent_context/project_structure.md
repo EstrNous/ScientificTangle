@@ -92,7 +92,7 @@
 - `shared/logging/` — единая конфигурация structlog (JSON, контекст сервиса).
 - `shared/config/` — базовый класс ServiceSettings с подключениями ко всем хранилищам.
 - `shared/security/` — повторно используемая проверка access token через RS256/JWKS.
-- `shared/web/` — единый request_id, зависимости аутентификации (JWT principal, `require_internal_service`), нормализованные API-ошибки.
+- `shared/web/` — единый request_id, rate limiting middleware, зависимости аутентификации (JWT principal, `require_internal_service`), нормализованные API-ошибки.
 - `shared/metrics/` — Prometheus RED-метрики и `/metrics` для всех сервисов.
 
 ### Микросервисы (`services/`)

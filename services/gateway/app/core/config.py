@@ -20,6 +20,10 @@ class Settings(ServiceSettings):
     upload_limit_bytes: int = 100 * 1024 * 1024
     top1_scientific_query_enabled: bool = False
     top1_live_stream_enabled: bool = False
+    rate_limit_enabled: bool = True
+    rate_limit_default_per_minute: int = 120
+    rate_limit_trust_proxy_headers: bool = False
+    rate_limit_use_redis: bool = True
     model_config = SettingsConfigDict(env_prefix="", env_file=".env", extra="ignore")
 
 

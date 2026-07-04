@@ -36,6 +36,11 @@ class Settings(ServiceSettings):
     refresh_cookie_secure: bool = True
 
     allowed_origins: str = "http://localhost:3000,http://localhost:5173"
+    rate_limit_enabled: bool = True
+    rate_limit_auth_per_minute: int = 10
+    rate_limit_default_per_minute: int = 60
+    rate_limit_trust_proxy_headers: bool = False
+    rate_limit_use_redis: bool = True
 
     @property
     def origin_allowlist(self) -> frozenset[str]:

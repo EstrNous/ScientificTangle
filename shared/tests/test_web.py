@@ -3,8 +3,10 @@ from fastapi.testclient import TestClient
 
 from shared.security import AuthenticatedPrincipal
 from shared.web import (
+    RateLimitRule,
     ServiceError,
     install_error_handlers,
+    install_rate_limit_middleware,
     request_id_middleware,
     require_internal_service,
     require_principal,
@@ -78,3 +80,57 @@ def test_internal_service_token_rejects_invalid_header() -> None:
 
     assert response.status_code == 401
     assert response.json()["code"] == "authentication_required"
+
+
+def test_rate_limit_returns_normalized_error_and_headers() -> None:
+    app = FastAPI()
+    install_rate_limit_middleware(
+        app,
+        enabled=True,
+        redis_url="redis://redis:6379/0",
+        service_name="test",
+        rules=(RateLimitRule(name="default", limit=1),),
+        use_redis=False,
+    )
+    app.middleware("http")(request_id_middleware)
+
+    @app.get("/limited")
+    async def limited() -> dict[str, bool]:
+        return {"ok": True}
+
+    with TestClient(app) as client:
+        first = client.get("/limited", headers={"X-Request-ID": "request-1"})
+        second = client.get("/limited", headers={"X-Request-ID": "request-2"})
+
+    assert first.status_code == 200
+    assert first.headers["X-RateLimit-Limit"] == "1"
+    assert first.headers["X-RateLimit-Remaining"] == "0"
+    assert second.status_code == 429
+    assert second.headers["Retry-After"] == "60"
+    assert second.json() == {
+        "code": "rate_limited",
+        "message": "Too many requests",
+        "request_id": "request-2",
+    }
+
+
+def test_rate_limit_excludes_operational_paths() -> None:
+    app = FastAPI()
+    install_rate_limit_middleware(
+        app,
+        enabled=True,
+        redis_url="redis://redis:6379/0",
+        service_name="test",
+        rules=(RateLimitRule(name="default", limit=1),),
+        excluded_paths=("/health",),
+        use_redis=False,
+    )
+
+    @app.get("/health")
+    async def health() -> dict[str, str]:
+        return {"status": "ok"}
+
+    with TestClient(app) as client:
+        responses = [client.get("/health") for _ in range(3)]
+
+    assert [response.status_code for response in responses] == [200, 200, 200]
