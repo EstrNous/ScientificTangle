@@ -1,7 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { fetchSource, mapSourcePayload } from '../api/source.js';
-import { mergeSourceSpan, resolveSourceRef } from '../api/mock/sourceCatalog.js';
-import { useMock } from '../api/client.js';
+import { fetchSourceDocument, mergeSourceSpan } from '../api/sourceResolver/index.js';
 import SourceDocumentModal from '../components/shared/SourceDocumentModal.jsx';
 
 const SourceDocumentContext = createContext(null);
@@ -16,21 +14,14 @@ export function SourceDocumentProvider({ children }) {
       setOpen(true);
       return;
     }
-    const refId = typeof ref === 'string' ? ref : ref?.source_span_id ?? ref?.id;
-    if (!useMock && refId) {
-      try {
-        const payload = await fetchSource(refId);
-        setSource(mapSourcePayload(payload));
-        setOpen(true);
-        return;
-      } catch {
-        return;
-      }
+    try {
+      const document = await fetchSourceDocument(ref);
+      if (!document) return;
+      setSource(mergeSourceSpan(document));
+      setOpen(true);
+    } catch {
+      return;
     }
-    const resolved = resolveSourceRef(ref);
-    if (!resolved) return;
-    setSource(mergeSourceSpan(resolved));
-    setOpen(true);
   }, []);
 
   const closeSource = useCallback(() => {
