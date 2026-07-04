@@ -4,8 +4,8 @@ import json
 import zipfile
 
 import pytest
-
 from app.service.dictionaries import DictionaryPackageError, parse_dictionary_package
+
 from shared.contracts import StoredSource
 
 

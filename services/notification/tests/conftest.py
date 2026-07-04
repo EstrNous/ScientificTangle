@@ -14,12 +14,12 @@ for import_root in (SERVICE_DIR, REPOSITORY_ROOT):
     if import_root_text not in sys.path:
         sys.path.insert(0, import_root_text)
 
-from shared.contracts import UserRole
-from shared.security import AuthenticatedPrincipal
-
 from app.api.factory import create_app
 from app.core.config import Settings
 from app.service.notification_service import NotificationService
+
+from shared.contracts import UserRole
+from shared.security import AuthenticatedPrincipal
 
 
 @pytest.fixture

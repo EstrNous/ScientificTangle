@@ -471,7 +471,24 @@ def test_export_query_run_returns_markdown_for_completed_run() -> None:
                     "status": "completed",
                     "format": "markdown",
                     "content_type": "text/markdown",
-                    "content": "# Export for query run\n\nПодтверждённый ответ",
+                    "content": (
+                        "# Export for query run\n\n"
+                        "Подтверждённый ответ\n\n"
+                        "## Query IR\n\n"
+                        "## Evidence\n\n"
+                        "## Sources\n\n"
+                        "## Graph\n\n"
+                        "## Gaps\n\n"
+                        "needs_second_source\n\n"
+                        "## Conflicts\n\n"
+                        "lab_value_conflict\n\n"
+                        "## Retrieval Trace\n\n"
+                        "hybrid\n\n"
+                        "## Warnings\n\n"
+                        "gap_checked\n\n"
+                        "Role: researcher\n"
+                        "Access scope: public, internal"
+                    ),
                     "warnings": ["gap_checked"],
                     "artifacts": [
                         {
@@ -614,20 +631,33 @@ def test_export_query_run_returns_json_with_full_mvp_boundary() -> None:
                         "answer": "Confirmed answer",
                         "evidence": [{"source_span_id": "span-1"}],
                         "sources": [{"document_id": "doc-1"}],
-                        "graph": {"nodes": [{"id": "entity-1"}]},
+                        "graph": {"nodes": [{"id": "entity-1"}], "links": []},
                         "gaps": ["needs_second_source"],
                         "conflicts": ["lab_value_conflict"],
                         "query_ir": {
                             "raw_query": "nickel 82 %",
                             "filters": {"numeric_constraints": [{"value": 82, "unit": "%"}]},
                         },
-                        "retrieval_trace": {"channels": {"graph": 1}},
+                        "retrieval_trace": {
+                            "storage": "hybrid",
+                            "channels": {"dense": 1, "lexical": 1, "table": 0, "graph": 1},
+                        },
                         "user_role": "researcher",
                         "access_scope": ["public", "internal"],
                         "warnings": ["gap_checked"],
                     },
                     "warnings": ["gap_checked"],
-                    "artifacts": [],
+                    "artifacts": [
+                        {
+                            "artifact_kind": "json",
+                            "bucket_name": "exports",
+                            "storage_key": "exports/demo/report.json",
+                            "content_type": "application/json",
+                            "byte_size": 256,
+                            "checksum": "sha256:demo-json",
+                            "file_url": "/api/export/jobs/demo/artifact",
+                        }
+                    ],
                 },
             )
         raise AssertionError(f"unexpected request: {request.method} {request.url}")

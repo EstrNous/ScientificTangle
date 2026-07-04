@@ -1,11 +1,11 @@
-from shared.contracts import EvidenceBundle, EvidenceItem, QueryIR, SourceSpan
-
 from app.service.scientific_query import (
     merge_graph_exact_evidence,
     partition_verified_evidence,
     planner_selects_graph,
     scientific_query_enabled,
 )
+
+from shared.contracts import EvidenceBundle, EvidenceItem, QueryIR, SourceSpan
 
 
 def test_scientific_query_enabled_respects_filter_override() -> None:

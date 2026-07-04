@@ -3,7 +3,10 @@ from uuid import UUID
 
 import httpx
 
-from infra.postgres.notification_db.repository import NotificationData, SqlAlchemyNotificationRepository
+from infra.postgres.notification_db.repository import (
+    NotificationData,
+    SqlAlchemyNotificationRepository,
+)
 from shared.contracts import (
     NotificationListPayload,
     NotificationMarkReadPayload,

@@ -1,5 +1,5 @@
 from datetime import UTC, datetime
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from infra.postgres.common.cursor import decode_cursor, encode_cursor
 from infra.postgres.orchestrator_db.e3_fixtures import load_e3_fixture, validate_e3_fixture

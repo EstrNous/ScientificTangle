@@ -1,6 +1,6 @@
 from adapters.graph_query_spec import compile_graph_query_spec, select_graph_patterns
 
-from shared.contracts import GeoContext, QueryIR, Quantity
+from shared.contracts import GeoContext, Quantity, QueryIR
 
 
 def test_select_graph_patterns_for_geo_query() -> None:

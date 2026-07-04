@@ -3,7 +3,10 @@ from typing import Annotated
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from infra.postgres.notification_db import SqlAlchemyNotificationRepository, NotificationWorkflowRepository
+from infra.postgres.notification_db import (
+    NotificationWorkflowRepository,
+    SqlAlchemyNotificationRepository,
+)
 from infra.postgres.notification_db.database import get_session
 
 from ..service.matching_service import MatchingService

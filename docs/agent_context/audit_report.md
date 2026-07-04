@@ -34,7 +34,7 @@
 | P1-02 | UploadPage / SearchPage / AdminPage — частично реализованы (real API), но Admin persist и source catalog через mock | open |
 | P1-03 | ТЗ §420: «auth stub» — auth реализован, пункт устарел | closed |
 | P1-04 | `EVAL_AUTH_TOKEN` вручную для eval | open |
-| P1-05 | Гибридный retrieval: vector + rerank есть; graph/table/lexical fusion и geo/numeric filter в Qdrant — нет | open |
+| P1-05 | Гибридный retrieval wired: dense + lexical + table + graph + Qdrant filters; нужен seeded/live quality proof | open |
 | P1-06 | UI source refs: 10 компонентов импортируют `ui/src/api/mock/` даже в real-режиме | open |
 | P1-07 | Нет зафиксированного live eval artifact на demo corpus | open |
 
@@ -46,26 +46,27 @@
 | Qdrant | **closed** | `QdrantRetrievalStorageAdapter`, collection `st_evidence_v1`, `mode=live` |
 | Redis | **closed** | В compose; config в сервисах |
 | MinIO | **closed** | Ingestion bucket `source-files` |
-| PostgreSQL DB-per-service | **closed** | auth_audit, orchestrator, chat_ui, export, notification |
+| PostgreSQL service schemas | **closed** | auth_audit, orchestrator, chat_ui, notification; export authoritative metadata в `orchestrator_db`, runtime state в Redis/MinIO |
 | `chat_ui_db` | **closed** | Gateway: ChatSession, ChatMessage |
 | `orchestrator_db` | **closed** | IngestionTask, QueryRun, ExportJob, audit_events |
-| `export_db` | **not_wired** | Схема есть; export service — заглушка |
-| `notification_db` | **not_wired** | Схема есть; notification service — заглушка |
-| Export microservice | **not_wired** | Export через orchestrator in-memory + ExportJob в PG |
-| Notification microservice | **not_wired** | ML endpoint `/v1/notifications/match` готов; HTTP-сервис — заглушка |
+| `export_db` | **unused** | Authoritative `ExportJob`/`export_artifacts` находятся в `orchestrator_db`; export service хранит runtime status в Redis/in-memory и artifacts в MinIO |
+| `notification_db` | **wired_with_gaps** | User-facing interests/notifications и internal events работают; остаются unauth internal endpoints и неполная runtime delivery |
+| Export microservice | **wired_with_gaps** | `gateway → orchestrator → export → MinIO`; Markdown/JSON/JSON-LD artifacts, PDF — backlog |
+| Notification microservice | **wired_with_gaps** | Gateway routes + conflict events + `/internal/v1/match` через model; post-ingestion delivery — backlog |
 
 ## Граф compose depends_on (целевой)
 
 ```
-postgres → auth_audit, orchestrator, export, notification
+postgres → auth_audit, orchestrator, notification
 redis → gateway, orchestrator, ingestion, knowledge, retrieval, model, export, notification
 minio → ingestion, export
 neo4j → knowledge, retrieval
 qdrant → retrieval
-auth_audit → ingestion, orchestrator, gateway, nginx
-model → knowledge, retrieval, orchestrator
+auth_audit → ingestion, orchestrator, export, notification, gateway, nginx
+model → knowledge, retrieval, orchestrator, export, notification
 ingestion, retrieval → orchestrator
-orchestrator → gateway
+export → orchestrator, gateway
+orchestrator, notification → gateway
 gateway, auth_audit, ui → nginx
 ```
 

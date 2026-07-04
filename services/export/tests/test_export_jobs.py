@@ -3,11 +3,10 @@ from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 import httpx
-import pytest
-
 from app.schemas import ExportJobCreateRequest
 from app.service.job_store import JobStore
 from app.service.service import ExportService
+
 from shared.contracts import AnswerPayload, EvidenceBundle, QueryIR, UserRole
 from shared.security import AuthenticatedPrincipal
 

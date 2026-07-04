@@ -138,6 +138,8 @@ services:
         condition: service_healthy
       orchestrator:
         condition: service_healthy
+      export:
+        condition: service_healthy
       notification:
         condition: service_healthy
     restart: unless-stopped
@@ -189,6 +191,8 @@ services:
       retrieval:
         condition: service_healthy
       model:
+        condition: service_healthy
+      export:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -291,11 +295,13 @@ services:
     container_name: st-export
     env_file: .env
     depends_on:
-      postgres:
-        condition: service_healthy
       minio:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      auth_audit:
+        condition: service_healthy
+      model:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -319,6 +325,8 @@ services:
       redis:
         condition: service_healthy
       auth_audit:
+        condition: service_healthy
+      model:
         condition: service_healthy
     restart: unless-stopped
     networks:
