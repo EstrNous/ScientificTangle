@@ -31,12 +31,16 @@
 | ID | Проблема | Статус |
 |----|----------|--------|
 | P1-01 | UI auth: RoleSwitcher остаётся в dev; prod должен опираться на JWT session | open |
-| P1-02 | UploadPage / SearchPage / AdminPage — частично реализованы (real API), но Admin persist и source catalog через mock | open |
+| P1-02 | UploadPage / SearchPage / AdminPage — real API; риск mock sources при `VITE_USE_MOCK=true` | open |
 | P1-03 | ТЗ §420: «auth stub» — auth реализован, пункт устарел | closed |
 | P1-04 | `EVAL_AUTH_TOKEN` вручную для eval | open |
-| P1-05 | Гибридный retrieval wired: dense + lexical + table + graph + Qdrant filters; нужен seeded/live quality proof | open |
-| P1-06 | UI source refs: 10 компонентов импортируют `ui/src/api/mock/` даже в real-режиме | open |
+| P1-05 | Гибридный retrieval wired; нужен seeded/live quality proof | open |
+| P1-06 | UI source refs: `sourceResolver` → `mockAdapter` при `VITE_USE_MOCK=true` | open |
 | P1-07 | Нет зафиксированного live eval artifact на demo corpus | open |
+| P1-08 | Rate limiting в gateway/nginx | open |
+| P1-09 | Internal service auth export/notification (`X-Internal-Service-Token`) | closed |
+| P1-10 | PDF export не реализован | open |
+| P1-11 | Post-ingestion notification delivery (`ingestion_complete`, `interest_match`) | open |
 
 ## Инфраструктура и адаптеры
 
@@ -50,9 +54,9 @@
 | `chat_ui_db` | **closed** | Gateway: ChatSession, ChatMessage |
 | `orchestrator_db` | **closed** | IngestionTask, QueryRun, ExportJob, audit_events |
 | `export_db` | **unused** | Authoritative `ExportJob`/`export_artifacts` находятся в `orchestrator_db`; export service хранит runtime status в Redis/in-memory и artifacts в MinIO |
-| `notification_db` | **wired_with_gaps** | User-facing interests/notifications и internal events работают; остаются unauth internal endpoints и неполная runtime delivery |
-| Export microservice | **wired_with_gaps** | `gateway → orchestrator → export → MinIO`; Markdown/JSON/JSON-LD artifacts, PDF — backlog |
-| Notification microservice | **wired_with_gaps** | Gateway routes + conflict events + `/internal/v1/match` через model; post-ingestion delivery — backlog |
+| `notification_db` | **wired_with_gaps** | CRUD interests/notifications, internal events с service token; post-ingestion runtime delivery — backlog |
+| Export microservice | **wired_with_gaps** | `gateway → orchestrator → export → MinIO`; MD/JSON/JSON-LD; PDF — backlog; internal auth — **closed** |
+| Notification microservice | **wired_with_gaps** | Gateway proxy + conflict events + internal match; post-ingestion delivery — backlog; internal auth — **closed** |
 
 ## Граф compose depends_on (целевой)
 

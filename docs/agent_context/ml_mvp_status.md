@@ -39,8 +39,8 @@
 
 - Нет UI evaluation dashboard; доступны Markdown/JSON eval reports.
 - Нет зафиксированного командного live eval artifact с реальными ответами на общем demo corpus; E4 закрепил только входы и правила regression comparison.
-- Export production gaps: Markdown/JSON/JSON-LD идут через `gateway → orchestrator → export → MinIO`; остаются service-to-service auth и PDF.
-- Notification production gaps: interests/notifications/internal events wired; остаются service-to-service auth для internal endpoints и post-ingestion runtime delivery.
+- Export production gaps: Markdown/JSON/JSON-LD через `gateway → orchestrator → export → MinIO`; service-to-service auth **закрыт**; остаётся PDF.
+- Notification production gaps: interests/notifications/internal events wired; service-to-service auth **закрыт**; post-ingestion runtime delivery — backlog.
 
 ## Top-1 ML backlog
 

@@ -1,8 +1,6 @@
 # Анализ проекта против задания и ТЗ
 
-**Дата:** 2026-07-04  
-**Основа:** внешний файл `C:\Users\petro\Downloads\Научный клубок_ Аудит и Разработка Архитектуры (1).md` и репозиторное ТЗ `docs/nauchny_klubok_top1_tz.md`.  
-**Цель:** простым языком зафиксировать, где мы уже закрываем задание, где сделали сильнее, чего еще не хватает и как это закрыть.
+**Обновлено:** сверка с [`implementation_quality_report.md`](implementation_quality_report.md) (2026-07-04). MVP ~90%; internal service auth закрыт; export/notification wired.
 
 Technical terms оставлены на English: `SourceSpan`, `QueryIR`, `EvidenceBundle`, `RBAC`, `hybrid retrieval`, `CI`, `e2e`, `latency_ms_p95`, `JSON-LD`, `Qdrant`, `Neo4j`.
 
@@ -14,7 +12,7 @@ Technical terms оставлены на English: `SourceSpan`, `QueryIR`, `Evide
 
 - official questions уже имеют real e2e gate через gateway/source/graph/search/export/audit и reviewed `expected_source_span_ids` в gold dataset;
 - `hybrid retrieval` в коде реализован как dense + lexical + table + graph with `fusion`, planner trace, geo/numeric/time/source filters and access filtering; remaining work — доказать качество на official corpus and reports;
-- export честно определён как MVP через orchestrator/gateway; `services/export` остаётся reserved boundary. Notification остаётся отдельным production feature gap;
+- export и notification — **wired HTTP-сервисы** (MD/JSON/JSON-LD, interests/events); gaps: PDF, post-ingestion delivery, rate limiting;
 - UI должен быть полностью production-safe без mock/source и role shortcuts в живом пути;
 - live model quality сейчас нельзя проверять, потому что organizers запретили live model calls.
 
@@ -857,7 +855,7 @@ Reliability tests already cover several degraded cases: timeout, empty evidence,
 Для нас это означает:
 
 - не коммитить live model answers into pinned artifact;
-- не маскировать export/notification stubs;
+- не маскировать оставшиеся gaps (PDF export, post-ingestion notifications, rate limiting);
 - не писать “production-ready pass” при open P0;
 - не делать UI-only success without backend evidence.
 

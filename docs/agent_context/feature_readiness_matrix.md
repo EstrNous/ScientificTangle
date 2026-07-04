@@ -19,9 +19,9 @@
 | # | Фича | Итого | Фронт | Бэк | Связь Ф↔Б |
 |---|------|------:|------:|----:|----------:|
 | 1 | Cloud deploy / HTTPS / prod-хостинг | **0%** | 0% | 0% | 0% |
-| 2 | Export microservice (`services/export`) | **5%** | — | 5% | 0% |
-| 3 | Notification microservice (`services/notification`) | **5%** | — | 5% | 0% |
-| 4 | JSON-LD / PDF export | **20%** | 15% | 35% | 10% |
+| 2 | Export microservice (`services/export`) | **86%** | — | 88% | 85% |
+| 3 | Notification microservice (`services/notification`) | **82%** | 85% | 80% | 78% |
+| 4 | JSON-LD / PDF export | **75%** | 70% | 85% | 65% |
 | 5 | Live eval и качество ответов | **25%** | 30% | 40% | 15% |
 | 6 | Full-corpus gold dataset (`SourceSpan`) | **30%** | 10% | 45% | 20% |
 | 7 | Backup/restore Qdrant + MinIO | **40%** | 0% | 50% | 30% |
@@ -68,39 +68,39 @@
 
 ---
 
-### 2. Export microservice — **5%**
+### 2. Export microservice — **86%**
 
 | Слой | Сделано | До 100% |
 |------|---------|---------|
-| **Фронт** | — | Не применимо (UI ходит в gateway/orchestrator) |
-| **Бэк** | Только `/health` в `services/export/app/main.py`; схема `export_db` есть, не wired | HTTP API, worker/async jobs, MinIO artifacts, Alembic в compose CMD |
-| **Связь** | Export идёт через orchestrator (`POST /export`) | Решение границы: orchestrator-owned vs отдельный сервис; proxy из gateway |
+| **Фронт** | `ExportPanel` → gateway/orchestrator; JSON-LD в UI при поддержке формата | PDF кнопка + progress/download |
+| **Бэк** | `POST/GET /v1/jobs`, рендер markdown/json/jsonld, MinIO `exports`, Redis job cache, `require_internal_service` | PDF renderer; async queue для больших job; retention runbook |
+| **Связь** | `gateway → orchestrator → export/v1/jobs → MinIO`; download через gateway | PDF end-to-end |
 
-**Быстро → дорого:** зафиксировать boundary в docs (уже orchestrator-owned) → удалить/архивировать `export_db` drift → вынести jobs в `services/export` с тем же контрактом → async queue + retention runbook.
+**Быстро → дорого:** PDF (WeasyPrint/headless) → async job polling → signed URLs + retention policy.
 
 ---
 
-### 3. Notification microservice — **5%**
+### 3. Notification microservice — **82%**
 
 | Слой | Сделано | До 100% |
 |------|---------|---------|
-| **Фронт** | `NotificationBell`, poll `?since=` (E5) | — |
-| **Бэк** | `services/notification` — только health; логика в gateway + `notification_db` | CRUD в микросервисе или официальный отказ от него |
-| **Связь** | Gateway → PG + model `/v1/notifications/match` | Event bus: ingestion → match → persist |
+| **Фронт** | `NotificationBell`, poll `?since=`, mark read, i18n types | Toast; deep-link document viewer |
+| **Бэк** | Сервис владеет `notification_db`: interests CRUD, notifications list/read, `/internal/v1/events`, `/internal/v1/match`; `require_internal_service` | Runtime hooks post-ingestion; WebSocket/SSE (опционально) |
+| **Связь** | Gateway проксирует user API; `conflict_detected` → internal events | Orchestrator → `ingestion_complete` / `interest_match` без seed |
 
-**Быстро → дорого:** пометить сервис deprecated в domain docs → runtime hooks в orchestrator (см. фичу 8) → полноценный notification service с WebSocket/SSE.
+**Быстро → дорого:** hook в orchestrator после ingestion complete → interest match после index → push/SSE.
 
 ---
 
-### 4. JSON-LD / PDF export — **20%**
+### 4. JSON-LD / PDF export — **75%**
 
 | Слой | Сделано | До 100% |
 |------|---------|---------|
-| **Фронт** | `ExportPanel`: JSON-LD/PDF disabled, честный backlog (E5) | Кнопки, progress, download |
-| **Бэк** | Model `/v1/json-ld/enrich` готов; orchestrator — MD/JSON only | Wiring JSON-LD в export path; PDF renderer (server-side) |
-| **Связь** | UI знает `format_status` | End-to-end: export job → artifact → download URL |
+| **Фронт** | MD/JSON/JSON-LD download через server path; PDF — disabled/backlog | PDF кнопка, progress, download |
+| **Бэк** | Export service: `markdown`, `json`, `jsonld` (model `/v1/jsonld/enrich`); MinIO artifacts | PDF renderer (server-side) |
+| **Связь** | End-to-end job → artifact → gateway download | PDF в том же pipeline |
 
-**Быстро → дорого:** включить JSON-LD через orchestrator + model endpoint → UI download → PDF (WeasyPrint/headless) → MinIO signed URLs.
+**Быстро → дорого:** PDF renderer → UI enable → signed URLs (опционально).
 
 ---
 
@@ -438,7 +438,7 @@
 | **Бэк** | Compose 9 services + data stores; Prometheus/Grafana; Makefile | Cloud; mandatory stack e2e |
 | **Связь** | nginx routing | — |
 
-**Проверки:** 184 backend-теста, coverage 61%, ruff 20 pre-existing issues, offline quality `warn`.
+**Проверки:** backend suites через `run_tests.py`, CI coverage gate ≥60%, compose e2e job, offline quality `warn`.
 
 **Быстро → дорого:** fix ruff I001/F401 → stack e2e CI → Qdrant/MinIO backup → cloud.
 
@@ -478,14 +478,14 @@
 
 ## Итог по зрелости продукта
 
-**Ядро MVP (~85% чеклиста)** работает end-to-end: compose → seed → чат с evidence → RBAC → export MD/JSON через orchestrator. Этапы **E0–E7** закрыты в рамках no-live gates.
+**Ядро MVP (~90% чеклиста)** работает end-to-end: compose → seed → чат с evidence → RBAC → export MD/JSON/JSON-LD через orchestrator/export. Этапы **E0–E7** закрыты в рамках no-live gates.
 
 Главные разрывы до «100% production»:
 
-- микросервисы **export/notification** как отдельные HTTP-сервисы — заглушки (логика в orchestrator/gateway);
-- **live quality** — `blocked_by_policy`;
-- **full corpus** — `blocked_by_data`;
-- **MinIO purge**, **runtime notifications**, **stack E2E в CI**, **backup Qdrant/MinIO**.
+- **PDF export** и **post-ingestion notification delivery**;
+- **rate limiting** и **prod perimeter** (TLS, secrets, edge);
+- **live quality** — `blocked_by_policy`; **full corpus** — `blocked_by_data`;
+- **MinIO purge**, **backup Qdrant/MinIO**, **orchestrator декомпозиция**.
 
 ---
 
@@ -493,7 +493,7 @@
 
 Определение MVP — [`mvp.md`](../tz/mvp.md): команда проходит **полный end-to-end без ручных правок в БД и консоли** в момент демо.
 
-Сейчас чеклист MVP закрыт примерно на **85%**. Ниже — что именно нужно довести до 100% **для MVP** (не для полного production). Top-1 фичи, cloud deploy, JSON-LD/PDF и отдельные microservices **не входят** в MVP, если явно не требуются в `mvp.md`.
+Сейчас чеклист MVP закрыт примерно на **90%**. Ниже — что именно нужно довести до 100% **для MVP** (не для полного production). Top-1 фичи, cloud deploy, JSON-LD/PDF и отдельные microservices **не входят** в MVP, если явно не требуются в `mvp.md`.
 
 ### Критерий готовности MVP
 
@@ -618,8 +618,8 @@
 
 | Item | Почему не MVP | Когда нужен |
 |------|---------------|-------------|
-| `services/export` как отдельный HTTP microservice | MVP допускает export через orchestrator | Масштабирование async jobs |
-| `services/notification` microservice | Список/read уведомлений уже в gateway | Отдельная команда notifications |
+| `services/export` как отдельный HTTP microservice | MVP допускает export через orchestrator; **сервис уже wired** для рендера | PDF, async scale-out |
+| `services/notification` microservice | **Сервис wired**; gap — post-ingestion runtime, не отсутствие сервиса | Полный event bus |
 | JSON-LD / PDF export | В MVP — Markdown/JSON | Top-1 / интеграции |
 | Full corpus reviewed `SourceSpan` | MVP — 4 official + demo corpus | Production regression на всём корпусе |
 | Live latency p95 | Не в MVP DoD | SLA production |

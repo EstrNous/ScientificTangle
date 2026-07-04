@@ -35,5 +35,5 @@ orchestrator (основной proxy), export (artifact download), notification,
 
 ## Gaps
 
-- Admin user/policy PATCH без полного persist
+- Rate limiting на публичных API — backlog
 - Strategic/lab данные частично из knowledge + eval fixtures

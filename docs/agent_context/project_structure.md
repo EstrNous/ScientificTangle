@@ -23,7 +23,7 @@
 - `docker-compose.yml` — полная локальная среда (сервисы + PostgreSQL + Neo4j + Qdrant + MinIO + Redis + nginx), включая запуск миграций `auth_audit` и `orchestrator`, а также подключение внешних RSA-секретов.
 - `docker-compose.prod.yml` — production-оверрайды (ресурсы, логирование, реплики).
 - `Makefile` — цели сборки и управления: bootstrap, up, up-auth, down, build, logs, seed, ingest-demo, eval, eval-yandex-live, perf-smoke, test, test-yandex-live и др.
-- `.env.example` — шаблон переменных окружения для копирования в `.env`.
+- `.env.example` — шаблон переменных окружения для копирования в `.env`, включая `INTERNAL_SERVICE_TOKEN` для межсервисных вызовов export/notification.
 
 ### Документация
 
@@ -42,7 +42,7 @@
 - `docs/agent_context/project_structure.md` — этот файл, карта структуры проекта для агентов.
 - `docs/agent_context/sync_rules.md` — правила синхронизации контекста между агентами.
 - `docs/agent_context/ml_mvp_status.md` — текущий статус ML MVP, открытые gaps и позиция по VL/OCR.
-- `docs/agent_context/implementation_quality_report.md` — оценка реализации vs ТЗ по сервисам, стеку и gaps.
+- `docs/agent_context/implementation_quality_report.md` — сводная оценка и зоны готовности (PM view)
 - `docs/agent_context/feature_readiness_matrix.md` — матрица готовности фич (фронт/бэк/связь), backlog по приоритету и план закрытия MVP на 100%.
 - `docs/agent_context/query_pipeline.md` — сквозной пайплайн запроса user → answer.
 - `docs/agent_context/top1_parallel_execution_plan.md` — поэтапный план параллельной работы двух Backend/ML-специалистов и одного Frontend-специалиста.
@@ -84,7 +84,7 @@
 - `shared/logging/` — единая конфигурация structlog (JSON, контекст сервиса).
 - `shared/config/` — базовый класс ServiceSettings с подключениями ко всем хранилищам.
 - `shared/security/` — повторно используемая проверка access token через RS256/JWKS.
-- `shared/web/` — единый request_id, зависимости аутентификации и нормализованные API-ошибки.
+- `shared/web/` — единый request_id, зависимости аутентификации (JWT principal, `require_internal_service`), нормализованные API-ошибки.
 - `shared/metrics/` — Prometheus RED-метрики и `/metrics` для всех сервисов.
 
 ### Микросервисы (`services/`)
@@ -100,7 +100,7 @@
 | `services/knowledge/` | 8004 | Knowledge — Schema Registry, сущности, entity resolution, claims, граф |
 | `services/retrieval/` | 8005 | Retrieval — Query IR, гибридный поиск, fusion, reranking, EvidenceBundle |
 | `services/model/` | 8006 | Model — embeddings, structured extraction, Query IR, reranking/scoring, answer synthesis, prompt/schema registry |
-| `services/export/` | 8007 | Export — Markdown, PDF, JSON, JSON-LD |
+| `services/export/` | 8007 | Export — Markdown, JSON, JSON-LD (PDF — backlog); artifacts в MinIO |
 | `services/notification/` | 8008 | Notification — профиль интересов, сопоставление с источниками, уведомления |
 
 Gateway, Orchestrator и Ingestion используют слои по образцу `auth_audit`: HTTP-маршруты в `app/api`, зависимости в `app/core`, прикладная логика в `app/service`. Слой PostgreSQL для `auth_audit` и `orchestrator` — в `infra/postgres/*_db/`; Alembic-миграции остаются в `services/<name>/storage/`.
@@ -135,7 +135,8 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 - `ui/src/api/mock/` — JSON demo-данные для экранов без backend.
 - `ui/src/utils/graphFilters.js`, `ui/src/utils/graphSearch.js` — клиентская фильтрация графа.
 - `ui/src/hooks/` — useRoleAccess.
-- `ui/src/utils/reportExport.js` — экспорт MD/JSON/PDF.
+- `ui/src/api/sourceResolver/` — live/mock adapter switch (`liveAdapter` при `VITE_USE_MOCK=false`; `mockAdapter` только для dev/mock).
+- `ui/src/utils/reportExport.js` — клиентский fallback export (отключён в prod при `isServerExportEnabled()`).
 
 ### Инфраструктура (`infra/`)
 

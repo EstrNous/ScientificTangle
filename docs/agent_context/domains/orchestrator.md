@@ -4,7 +4,7 @@
 
 ## Ключевые файлы
 
-- `services/orchestrator/app/service/service.py` — create_task, `_run_ingestion_pipeline`, `run_query`, `export_query_run`
+- `services/orchestrator/app/service/service.py` — create_task, `_run_ingestion_pipeline`, `run_query`, `export_query_run` (~1240 строк)
 - `services/orchestrator/app/api/ingestion.py` — `POST/GET /ingestion/tasks`
 - `services/orchestrator/app/api/query.py` — `POST /query/run`, `GET /runs/{id}`, export, source, subgraph, search
 - `infra/postgres/orchestrator_db/` — IngestionTask, QueryRun, ExportJob, audit_events
@@ -27,16 +27,16 @@ retrieval/v1/query → model gaps → knowledge/v1/graph/subgraph → model answ
 ## Export
 
 ```
-gateway → orchestrator/export_query_run → export/v1/jobs → MinIO
+gateway → orchestrator/export_query_run → export/v1/jobs (X-Internal-Service-Token) → MinIO
 ```
 
-Orchestrator остаётся authoritative owner для `ExportJob`/`export_artifacts` в `orchestrator_db`: повторно проверяет доступ к `SourceSpan`, пишет audit и сохраняет metadata артефакта. Export service рендерит Markdown/JSON/JSON-LD и кладёт artifact в MinIO.
+Orchestrator остаётся authoritative owner для `ExportJob`/`export_artifacts` в `orchestrator_db`: повторно проверяет доступ к `SourceSpan`, пишет audit и сохраняет metadata артефакта.
 
 ## Зависимости downstream
 
-ingestion, knowledge, retrieval, model, export; JWT через JWKS (auth_audit).
+ingestion, knowledge, retrieval, model, export; JWT через JWKS (auth_audit); service token для export.
 
 ## Gaps
 
-- `service.py` концентрирует ingestion + query + export (~940 строк) — кандидат на декомпозицию
-- Internal export call пока без service-to-service auth
+- `service.py` концентрирует ingestion + query + export — кандидат на декомпозицию (runners)
+- Post-ingestion notification hooks (`ingestion_complete`, `interest_match`) не подключены
