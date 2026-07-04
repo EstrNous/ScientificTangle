@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import json
 import os
+import subprocess
 import time
 from datetime import UTC, datetime
 from pathlib import Path
@@ -14,6 +15,8 @@ from shared.utils.source_span import compute_source_span_id_from_parts
 DEFAULT_EVAL_SERVICE_URL = "http://localhost:8000/api/query"
 DEFAULT_GOLD_QUESTIONS_PATH = "eval/gold_questions.json"
 DEFAULT_REPORT_BASE = "eval/reports/latest"
+DEFAULT_SUITES_PATH = "eval/regression_suites.json"
+DEFAULT_ARTIFACT_MANIFEST_PATH = "eval/pinned_demo_artifact.json"
 
 
 async def run_evaluation(
@@ -24,8 +27,13 @@ async def run_evaluation(
     auth_token: str | None,
     output_base: str,
     official_only: bool = False,
+    suite: str | None = None,
+    suites_path: str = DEFAULT_SUITES_PATH,
+    artifact_manifest_path: str | None = DEFAULT_ARTIFACT_MANIFEST_PATH,
+    baseline_report_path: str | None = None,
 ) -> None:
     gold = load_gold_questions(gold_questions_path, official_only=official_only)
+    gold = select_questions(gold, suite, suites_path)
     results = []
     async with httpx.AsyncClient(timeout=30.0) as client:
         documents = await load_eval_documents(client, documents_path, ingestion_normalize_url)
@@ -47,8 +55,21 @@ async def run_evaluation(
                 result["input_documents_count"] = len(documents)
             results.append(result)
 
-    report = build_report(results, metadata={"official_only": official_only, "input_documents_count": len(documents)})
-    write_reports(report, Path(output_base))
+    metadata = {
+        "official_only": official_only,
+        "suite": suite,
+        "input_documents_count": len(documents),
+        "gold_questions_path": gold_questions_path,
+        "suites_path": suites_path if suite else None,
+        "artifact_manifest": load_eval_artifact_manifest(artifact_manifest_path),
+        "git": git_metadata(),
+    }
+    report = build_report(results, metadata=metadata)
+    output_path = Path(output_base)
+    write_reports(report, output_path)
+    if baseline_report_path:
+        comparison = compare_reports(load_report(baseline_report_path), report)
+        write_comparison_report(comparison, comparison_output_path(output_path))
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
 
@@ -58,6 +79,48 @@ def load_gold_questions(path: str, official_only: bool = False) -> list[dict[str
     if official_only:
         return [item for item in questions if str(item.get("id", "")).startswith("official-")]
     return questions
+
+
+def load_regression_suites(path: str) -> dict[str, Any]:
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def select_questions(questions: list[dict[str, Any]], suite: str | None, suites_path: str) -> list[dict[str, Any]]:
+    if not suite:
+        return questions
+    suites = load_regression_suites(suites_path).get("suites", {})
+    if suite not in suites:
+        available = ", ".join(sorted(suites))
+        raise ValueError(f"Unknown eval suite '{suite}'. Available suites: {available}")
+    question_ids = set(suites[suite].get("question_ids", []))
+    selected = [item for item in questions if item.get("id") in question_ids]
+    missing = sorted(question_ids - {item.get("id") for item in selected})
+    if missing:
+        raise ValueError(f"Eval suite '{suite}' references missing questions: {', '.join(missing)}")
+    return selected
+
+
+def load_eval_artifact_manifest(path: str | None) -> dict[str, Any] | None:
+    if not path:
+        return None
+    manifest_path = Path(path)
+    if not manifest_path.exists():
+        return None
+    return json.loads(manifest_path.read_text(encoding="utf-8"))
+
+
+def git_metadata() -> dict[str, str | None]:
+    return {
+        "commit": git_value("rev-parse", "HEAD"),
+        "branch": git_value("branch", "--show-current"),
+    }
+
+
+def git_value(*args: str) -> str | None:
+    try:
+        return subprocess.run(["git", *args], check=False, capture_output=True, text=True).stdout.strip() or None
+    except OSError:
+        return None
 
 
 async def load_eval_documents(client: httpx.AsyncClient, documents_path: str | None, ingestion_normalize_url: str | None) -> list[dict[str, Any]]:
@@ -345,6 +408,64 @@ def build_report(results: list[dict[str, Any]], metadata: dict[str, Any] | None 
     }
 
 
+def load_report(path: str) -> dict[str, Any]:
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def compare_reports(baseline: dict[str, Any], current: dict[str, Any]) -> dict[str, Any]:
+    baseline_metrics = baseline.get("metrics", {})
+    current_metrics = current.get("metrics", {})
+    metric_names = sorted(set(baseline_metrics) | set(current_metrics))
+    metric_deltas = {
+        name: {
+            "baseline": baseline_metrics.get(name),
+            "current": current_metrics.get(name),
+            "delta": metric_delta(baseline_metrics.get(name), current_metrics.get(name)),
+        }
+        for name in metric_names
+    }
+    baseline_blockers = set(baseline.get("dashboard_data", {}).get("blocker_question_ids", []))
+    current_blockers = set(current.get("dashboard_data", {}).get("blocker_question_ids", []))
+    status_changes = compare_metric_status(
+        baseline.get("dashboard_data", {}).get("metric_status", {}),
+        current.get("dashboard_data", {}).get("metric_status", {}),
+    )
+    return {
+        "schema_version": "ml_eval_comparison.v1",
+        "generated_at": datetime.now(UTC).isoformat(),
+        "baseline_generated_at": baseline.get("generated_at"),
+        "current_generated_at": current.get("generated_at"),
+        "baseline_metadata": baseline.get("metadata", {}),
+        "current_metadata": current.get("metadata", {}),
+        "metric_deltas": metric_deltas,
+        "status_changes": status_changes,
+        "resolved_blocker_question_ids": sorted(baseline_blockers - current_blockers),
+        "new_blocker_question_ids": sorted(current_blockers - baseline_blockers),
+        "regression": bool(current_blockers - baseline_blockers or any(change["regressed"] for change in status_changes.values())),
+    }
+
+
+def metric_delta(baseline: Any, current: Any) -> float | None:
+    if not isinstance(baseline, (int, float)) or not isinstance(current, (int, float)):
+        return None
+    return round(current - baseline, 6)
+
+
+def compare_metric_status(baseline: dict[str, str], current: dict[str, str]) -> dict[str, dict[str, Any]]:
+    order = {"pass": 0, "unknown": 1, "warn": 2}
+    changes = {}
+    for key in sorted(set(baseline) | set(current)):
+        before = baseline.get(key, "unknown")
+        after = current.get(key, "unknown")
+        if before != after:
+            changes[key] = {
+                "baseline": before,
+                "current": after,
+                "regressed": order.get(after, 1) > order.get(before, 1),
+            }
+    return changes
+
+
 def build_dashboard_data(results: list[dict[str, Any]], metrics: dict[str, Any]) -> dict[str, Any]:
     official = [item for item in results if item.get("question_id", "").startswith("official-")]
     blockers = [
@@ -413,6 +534,16 @@ def write_reports(report: dict[str, Any], output_base: Path) -> None:
         versioned_base.with_suffix(".md").write_text(render_markdown_report(report), encoding="utf-8")
 
 
+def comparison_output_path(output_base: Path) -> Path:
+    return output_base.with_name(f"{output_base.name}_comparison")
+
+
+def write_comparison_report(comparison: dict[str, Any], output_base: Path) -> None:
+    output_base.parent.mkdir(parents=True, exist_ok=True)
+    output_base.with_suffix(".json").write_text(json.dumps(comparison, ensure_ascii=False, indent=2), encoding="utf-8")
+    output_base.with_suffix(".md").write_text(render_comparison_markdown(comparison), encoding="utf-8")
+
+
 def render_markdown_report(report: dict[str, Any]) -> str:
     lines = [
         "# Evaluation report",
@@ -441,6 +572,31 @@ def render_markdown_report(report: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def render_comparison_markdown(comparison: dict[str, Any]) -> str:
+    lines = [
+        "# Evaluation comparison",
+        "",
+        f"- Schema version: {comparison.get('schema_version', 'unknown')}",
+        f"- Generated at: {comparison.get('generated_at', 'unknown')}",
+        f"- Regression: {comparison['regression']}",
+        f"- New blockers: {', '.join(comparison['new_blocker_question_ids']) if comparison['new_blocker_question_ids'] else 'none'}",
+        f"- Resolved blockers: {', '.join(comparison['resolved_blocker_question_ids']) if comparison['resolved_blocker_question_ids'] else 'none'}",
+        "",
+        "## Metric deltas",
+        "",
+    ]
+    for key, value in comparison["metric_deltas"].items():
+        lines.append(f"- {key}: {value['baseline']} -> {value['current']} (delta={value['delta']})")
+    lines.extend(["", "## Status changes", ""])
+    if comparison["status_changes"]:
+        for key, value in comparison["status_changes"].items():
+            lines.append(f"- {key}: {value['baseline']} -> {value['current']}")
+    else:
+        lines.append("- none")
+    lines.append("")
+    return "\n".join(lines)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--service-url", default=DEFAULT_EVAL_SERVICE_URL)
@@ -451,6 +607,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--auth-token-env", default="EVAL_AUTH_TOKEN")
     parser.add_argument("--output-base", default=DEFAULT_REPORT_BASE)
     parser.add_argument("--official-only", action="store_true")
+    parser.add_argument("--suite")
+    parser.add_argument("--suites", default=DEFAULT_SUITES_PATH)
+    parser.add_argument("--artifact-manifest", default=DEFAULT_ARTIFACT_MANIFEST_PATH)
+    parser.add_argument("--baseline-report")
     return parser.parse_args()
 
 
@@ -465,5 +625,9 @@ if __name__ == "__main__":
             resolve_auth_token(args.auth_token, args.auth_token_env),
             args.output_base,
             args.official_only,
+            args.suite,
+            args.suites,
+            args.artifact_manifest,
+            args.baseline_report,
         )
     )

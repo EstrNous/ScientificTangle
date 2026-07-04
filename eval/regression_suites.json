@@ -1,0 +1,97 @@
+{
+  "schema_version": "ml_eval_suites.v1",
+  "artifact_manifest": "eval/pinned_demo_artifact.json",
+  "suites": {
+    "official_questions": {
+      "description": "Official MVP questions from demo/official_questions.md.",
+      "question_ids": [
+        "official-001",
+        "official-002",
+        "official-003",
+        "official-004"
+      ],
+      "gate_metrics": [
+        "query_trace_completeness",
+        "unsupported_claim_rate",
+        "answer_completeness",
+        "latency_ms_p95"
+      ]
+    },
+    "hybrid_retrieval": {
+      "description": "Corpus-derived questions with expected source spans and numeric/entity constraints for hybrid retrieval regression.",
+      "question_ids": [
+        "corpus-001",
+        "corpus-002",
+        "corpus-003",
+        "corpus-004",
+        "corpus-005",
+        "corpus-006",
+        "corpus-007",
+        "corpus-008",
+        "corpus-009",
+        "corpus-010",
+        "corpus-011",
+        "corpus-012"
+      ],
+      "gate_metrics": [
+        "citation_coverage",
+        "evidence_recall_at_k",
+        "numeric_correctness",
+        "entity_linking_f1",
+        "query_ir_constraint_recall"
+      ]
+    },
+    "access_filtering": {
+      "description": "Questions with expected forbidden source span ids; E6 should expand this after auth-backed fixtures are reviewed.",
+      "question_ids": [
+        "corpus-001"
+      ],
+      "gate_metrics": [
+        "access_leak_rate"
+      ]
+    },
+    "unsupported_claims": {
+      "description": "Questions used to watch unsupported warnings and candidate leakage in synthesis.",
+      "question_ids": [
+        "official-003",
+        "corpus-003",
+        "corpus-004",
+        "corpus-005",
+        "corpus-008",
+        "corpus-009",
+        "corpus-010",
+        "corpus-011"
+      ],
+      "gate_metrics": [
+        "unsupported_claim_rate",
+        "candidate_quality_review_rate",
+        "gap_precision"
+      ]
+    },
+    "answer_completeness": {
+      "description": "Questions with answer_outline expectations.",
+      "question_ids": [
+        "official-001",
+        "official-002",
+        "official-003",
+        "official-004",
+        "corpus-001",
+        "corpus-002",
+        "corpus-003",
+        "corpus-004",
+        "corpus-005",
+        "corpus-006",
+        "corpus-007",
+        "corpus-008",
+        "corpus-009",
+        "corpus-010",
+        "corpus-011",
+        "corpus-012"
+      ],
+      "gate_metrics": [
+        "answer_completeness",
+        "query_trace_completeness"
+      ]
+    }
+  }
+}
