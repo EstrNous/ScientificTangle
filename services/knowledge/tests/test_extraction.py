@@ -12,8 +12,7 @@ from app.api.extraction import extract_document
 from shared.contracts import (
     KnowledgeIngestionRequest,
     NormalizedDocument,
-    StorageWriteResult,
-    SourceSpan
+    SourceSpan,
 )
 
 
@@ -44,6 +43,14 @@ def client() -> TestClient:
 
 
 def test_extract_document_writes_to_neo4j_when_adapter_available(client: TestClient) -> None:
+    span = SourceSpan(
+        document_id="document-1",
+        page=1,
+        start_offset=0,
+        end_offset=20,
+        text="Nickel recovery 82 %",
+        source_type="text",
+    )
     document = NormalizedDocument(
         id="document-1",
         source_type="docx",
@@ -71,8 +78,8 @@ def test_extract_document_writes_to_neo4j_when_adapter_available(client: TestCli
                     "value": "Ni",
                     "confidence": 0.9,
                     "status": "confirmed",
-                    "source_span_ids": [span_id],
-                    "source_spans": [document.source_spans[0].model_dump(mode="json")],
+                    "source_span_ids": [span.id],
+                    "source_spans": [span.model_dump(mode="json")],
                 }
             ],
             "candidates": [],
@@ -89,7 +96,6 @@ def test_extract_document_writes_to_neo4j_when_adapter_available(client: TestCli
     assert payload["graph_write"]["mode"] == "live"
     assert payload["graph_write"]["confirmed_count"] == 1
     adapter.write_bundle.assert_awaited_once()
-
 
 def test_health_smoke(client: TestClient) -> None:
     assert client.get("/health").status_code == 200

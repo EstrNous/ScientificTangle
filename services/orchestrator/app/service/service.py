@@ -1,4 +1,3 @@
-import json
 import time
 from time import perf_counter
 from uuid import UUID

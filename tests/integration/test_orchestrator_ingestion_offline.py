@@ -1,4 +1,6 @@
 import asyncio
+import importlib
+import sys
 from datetime import UTC, datetime
 from io import BytesIO
 from pathlib import Path
@@ -104,6 +106,13 @@ def report_payload() -> dict:
 
 
 def test_orchestrator_ingestion_pipeline_offline() -> None:
+    orchestrator_root = Path(__file__).resolve().parents[2] / "services" / "orchestrator"
+    sys.path.insert(0, str(orchestrator_root))
+    for module_name in [name for name in sys.modules if name == "app" or name.startswith("app.")]:
+        sys.modules.pop(module_name, None)
+    importlib.invalidate_caches()
+    from app.service.service import OrchestratorService
+
     repository = FakeRepository()
     calls: list[str] = []
 

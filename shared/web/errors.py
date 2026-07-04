@@ -48,13 +48,10 @@ def _response(
         request_id=_request_id(request),
         query_run_id=query_run_id,
     )
-    headers = {}
-    if status_code == 401 and code == "unauthorized":
-        headers["WWW-Authenticate"] = "Bearer"
     return JSONResponse(
         status_code=status_code,
         content=payload.model_dump(mode="json", exclude_none=True),
-        headers=headers,
+        headers={"WWW-Authenticate": "Bearer"} if status_code == 401 else None,
     )
 
 
