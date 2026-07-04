@@ -32,7 +32,7 @@ class ChatService:
         return [self._session_payload(session) for session in sessions]
 
     async def create_session(self, principal: AuthenticatedPrincipal, title: str) -> dict:
-        session = await self._repository.create_session(principal.user_id, title.strip())
+        session = await self._repository.create_session(principal.user_id, title)
         return self._session_payload(session)
 
     async def delete_session(self, principal: AuthenticatedPrincipal, session_id: UUID) -> None:
@@ -54,11 +54,11 @@ class ChatService:
         request_id: str,
     ) -> dict:
         await self._require_session(principal, session_id)
-        await self._repository.save_message(session_id, "user", content.strip())
+        await self._repository.save_message(session_id, "user", content)
 
         try:
             query_response = await self._gateway_service.run_query(
-                {"question": content.strip(), "filters": {}, "limit": 20},
+                {"question": content, "filters": {}, "limit": 20},
                 authorization,
                 request_id,
             )
