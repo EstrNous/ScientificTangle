@@ -2,7 +2,7 @@ from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header, Query, Request, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 
 from shared.contracts import (
@@ -30,7 +30,7 @@ class QueryRequest(BaseModel):
 
 class ExportRequest(BaseModel):
     query_run_id: UUID
-    format: str = Field(pattern="^(markdown|json)$")
+    format: str = Field(pattern="^(markdown|json|jsonld)$")
 
 
 def raise_service_error(error: GatewayServiceError) -> None:
@@ -120,6 +120,33 @@ async def export_run(
                 authorization,
                 request.state.request_id,
             )
+        )
+    except GatewayServiceError as error:
+        raise_service_error(error)
+
+
+@router.get("/export/jobs/{job_id}/artifact")
+async def download_export_artifact(
+    job_id: UUID,
+    request: Request,
+    authorization: Annotated[str, Header()],
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],
+    service: Annotated[GatewayService, Depends(get_gateway_service)],
+) -> Response:
+    try:
+        downstream = await service.download_export_artifact(
+            job_id,
+            authorization,
+            request.state.request_id,
+        )
+        return Response(
+            content=downstream.content,
+            media_type=downstream.headers.get("content-type", "application/octet-stream"),
+            headers={
+                key: value
+                for key, value in downstream.headers.items()
+                if key.lower() in {"content-disposition", "content-type"}
+            },
         )
     except GatewayServiceError as error:
         raise_service_error(error)

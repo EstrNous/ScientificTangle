@@ -19,6 +19,7 @@ class IngestionService:
         knowledge_url: str = "http://knowledge",
         retrieval_url: str = "http://retrieval",
         model_url: str = "http://model",
+        export_url: str = "http://export",
         enforce_active_dictionary: bool = False,
     ) -> None:
         self._service = OrchestratorService(
@@ -28,6 +29,7 @@ class IngestionService:
             knowledge_url,
             retrieval_url,
             model_url,
+            export_url,
             enforce_active_dictionary=enforce_active_dictionary,
         )
 

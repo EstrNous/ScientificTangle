@@ -8,6 +8,7 @@ class Settings(ServiceSettings):
     port: int = 8000
     auth_url: str = "http://auth_audit:8001"
     orchestrator_url: str = "http://orchestrator:8002"
+    export_url: str = "http://export:8007"
     knowledge_url: str = "http://knowledge:8004"
     retrieval_url: str = "http://retrieval:8005"
     model_url: str = "http://model:8006"

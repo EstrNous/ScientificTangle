@@ -13,6 +13,7 @@ from infra.postgres.orchestrator_db import (
     QueryRun,
     QueryRunRepository,
 )
+from infra.postgres.orchestrator_db.product_events_storage import ExportArtifactInput
 from shared.contracts import (
     AnswerPayload,
     AuditEvent,
@@ -78,6 +79,7 @@ class OrchestratorService(BaseService):
         knowledge_url: str,
         retrieval_url: str,
         model_url: str,
+        export_url: str,
         query_repository: QueryRunRepository | None = None,
         enforce_active_dictionary: bool = True,
     ) -> None:
@@ -87,6 +89,7 @@ class OrchestratorService(BaseService):
         self._knowledge_url = knowledge_url.rstrip("/")
         self._retrieval_url = retrieval_url.rstrip("/")
         self._model_url = model_url.rstrip("/")
+        self._export_url = export_url.rstrip("/")
         self._query_repository = query_repository
         self._enforce_active_dictionary = enforce_active_dictionary
 
@@ -899,7 +902,7 @@ class OrchestratorService(BaseService):
         export_format: str,
         request_id: str,
     ) -> ExportPayload:
-        if export_format not in {"markdown", "json"}:
+        if export_format not in {"markdown", "json", "jsonld"}:
             raise OrchestratorServiceError(422, "invalid_export_format", "Unsupported export format")
         repository = self._require_query_repository()
         run = await repository.get(run_id)
@@ -950,17 +953,58 @@ class OrchestratorService(BaseService):
                 )
             raise
         generated_at = datetime.now(UTC)
-        file_url = self._export_file_url(export_job.id, export_format)
-        response_payload = self._build_export_payload(
-            export_job.id,
+        export_document = self._export_document(
             query_payload,
             resolved_sources,
-            export_format,
             principal.role.value,
-            file_url,
             generated_at,
         )
-        await repository.mark_export_completed(export_job, response_payload, file_url)
+        answer = query_payload.answer
+        try:
+            export_response = await self._request_downstream(
+                "POST",
+                self._export_url,
+                "/v1/jobs",
+                {
+                    "job_id": str(export_job.id),
+                    "user_id": str(principal.user_id),
+                    "query_run_id": str(run.id),
+                    "format": export_format,
+                    "document": export_document,
+                    "answer": answer.model_dump(mode="json") if answer is not None else None,
+                },
+                request_id,
+                "export",
+            )
+        except OrchestratorServiceError as error:
+            await repository.mark_export_failed(export_job, error.message)
+            raise
+        artifacts = [
+            ExportArtifactInput(
+                artifact_kind=item["artifact_kind"],
+                storage_key=item["storage_key"],
+                content_type=item["content_type"],
+                byte_size=item.get("byte_size"),
+                bucket_name=item.get("bucket_name", "exports"),
+                file_url=item.get("file_url"),
+                checksum=item.get("checksum"),
+            )
+            for item in export_response.get("artifacts") or []
+        ]
+        file_url = artifacts[0].file_url if artifacts else self._export_file_url(export_job.id)
+        response_payload = ExportPayload(
+            export_job_id=export_job.id,
+            query_run_id=run.id,
+            format=export_format,
+            status=QueryRunStatus.COMPLETED,
+            content_type=str(export_response.get("content_type") or ""),
+            content=export_response.get("content") or ("" if export_format == "markdown" else {}),
+            file_url=file_url or "",
+            warnings=list(export_response.get("warnings") or query_payload.warnings),
+            format_status=self._export_format_status(),
+            generated_at=generated_at,
+        )
+        await repository.complete_export_with_artifacts(export_job, response_payload, artifacts)
         await repository.record_audit_event(
             principal.user_id,
             "document_exported",
@@ -1084,38 +1128,6 @@ class OrchestratorService(BaseService):
             updated_at=run.updated_at,
         )
 
-    def _build_export_payload(
-        self,
-        export_job_id: UUID,
-        payload: QueryRunPayload,
-        sources: list[SourcePayload],
-        export_format: str,
-        role: str,
-        file_url: str,
-        generated_at: datetime,
-    ) -> ExportPayload:
-        export_document = self._export_document(payload, sources, role, generated_at)
-        content: str | dict
-        content_type: str
-        if export_format == "markdown":
-            content = self._render_export_markdown(export_document)
-            content_type = "text/markdown"
-        else:
-            content = export_document
-            content_type = "application/json"
-        return ExportPayload(
-            export_job_id=export_job_id,
-            query_run_id=payload.id,
-            format=export_format,
-            status=QueryRunStatus.COMPLETED,
-            content_type=content_type,
-            content=content,
-            file_url=file_url,
-            warnings=payload.warnings,
-            format_status=self._export_format_status(),
-            generated_at=generated_at,
-        )
-
     def _export_document(
         self,
         payload: QueryRunPayload,
@@ -1185,9 +1197,8 @@ class OrchestratorService(BaseService):
             ExportFormatStatus(format="json", available=True, status="available"),
             ExportFormatStatus(
                 format="jsonld",
-                available=False,
-                status="backlog",
-                reason="model_jsonld_enrichment_ready_but_export_wiring_deferred",
+                available=True,
+                status="available",
             ),
             ExportFormatStatus(
                 format="pdf",
@@ -1198,80 +1209,8 @@ class OrchestratorService(BaseService):
         ]
 
     @staticmethod
-    def _render_export_markdown(document: dict) -> str:
-        lines = [
-            f"# Export for query run {document['query_run_id']}",
-            "",
-            f"- Question: {document['question']}",
-            f"- Role: {document['role']}",
-            f"- Access scope: {', '.join(document['access_scope'])}",
-            f"- Dictionary version: {document['dictionary_version_id'] or ''}",
-            f"- Generated at: {document['generated_at']}",
-            f"- Status: {document['status']}",
-            f"- Latency ms: {document['latency_ms'] if document['latency_ms'] is not None else ''}",
-            "",
-            "## Answer",
-            "",
-            str(document["answer"]),
-            "",
-            "## Query IR",
-            "",
-            "```json",
-            json.dumps(document["query_ir"], ensure_ascii=False, indent=2),
-            "```",
-            "",
-            "## Evidence",
-            "",
-        ]
-        for item in document["evidence"]:
-            lines.extend(
-                [
-                    f"- {item['source_span_id']} (page {item['page']}, score {item['relevance_score']})",
-                    f"  {item['text']}",
-                ]
-            )
-        lines.extend(["", "## Sources", ""])
-        for source in document["sources"]:
-            lines.extend(
-                [
-                    f"- {source['document_title']} [{source['source_span_id']}]({source['link']})",
-                    f"  {source['text']}",
-                ]
-            )
-        lines.extend(
-            [
-                "",
-                "## Graph",
-                "",
-                "```json",
-                json.dumps(document["graph"], ensure_ascii=False, indent=2),
-                "```",
-                "",
-                "## Gaps",
-                "",
-                *([f"- {item}" for item in document["gaps"]] or ["- none"]),
-                "",
-                "## Conflicts",
-                "",
-                *([f"- {item}" for item in document["conflicts"]] or ["- none"]),
-                "",
-                "## Retrieval Trace",
-                "",
-                "```json",
-                json.dumps(document["retrieval_trace"], ensure_ascii=False, indent=2),
-                "```",
-                "",
-                "## Warnings",
-                "",
-                *([f"- {item}" for item in document["warnings"]] or ["- none"]),
-            ]
-        )
-        return "\n".join(lines)
-
-    @staticmethod
-    def _export_file_url(export_job_id: UUID, export_format: str) -> str:
-        extension = "md" if export_format == "markdown" else "json"
-        return f"inline://export-jobs/{export_job_id}.{extension}"
+    def _export_file_url(export_job_id: UUID) -> str:
+        return f"/api/export/jobs/{export_job_id}/artifact"
 
     async def _active_dictionary(self, request_id: str) -> DictionaryVersionPayload:
         try:
