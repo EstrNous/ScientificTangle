@@ -21,7 +21,14 @@ export function isLiveProductionMode() {
 }
 
 export function isServerExportEnabled() {
+  if (!useMock) {
+    return true;
+  }
   return readFlag('VITE_SERVER_EXPORT_ENABLED', false);
+}
+
+export function isClientExportFallbackEnabled() {
+  return readFlag('VITE_CLIENT_EXPORT_FALLBACK_ENABLED', false);
 }
 
 export function isLiveNotificationsEnabled() {

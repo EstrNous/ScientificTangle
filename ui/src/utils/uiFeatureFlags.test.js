@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
+  isClientExportFallbackEnabled,
   isLiveNotificationsEnabled,
   isReviewActionsEnabled,
   isReviewConsoleEnabled,
@@ -31,7 +32,8 @@ describe('uiFeatureFlags', () => {
   });
 
   it('defaults product flags to false', () => {
-    expect(isServerExportEnabled()).toBe(false);
+    expect(isServerExportEnabled()).toBe(true);
+    expect(isClientExportFallbackEnabled()).toBe(false);
     expect(isLiveNotificationsEnabled()).toBe(false);
     expect(isReviewConsoleEnabled()).toBe(false);
     expect(isReviewActionsEnabled()).toBe(false);

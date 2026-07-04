@@ -1,15 +1,20 @@
-import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { canDeleteAuditDocument, resolveDocumentIdFromAuditEvent } from '../../api/upload.js';
 import AdminPanelShell from './AdminPanelShell.jsx';
 import { DeleteIcon } from './AdminIcons.jsx';
 
-const ACTION_FILTERS = [
+export const ACTION_FILTERS = [
   'all',
   'query_created',
+  'answer_generated',
+  'source_opened',
   'source_viewed',
+  'document_uploaded',
+  'document_deleted',
   'document_exported',
+  'review_decision',
   'access_denied',
+  'admin_setting_changed',
   'ingestion_upload',
   'role_changed',
 ];
@@ -33,31 +38,38 @@ export default function AuditLogTable({
   onSelect,
   onDeleteDocument,
   deletingDocumentId,
+  actionFilter = 'all',
+  onActionFilterChange,
   fullHeight = false,
 }) {
   const { t, i18n } = useTranslation();
-  const [actionFilter, setActionFilter] = useState('all');
-
-  const filtered = useMemo(() => {
-    if (actionFilter === 'all') return events ?? [];
-    return (events ?? []).filter((event) => event.action === actionFilter);
-  }, [events, actionFilter]);
-
-  if (!events?.length) return null;
 
   const filterSelect = (
     <select
       value={actionFilter}
-      onChange={(e) => setActionFilter(e.target.value)}
+      onChange={(event) => onActionFilterChange?.(event.target.value)}
       className="rounded-lg border border-nn-border bg-white px-2 py-1 text-xs text-gray-900 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
     >
       {ACTION_FILTERS.map((action) => (
         <option key={action} value={action}>
-          {action === 'all' ? t('admin.filterAll') : t(`admin.actions.${action}`)}
+          {action === 'all' ? t('admin.filterAll') : t(`admin.actions.${action}`, { defaultValue: action })}
         </option>
       ))}
     </select>
   );
+
+  if (!events?.length) {
+    return (
+      <AdminPanelShell
+        title={t('admin.auditTitle')}
+        toolbar={filterSelect}
+        expanded={fullHeight}
+        className={fullHeight ? 'min-h-0 flex-1' : 'min-h-0'}
+      >
+        <p className="p-4 text-sm text-nn-gray dark:text-slate-400">{t('admin.auditEmpty')}</p>
+      </AdminPanelShell>
+    );
+  }
 
   return (
     <AdminPanelShell
@@ -66,7 +78,7 @@ export default function AuditLogTable({
       expanded={fullHeight}
       className={fullHeight ? 'min-h-0 flex-1' : 'min-h-0'}
     >
-      <div className={fullHeight ? 'min-h-0' : 'max-h-72 overflow-auto'}>
+      <div className={fullHeight ? 'min-h-0 overflow-auto' : 'max-h-72 overflow-auto'}>
         <table className="w-full min-w-[640px] border-collapse text-xs">
           <thead className="sticky top-0 bg-white dark:bg-slate-900">
             <tr className="text-left text-nn-gray dark:text-slate-400">
@@ -88,7 +100,7 @@ export default function AuditLogTable({
             </tr>
           </thead>
           <tbody>
-            {filtered.map((event) => {
+            {events.map((event) => {
               const documentId = resolveDocumentIdFromAuditEvent(event);
               const canDelete = canDeleteAuditDocument(event);
               return (

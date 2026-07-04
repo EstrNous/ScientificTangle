@@ -37,7 +37,12 @@
     "empty": "No notifications",
     "loading": "Loading…",
     "markAllRead": "Mark all read",
+    "refresh": "Refresh",
+    "refreshing": "Refreshing…",
     "newTitle": "New notification",
+    "errors": {
+      "notifications_load_failed": "Failed to load notifications"
+    },
     "types": {
       "interest_match": "Interest match",
       "ingestion_complete": "Document processing complete",
@@ -159,8 +164,24 @@
     "export": "Export",
     "downloadMd": "Download MD",
     "downloadJson": "Download JSON",
+    "downloadJsonLd": "Download JSON-LD",
     "downloadPdf": "Download PDF",
     "downloadingPdf": "PDF…",
+    "exporting": "Exporting…",
+    "exportNeedsRun": "Server export requires a completed query run",
+    "exportUnavailable": "unavailable",
+    "exportJsonLdUnavailable": "JSON-LD export is not supported by the server yet",
+    "exportPdfUnavailable": "Server PDF export is backlog",
+    "exportErrors": {
+      "export_failed": "Export failed",
+      "export_no_query_run": "No completed query run to export",
+      "export_format_unavailable": "Export format is unavailable",
+      "export_jsonld_unavailable": "JSON-LD export is unavailable",
+      "export_pdf_unavailable": "Server PDF export is unavailable",
+      "export_backend_required": "Backend connection is required",
+      "export_still_processing": "Export is still processing",
+      "export_empty": "Server returned an empty export file"
+    },
     "deleteSession": "Delete query",
     "backendError": "Backend error: {{message}}",
     "retrievalTitle": "Search and processing",
@@ -317,6 +338,14 @@
       "pass": "ok",
       "warn": "review"
     },
+    "reportStatus": {
+      "pass": "offline gate: pass",
+      "warn": "offline gate: review",
+      "fail": "offline gate: fail",
+      "blocked_by_policy": "live checks deferred (blocked_by_policy)",
+      "blocked_by_data": "report unavailable (blocked_by_data)"
+    },
+    "blockedChecks": "Blocked checks: {{checks}}",
     "metrics": {
       "documents": "Documents",
       "claims": "Claims",
@@ -399,6 +428,13 @@
     "auditAction": "Action",
     "auditObject": "Object",
     "auditActions": "Actions",
+    "auditEmpty": "No audit events found",
+    "auditDetailTitle": "Event details",
+    "auditResource": "Resource",
+    "auditRequestId": "Request ID",
+    "auditOpenTarget": "Open linked object",
+    "exportCsv": "Export CSV",
+    "loadMoreAudit": "Load more",
     "deleteDocument": "Delete document",
     "confirmDeleteDocument": "Delete document «{{name}}» from the database?",
     "saveRow": "Save",
@@ -413,14 +449,21 @@
       "admin_save_failed": "Failed to save changes",
       "forbidden": "Insufficient permissions for this operation",
       "dictionaries_load_failed": "Failed to load dictionary versions",
-      "dictionary_activate_failed": "Failed to activate dictionary"
+      "dictionary_activate_failed": "Failed to activate dictionary",
+      "audit_load_failed": "Failed to load audit log"
     },
     "filterAll": "All actions",
     "actions": {
       "query_created": "query",
+      "answer_generated": "answer",
+      "source_opened": "source open",
       "source_viewed": "source view",
+      "document_uploaded": "document upload",
+      "document_deleted": "document delete",
       "document_exported": "export",
+      "review_decision": "review decision",
       "access_denied": "access denied",
+      "admin_setting_changed": "admin setting",
       "ingestion_upload": "upload",
       "role_changed": "role change"
     },

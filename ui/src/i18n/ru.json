@@ -37,7 +37,12 @@
     "empty": "Нет уведомлений",
     "loading": "Загрузка…",
     "markAllRead": "Прочитать все",
+    "refresh": "Обновить",
+    "refreshing": "Обновление…",
     "newTitle": "Новое уведомление",
+    "errors": {
+      "notifications_load_failed": "Не удалось загрузить уведомления"
+    },
     "types": {
       "interest_match": "Совпадение с интересами",
       "ingestion_complete": "Обработка документа завершена",
@@ -159,8 +164,24 @@
     "export": "Экспорт",
     "downloadMd": "Скачать MD",
     "downloadJson": "Скачать JSON",
+    "downloadJsonLd": "Скачать JSON-LD",
     "downloadPdf": "Скачать PDF",
     "downloadingPdf": "PDF…",
+    "exporting": "Экспорт…",
+    "exportNeedsRun": "Серверный экспорт доступен после завершённого запроса с query run",
+    "exportUnavailable": "недоступно",
+    "exportJsonLdUnavailable": "JSON-LD экспорт пока не поддерживается сервером",
+    "exportPdfUnavailable": "PDF экспорт на сервере в backlog",
+    "exportErrors": {
+      "export_failed": "Не удалось выполнить экспорт",
+      "export_no_query_run": "Нет завершённого запроса для экспорта",
+      "export_format_unavailable": "Формат экспорта недоступен",
+      "export_jsonld_unavailable": "JSON-LD экспорт недоступен",
+      "export_pdf_unavailable": "PDF экспорт недоступен на сервере",
+      "export_backend_required": "Требуется подключение к backend",
+      "export_still_processing": "Экспорт ещё выполняется",
+      "export_empty": "Сервер вернул пустой файл экспорта"
+    },
     "deleteSession": "Удалить запрос",
     "backendError": "Ошибка связи с сервером: {{message}}",
     "retrievalTitle": "Поиск и обработка",
@@ -317,6 +338,14 @@
       "pass": "норма",
       "warn": "внимание"
     },
+    "reportStatus": {
+      "pass": "offline gate: pass",
+      "warn": "offline gate: review",
+      "fail": "offline gate: fail",
+      "blocked_by_policy": "live-проверки отложены (blocked_by_policy)",
+      "blocked_by_data": "отчёт недоступен (blocked_by_data)"
+    },
+    "blockedChecks": "Заблокированные проверки: {{checks}}",
     "metrics": {
       "documents": "Документы",
       "claims": "Утверждения",
@@ -399,6 +428,13 @@
     "auditAction": "Действие",
     "auditObject": "Объект",
     "auditActions": "Действия",
+    "auditEmpty": "События аудита не найдены",
+    "auditDetailTitle": "Детали события",
+    "auditResource": "Ресурс",
+    "auditRequestId": "Request ID",
+    "auditOpenTarget": "Открыть связанный объект",
+    "exportCsv": "Экспорт CSV",
+    "loadMoreAudit": "Загрузить ещё",
     "deleteDocument": "Удалить документ",
     "confirmDeleteDocument": "Удалить документ «{{name}}» из базы?",
     "saveRow": "Сохранить",
@@ -413,14 +449,21 @@
       "admin_save_failed": "Не удалось сохранить изменения",
       "forbidden": "Недостаточно прав для этой операции",
       "dictionaries_load_failed": "Не удалось загрузить версии словарей",
-      "dictionary_activate_failed": "Не удалось активировать словарь"
+      "dictionary_activate_failed": "Не удалось активировать словарь",
+      "audit_load_failed": "Не удалось загрузить журнал аудита"
     },
     "filterAll": "Все действия",
     "actions": {
       "query_created": "запрос",
+      "answer_generated": "ответ",
+      "source_opened": "открытие источника",
       "source_viewed": "просмотр источника",
+      "document_uploaded": "загрузка документа",
+      "document_deleted": "удаление документа",
       "document_exported": "экспорт",
+      "review_decision": "решение проверки",
       "access_denied": "отказ доступа",
+      "admin_setting_changed": "изменение настроек",
       "ingestion_upload": "загрузка",
       "role_changed": "смена роли"
     },

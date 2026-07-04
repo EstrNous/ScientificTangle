@@ -6,6 +6,7 @@ import PdfDownloadButton from '../components/shared/PdfDownloadButton.jsx';
 import { EvaluationDashboard, StrategicSubNav } from '../components/strategic/index.js';
 import { ensureAuth } from '../api/auth.js';
 import { fetchStrategicEvaluation } from '../api/strategic.js';
+import { fetchEvalReportSummary } from '../api/eval.js';
 import { exportStrategicQualityPdf } from '../utils/pagePdfExport.js';
 
 function getApiErrorMessage(error, fallback) {
@@ -17,6 +18,7 @@ export default function StrategicQualityPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [evaluation, setEvaluation] = useState(null);
+  const [reportMeta, setReportMeta] = useState(null);
   const evaluationRef = useRef(null);
 
   useEffect(() => {
@@ -26,8 +28,14 @@ export default function StrategicQualityPage() {
       setError(null);
       try {
         await ensureAuth();
-        const data = await fetchStrategicEvaluation();
-        if (!cancelled) setEvaluation(data);
+        const [data, summary] = await Promise.all([
+          fetchStrategicEvaluation(),
+          fetchEvalReportSummary().catch(() => null),
+        ]);
+        if (!cancelled) {
+          setEvaluation(data);
+          setReportMeta(summary);
+        }
       } catch (loadError) {
         if (!cancelled) {
           setError(getApiErrorMessage(loadError, 'strategic_load_failed'));
@@ -69,7 +77,7 @@ export default function StrategicQualityPage() {
     <PageShell>
       <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
         <StrategicSubNav action={<PdfDownloadButton onExport={handleExportPdf} />} />
-        <EvaluationDashboard ref={evaluationRef} data={evaluation} fill />
+        <EvaluationDashboard ref={evaluationRef} data={evaluation} reportMeta={reportMeta} fill />
       </div>
     </PageShell>
   );

@@ -52,7 +52,7 @@ function SummaryCard({ label, value, suffix = '', compact }) {
   );
 }
 
-const EvaluationDashboard = forwardRef(function EvaluationDashboard({ data, fill = false }, ref) {
+const EvaluationDashboard = forwardRef(function EvaluationDashboard({ data, reportMeta, fill = false }, ref) {
   const { t } = useTranslation();
   const captureRef = useRef(null);
   const scrollRef = useRef(null);
@@ -93,9 +93,31 @@ const EvaluationDashboard = forwardRef(function EvaluationDashboard({ data, fill
     },
   }));
 
-  if (!data?.questions?.length) return null;
+  if (!data?.questions?.length) {
+    if (reportMeta?.status === 'blocked_by_data' || reportMeta?.status === 'blocked_by_policy') {
+      return (
+        <div className={`nn-card ${fill ? 'p-3' : 'p-4'}`}>
+          <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
+            {t('strategic.evaluationTitle')}
+          </p>
+          <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">
+            {t(`strategic.reportStatus.${reportMeta.status}`)}
+          </p>
+          {reportMeta.warnings?.length > 0 && (
+            <ul className="mt-2 list-disc pl-5 text-xs text-nn-gray dark:text-slate-400">
+              {reportMeta.warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      );
+    }
+    return null;
+  }
 
   const summary = data.summary ?? {};
+  const reportStatus = reportMeta?.status;
 
   const openQuestionSources = (event, question) => {
     const sources = collectSourceRefs(question, question.actual_sources);
@@ -129,10 +151,31 @@ const EvaluationDashboard = forwardRef(function EvaluationDashboard({ data, fill
         <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
           {t('strategic.evaluationTitle')}
         </p>
-        <p className="text-xs text-nn-gray dark:text-slate-400">
-          {t('strategic.evaluationSubtitle', { count: data.questions.length })}
-        </p>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-nn-gray dark:text-slate-400">
+          <p>{t('strategic.evaluationSubtitle', { count: data.questions.length })}</p>
+          {reportStatus && (
+            <span
+              className={`rounded-full px-2 py-0.5 font-medium ${
+                reportStatus === 'pass'
+                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300'
+                  : reportStatus === 'fail'
+                    ? 'bg-red-50 text-red-700 dark:bg-red-950 dark:text-red-300'
+                    : 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300'
+              }`}
+            >
+              {t(`strategic.reportStatus.${reportStatus}`, { defaultValue: reportStatus })}
+            </span>
+          )}
+          {reportMeta?.reportId && (
+            <span className="font-mono text-[10px]">{reportMeta.reportId}</span>
+          )}
+        </div>
       </div>
+      {reportMeta?.blockedChecks?.length > 0 && (
+        <p className="shrink-0 text-xs text-amber-700 dark:text-amber-300">
+          {t('strategic.blockedChecks', { checks: reportMeta.blockedChecks.join(', ') })}
+        </p>
+      )}
 
       <div className="grid shrink-0 grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
         <SummaryCard
