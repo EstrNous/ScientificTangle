@@ -4,7 +4,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 DEFAULT_ARTIFACT_MANIFEST_PATH = "eval/pinned_demo_artifact.json"
 DEFAULT_SUITES_PATH = "eval/regression_suites.json"
 
@@ -118,7 +117,7 @@ def metric_check(metric: str, value: Any, threshold: float, higher_is_better: bo
 def known_limits(report: dict[str, Any] | None) -> list[str]:
     limits = [
         "live model answers are not pinned and must not be committed as demo facts",
-        "official questions still have no reviewed expected_source_span_ids",
+        "full raw corpus source spans require normalization before they can become reviewed expected_source_span_ids",
         "access_filtering fixture covers a narrow forbidden span smoke",
     ]
     if report is None:

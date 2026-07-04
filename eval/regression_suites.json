@@ -50,6 +50,21 @@
         "access_leak_rate"
       ]
     },
+    "reviewed_sources": {
+      "description": "Official questions with reviewed SourceSpan candidates and no-live review/gap/conflict fixtures.",
+      "question_ids": [
+        "official-001",
+        "official-002",
+        "official-003",
+        "official-004"
+      ],
+      "fixture_path": "eval/reviewed_source_fixtures.json",
+      "gate_metrics": [
+        "citation_coverage",
+        "evidence_recall_at_k",
+        "candidate_quality_review_rate"
+      ]
+    },
     "unsupported_claims": {
       "description": "Questions used to watch unsupported warnings and candidate leakage in synthesis.",
       "question_ids": [
