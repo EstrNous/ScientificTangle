@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Request, Response, status
-
 from adapters.neo4j_adapter import Neo4jKnowledgeAdapter
+from fastapi import APIRouter, Request
+
 from shared.utils.request_id import generate_request_id
 
 from ..core.config import settings

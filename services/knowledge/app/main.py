@@ -2,11 +2,11 @@ from contextlib import asynccontextmanager
 
 import httpx
 import structlog
-from fastapi import FastAPI
-
 from adapters.driver import create_driver, verify_connectivity
 from adapters.neo4j_adapter import Neo4jKnowledgeAdapter
 from adapters.schema import seed_schema_registry
+from fastapi import FastAPI
+
 from shared.metrics import build_metrics_router, setup_metrics
 from shared.web import install_error_handlers, request_id_middleware
 

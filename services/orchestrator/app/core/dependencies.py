@@ -3,12 +3,12 @@ from typing import Annotated
 from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .config import settings
 from infra.postgres.orchestrator_db import (
     IngestionTaskRepository,
     QueryRunRepository,
     get_session,
 )
+
 from ..service.service import OrchestratorService
 from .config import settings
 

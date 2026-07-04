@@ -12,7 +12,6 @@ from shared.contracts import (
     GraphNode,
     GraphPayload,
     GraphSubgraph,
-    LabContradiction,
     LabCoveragePayload,
     LabGap,
     LabMatrixView,

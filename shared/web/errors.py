@@ -1,5 +1,6 @@
-import structlog
 from uuid import UUID
+
+import structlog
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse

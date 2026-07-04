@@ -13,15 +13,14 @@ from .dto import (
     ClaimsBundleDTO,
     ConflictDTO,
     EntityID,
+    EvidenceRecordDTO,
     GapDTO,
     GraphNeighborhood,
     GraphSubgraphDTO,
     GroupComparisonDTO,
     MeasurementAggregateDTO,
-    QueryPlan,
     RankedClaimDTO,
     SourceSpanDTO,
-    EvidenceRecordDTO,
 )
 from .operations import (
     claim_record_to_evidence,

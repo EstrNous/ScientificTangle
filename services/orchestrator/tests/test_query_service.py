@@ -3,8 +3,8 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 import httpx
-
 from app.service.service import OrchestratorService, OrchestratorServiceError
+
 from infra.postgres.orchestrator_db import QueryRun
 from shared.contracts import QueryRunStatus, UserRole
 from shared.security import AuthenticatedPrincipal

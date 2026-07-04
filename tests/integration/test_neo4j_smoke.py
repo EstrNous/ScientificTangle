@@ -3,7 +3,6 @@ import uuid
 
 import pytest
 import pytest_asyncio
-
 from adapters.driver import create_driver
 from adapters.dto import ClaimDTO, ClaimsBundleDTO, DocumentDTO, EntityDTO, SourceSpanDTO
 from adapters.neo4j_adapter import Neo4jKnowledgeAdapter

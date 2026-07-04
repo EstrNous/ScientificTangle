@@ -1,16 +1,12 @@
 import asyncio
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
 
-from app.api.query import collect_index_links, source_span_id
-import httpx
-from fastapi import Response
-from fastapi.testclient import TestClient
-
-from app.api.indexing import index_documents
 from app.api.health import ready
-from app.main import app
+from app.api.indexing import index_documents
+from app.api.query import collect_index_links
 from app.storage import PendingRetrievalStorageAdapter
+from fastapi import Response
+
 from shared.contracts import (
     KnowledgeIngestionResponse,
     NormalizedDocument,

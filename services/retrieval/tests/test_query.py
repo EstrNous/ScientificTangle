@@ -16,6 +16,7 @@ from app.api.query import (
     source_span_id,
 )
 from app.storage import access_allowed
+
 from shared.contracts import (
     AccessPolicy,
     NormalizedDocument,
@@ -24,7 +25,7 @@ from shared.contracts import (
     SearchResultPayload,
     SourcePayload,
     SourceSpan,
-    TableBlock
+    TableBlock,
 )
 
 
