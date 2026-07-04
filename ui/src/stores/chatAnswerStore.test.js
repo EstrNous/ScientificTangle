@@ -41,4 +41,14 @@ describe('chatAnswerStore', () => {
     expect(state.phase).toBe(CHAT_ANSWER_PHASES.ERROR);
     expect(state.isActive).toBe(false);
   });
+
+  it('tracks streaming draft during synthesis', () => {
+    const { beginQuery, setStreamingDraft } = useChatAnswerStore.getState();
+    beginQuery('streaming');
+    setStreamingDraft('partial text', false);
+    expect(useChatAnswerStore.getState().streamingDraft).toBe('partial text');
+    expect(useChatAnswerStore.getState().streamingComplete).toBe(false);
+    setStreamingDraft('partial text done', true);
+    expect(useChatAnswerStore.getState().streamingComplete).toBe(true);
+  });
 });

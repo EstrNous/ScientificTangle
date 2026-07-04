@@ -8,6 +8,8 @@ import {
 const initialState = {
   phase: CHAT_ANSWER_PHASES.IDLE,
   retrievalTrace: null,
+  streamingDraft: null,
+  streamingComplete: false,
   mode: 'session',
   isActive: false,
 };
@@ -24,23 +26,32 @@ export const useChatAnswerStore = create((set, get) => ({
     return true;
   },
   setRetrievalTrace: (retrievalTrace) => set({ retrievalTrace }),
+  setStreamingDraft: (streamingDraft, streamingComplete = false) =>
+    set({ streamingDraft, streamingComplete }),
+  clearStreamingDraft: () => set({ streamingDraft: null, streamingComplete: false }),
   beginQuery: (mode = 'session') =>
     set({
       mode,
       phase: CHAT_ANSWER_PHASES.PARSING,
       retrievalTrace: null,
+      streamingDraft: null,
+      streamingComplete: false,
       isActive: true,
     }),
   completeQuery: (terminalPhase = CHAT_ANSWER_PHASES.DONE) =>
     set({
       phase: terminalPhase,
       retrievalTrace: null,
+      streamingDraft: null,
+      streamingComplete: false,
       isActive: false,
     }),
   failQuery: () =>
     set({
       phase: CHAT_ANSWER_PHASES.ERROR,
       retrievalTrace: null,
+      streamingDraft: null,
+      streamingComplete: false,
       isActive: false,
     }),
   reset: () => set({ ...initialState }),

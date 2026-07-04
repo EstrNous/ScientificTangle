@@ -154,7 +154,11 @@
       "processFile": "Processing fragments from «{{file}}»",
       "filterAccess": "Filtering results by access level",
       "synthesize": "Building answer with source citations",
-      "methodHybrid": "BM25 + semantic search"
+      "methodHybrid": "BM25 + semantic search",
+      "retrievedCount": "Retrieved fragments: {{count}}"
+    },
+    "streaming": {
+      "draftTitle": "Building answer"
     },
     "lifecycle": {
       "title": "Answer preparation",

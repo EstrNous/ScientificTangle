@@ -23,7 +23,7 @@ export default function RetrievalProgress({ trace }) {
   if (!trace?.steps?.length) return null;
 
   return (
-    <div className="mr-8 rounded-xl border border-nn-blue/20 bg-nn-blue-light px-4 py-3 dark:border-slate-600 dark:bg-slate-800">
+    <div className="mr-8 min-h-[8rem] rounded-xl border border-nn-blue/20 bg-nn-blue-light px-4 py-3 dark:border-slate-600 dark:bg-slate-800">
       <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-nn-blue">
         {t('chat.retrievalTitle')}
       </p>
