@@ -16,6 +16,9 @@ from shared.contracts import (
     AnswerPayload,
     ApiError,
     AuditEvent,
+    DictionaryIngestionReport,
+    DictionaryPackagePayload,
+    DictionaryVersionPayload,
     EvidenceBundle,
     ExportPayload,
     GraphSubgraph,
@@ -33,6 +36,7 @@ from shared.contracts import (
     RetrievalIndexResponse,
     SearchResultPayload,
     SourcePayload,
+    TaskKind,
     UserRole,
 )
 from shared.security import AuthenticatedPrincipal
@@ -63,6 +67,7 @@ class OrchestratorService:
         retrieval_url: str,
         model_url: str,
         query_repository: QueryRunRepository | None = None,
+        enforce_active_dictionary: bool = True,
     ) -> None:
         self._repository = repository
         self._client = client
@@ -71,6 +76,7 @@ class OrchestratorService:
         self._retrieval_url = retrieval_url.rstrip("/")
         self._model_url = model_url.rstrip("/")
         self._query_repository = query_repository
+        self._enforce_active_dictionary = enforce_active_dictionary
 
     async def start_ingestion_task(
         self,
@@ -79,7 +85,15 @@ class OrchestratorService:
         authorization: str,
         request_id: str,
     ) -> tuple[IngestionTaskPayload, UUID]:
-        task = await self._repository.create(principal.user_id)
+        if self._enforce_active_dictionary:
+            active_dictionary = await self._active_dictionary(request_id)
+            task = await self._repository.create(
+                principal.user_id,
+                TaskKind.DOCUMENT_INGESTION,
+                active_dictionary.id,
+            )
+        else:
+            task = await self._repository.create(principal.user_id)
         try:
             report = await self._store_sources(
                 task.id,
@@ -228,6 +242,9 @@ class OrchestratorService:
                 "normalization_empty",
                 "No supported documents were normalized",
             )
+        if task.dictionary_version_id is not None:
+            for document in normalized.documents:
+                document.metadata["dictionary_version_id"] = str(task.dictionary_version_id)
         knowledge_results = []
         for document in normalized.documents:
             knowledge_results.append(
@@ -236,7 +253,10 @@ class OrchestratorService:
                         "POST",
                         self._knowledge_url,
                         "/v1/documents/extract",
-                        KnowledgeIngestionRequest(document=document).model_dump(mode="json"),
+                        KnowledgeIngestionRequest(
+                            document=document,
+                            dictionary_version_id=task.dictionary_version_id,
+                        ).model_dump(mode="json"),
                         request_id,
                         "knowledge",
                     )
@@ -327,6 +347,142 @@ class OrchestratorService:
             raise OrchestratorServiceError(404, "task_not_found", "Ingestion task not found")
         return self._payload(task)
 
+    async def upload_dictionary(
+        self,
+        principal: AuthenticatedPrincipal,
+        package: UploadFile,
+        authorization: str,
+        request_id: str,
+    ) -> IngestionTaskPayload:
+        task = await self._repository.create(
+            principal.user_id,
+            TaskKind.DICTIONARY_INGESTION,
+        )
+        await self._repository.record_audit_event(
+            principal.user_id,
+            "dictionary_upload_started",
+            "ingestion_task",
+            str(task.id),
+            {"filename": package.filename or "", "status": "started"},
+            request_id,
+        )
+        try:
+            response = await self._client.post(
+                f"{self._ingestion_url}/ingestion/dictionaries/{task.id}/package",
+                files={
+                    "package": (
+                        package.filename,
+                        package.file,
+                        package.content_type or "application/zip",
+                    )
+                },
+                headers={"Authorization": authorization, "X-Request-ID": request_id},
+            )
+            if response.status_code >= 400:
+                raise self._downstream_error(response, "ingestion")
+            dictionary_package = DictionaryPackagePayload.model_validate(response.json())
+            await self._repository.mark_processing(
+                task,
+                DictionaryIngestionReport(
+                    version=dictionary_package.version,
+                    package_sha256=dictionary_package.package_sha256,
+                    files_count=len(dictionary_package.files),
+                    entries_count=sum(len(item.entries) for item in dictionary_package.files),
+                ),
+            )
+            version = DictionaryVersionPayload.model_validate(
+                await self._request_downstream(
+                    "POST",
+                    self._knowledge_url,
+                    "/v1/dictionaries",
+                    {
+                        "package": dictionary_package.model_dump(mode="json"),
+                        "uploaded_by": str(principal.user_id),
+                    },
+                    request_id,
+                    "knowledge",
+                )
+            )
+            task.dictionary_version_id = version.id
+            report = DictionaryIngestionReport(
+                dictionary_version_id=version.id,
+                version=version.version,
+                package_sha256=version.package_sha256,
+                files_count=len(version.files),
+                entries_count=sum(len(item.entries) for item in version.files),
+            )
+            completed = await self._repository.mark_completed(task, report)
+            await self._repository.record_audit_event(
+                principal.user_id,
+                "dictionary_upload_completed",
+                "dictionary_version",
+                str(version.id),
+                {"version": version.version, "status": "completed"},
+                request_id,
+            )
+            return self._payload(completed)
+        except (OrchestratorServiceError, ValueError) as error:
+            message = error.message if isinstance(error, OrchestratorServiceError) else "Dictionary package is invalid"
+            await self._repository.mark_failed(task, message)
+            await self._repository.record_audit_event(
+                principal.user_id,
+                "dictionary_validation_failed",
+                "ingestion_task",
+                str(task.id),
+                {"status": "failed", "message": message},
+                request_id,
+            )
+            if isinstance(error, OrchestratorServiceError):
+                raise
+            raise OrchestratorServiceError(502, "invalid_dictionary_response", message) from error
+
+    async def list_dictionaries(self, request_id: str) -> list[DictionaryVersionPayload]:
+        payload = await self._request_downstream(
+            "GET", self._knowledge_url, "/v1/dictionaries", {}, request_id, "knowledge"
+        )
+        if not isinstance(payload, list):
+            raise OrchestratorServiceError(502, "invalid_dictionary_response", "Knowledge returned invalid data")
+        try:
+            return [DictionaryVersionPayload.model_validate(item) for item in payload]
+        except ValueError as error:
+            raise OrchestratorServiceError(
+                502, "invalid_dictionary_response", "Knowledge returned invalid dictionary data"
+            ) from error
+
+    async def get_active_dictionary(self, request_id: str) -> DictionaryVersionPayload:
+        return await self._fetch_active_dictionary(request_id)
+
+    async def activate_dictionary(
+        self,
+        principal: AuthenticatedPrincipal,
+        version_id: UUID,
+        request_id: str,
+    ) -> DictionaryVersionPayload:
+        try:
+            version = DictionaryVersionPayload.model_validate(
+                await self._request_downstream(
+                    "POST",
+                    self._knowledge_url,
+                    f"/v1/dictionaries/{version_id}/activate",
+                    {},
+                    request_id,
+                    "knowledge",
+                )
+            )
+        except ValueError as error:
+            raise OrchestratorServiceError(
+                502, "invalid_dictionary_response", "Knowledge returned invalid dictionary data"
+            ) from error
+        await self._require_query_repository().record_audit_event(
+            principal.user_id,
+            "dictionary_activated",
+            "dictionary_version",
+            str(version.id),
+            {"version": version.version, "status": "active"},
+            request_id,
+        )
+        return version
+
     async def run_query(
         self,
         principal: AuthenticatedPrincipal,
@@ -336,7 +492,17 @@ class OrchestratorService:
         limit: int,
     ) -> QueryRunPayload:
         repository = self._require_query_repository()
-        run = await repository.create(principal.user_id, question, request_id)
+        if self._enforce_active_dictionary:
+            active_dictionary = await self._active_dictionary(request_id)
+            run = await repository.create(
+                principal.user_id,
+                question,
+                request_id,
+                active_dictionary.id,
+            )
+        else:
+            active_dictionary = None
+            run = await repository.create(principal.user_id, question, request_id)
         await repository.record_audit_event(
             principal.user_id,
             "query_created",
@@ -357,6 +523,7 @@ class OrchestratorService:
                     "filters": filters,
                     "access_roles": [principal.role.value],
                     "limit": limit,
+                    "dictionary_version_id": str(active_dictionary.id) if active_dictionary else None,
                 },
                 request_id,
                 "retrieval",
@@ -365,6 +532,22 @@ class OrchestratorService:
             evidence_bundle = EvidenceBundle.model_validate(retrieval_response["evidence_bundle"])
             retrieval_trace = retrieval_response.get("retrieval_trace", {})
             warnings = list(retrieval_response.get("warnings", []))
+            retrieved_count = int(retrieval_trace.get("retrieved", 0))
+            accessible_count = int(retrieval_trace.get("accessible", 0))
+            if retrieved_count > accessible_count:
+                await repository.record_audit_event(
+                    principal.user_id,
+                    "filtered_sources",
+                    "query_run",
+                    str(run.id),
+                    {
+                        "retrieved": retrieved_count,
+                        "accessible": accessible_count,
+                        "role": principal.role.value,
+                        "status": "filtered",
+                    },
+                    request_id,
+                )
             graph = GraphSubgraph()
             if evidence_bundle.evidence_items:
                 gaps_response = await self._request_downstream(
@@ -408,6 +591,13 @@ class OrchestratorService:
                                 item.source_span.id
                                 for item in evidence_bundle.evidence_items
                             ],
+                            "access_levels": (
+                                ["public", "internal", "restricted"]
+                                if principal.role == UserRole.ADMIN
+                                else ["public", "internal"]
+                                if principal.role in {UserRole.RESEARCHER, UserRole.ANALYST, UserRole.MANAGER}
+                                else ["public"]
+                            ),
                         },
                         request_id,
                         "knowledge",
@@ -439,19 +629,6 @@ class OrchestratorService:
                 evidence_bundle.has_gaps = True
                 if warning not in evidence_bundle.gaps:
                     evidence_bundle.gaps.append(warning)
-                await repository.record_audit_event(
-                    principal.user_id,
-                    "filtered_sources",
-                    "query_run",
-                    str(run.id),
-                    {
-                        "retrieved": retrieval_trace.get("retrieved", 0),
-                        "accessible": 0,
-                        "role": principal.role.value,
-                        "status": "filtered",
-                    },
-                    request_id,
-                )
                 answer = AnswerPayload(
                     query_ir=query_ir,
                     evidence_bundle=evidence_bundle,
@@ -745,6 +922,7 @@ class OrchestratorService:
             error_message=run.error_message,
             request_id=run.request_id,
             latency_ms=run.latency_ms,
+            dictionary_version_id=getattr(run, "dictionary_version_id", None),
             created_at=run.created_at,
             updated_at=run.updated_at,
         )
@@ -819,6 +997,9 @@ class OrchestratorService:
         ]
         return {
             "query_run_id": str(payload.id),
+            "dictionary_version_id": (
+                str(payload.dictionary_version_id) if payload.dictionary_version_id else None
+            ),
             "question": payload.question,
             "status": payload.status.value,
             "role": role,
@@ -844,6 +1025,7 @@ class OrchestratorService:
             "",
             f"- Question: {document['question']}",
             f"- Role: {document['role']}",
+            f"- Dictionary version: {document['dictionary_version_id'] or ''}",
             f"- Generated at: {document['generated_at']}",
             f"- Status: {document['status']}",
             f"- Latency ms: {document['latency_ms'] if document['latency_ms'] is not None else ''}",
@@ -920,7 +1102,7 @@ class OrchestratorService:
         request_id: str,
         service_name: str,
         authorization: str | None = None,
-    ) -> dict:
+    ) -> dict | list:
         headers = {"X-Request-ID": request_id}
         if authorization is not None:
             headers["Authorization"] = authorization
@@ -941,12 +1123,55 @@ class OrchestratorService:
         except ValueError as error:
             raise OrchestratorServiceError(502, f"invalid_{service_name}_response", f"{service_name} returned invalid data") from error
 
+    async def _active_dictionary(self, request_id: str) -> DictionaryVersionPayload:
+        try:
+            return await self._fetch_active_dictionary(request_id)
+        except OrchestratorServiceError as error:
+            if error.status_code == 404:
+                raise OrchestratorServiceError(
+                    409,
+                    "active_dictionary_required",
+                    "An active dictionary version is required",
+                ) from error
+            raise
+
+    async def _fetch_active_dictionary(self, request_id: str) -> DictionaryVersionPayload:
+        try:
+            return DictionaryVersionPayload.model_validate(
+                await self._request_downstream(
+                    "GET",
+                    self._knowledge_url,
+                    "/v1/dictionaries/active",
+                    {},
+                    request_id,
+                    "knowledge",
+                )
+            )
+        except ValueError as error:
+            raise OrchestratorServiceError(
+                502,
+                "invalid_dictionary_response",
+                "Knowledge returned invalid dictionary data",
+            ) from error
+
     @staticmethod
     def _payload(task: IngestionTask) -> IngestionTaskPayload:
+        task_kind = TaskKind(
+            getattr(task, "task_kind", None) or TaskKind.DOCUMENT_INGESTION.value
+        )
+        report = None
+        if task.report:
+            report = (
+                DictionaryIngestionReport.model_validate(task.report)
+                if task_kind == TaskKind.DICTIONARY_INGESTION
+                else IngestionReport.model_validate(task.report)
+            )
         return IngestionTaskPayload(
             id=task.id,
             status=IngestionTaskStatus(task.status),
-            report=IngestionReport.model_validate(task.report) if task.report else None,
+            task_kind=task_kind,
+            dictionary_version_id=getattr(task, "dictionary_version_id", None),
+            report=report,
             error_message=task.error_message,
             created_at=task.created_at,
             updated_at=task.updated_at,

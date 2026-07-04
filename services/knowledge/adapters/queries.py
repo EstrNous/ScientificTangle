@@ -310,7 +310,8 @@ BUILD_SUBGRAPH_BY_EVIDENCE = """
 CALL {
     UNWIND $claim_ids AS claim_id
     MATCH (c:Claim {claim_id: claim_id})
-    OPTIONAL MATCH (c)-[:DESCRIBED_IN]->(s:SourceSpan)-[:PART_OF]->(d:Document)
+    MATCH (c)-[:DESCRIBED_IN]->(s:SourceSpan)-[:PART_OF]->(d:Document)
+    WHERE d.access_level IN $access_levels
     OPTIONAL MATCH (c)-[:VALIDATED_BY|RELATED_TO|USES_MATERIAL|OPERATES_AT_CONDITION|PRODUCES_OUTPUT|USES_EQUIPMENT|EXPERT_IN]->(e:Entity)
     OPTIONAL MATCH (c)-[:QUANTIFIED_BY]->(m:Measurement)
     OPTIONAL MATCH (c)-[:APPLIED_IN_GEOGRAPHY]->(g:Geography)
@@ -319,17 +320,9 @@ CALL {
     UNION
     UNWIND $source_span_ids AS span_id
     MATCH (s:SourceSpan {source_span_id: span_id})-[:PART_OF]->(d:Document)
+    WHERE d.access_level IN $access_levels
     OPTIONAL MATCH (c:Claim)-[:DESCRIBED_IN]->(s)
     OPTIONAL MATCH (c)-[:VALIDATED_BY|RELATED_TO|USES_MATERIAL|OPERATES_AT_CONDITION|PRODUCES_OUTPUT|USES_EQUIPMENT|EXPERT_IN]->(e:Entity)
-    OPTIONAL MATCH (c)-[:QUANTIFIED_BY]->(m:Measurement)
-    OPTIONAL MATCH (c)-[:APPLIED_IN_GEOGRAPHY]->(g:Geography)
-    OPTIONAL MATCH (c)-[:DEGRADED_TO]->(o:Observation)
-    RETURN c, s, d, e, m, g, o
-    UNION
-    UNWIND $entity_ids AS entity_id
-    MATCH (e:Entity {entity_id: entity_id})
-    OPTIONAL MATCH (c:Claim)-[:VALIDATED_BY|RELATED_TO|USES_MATERIAL|OPERATES_AT_CONDITION|PRODUCES_OUTPUT|USES_EQUIPMENT|EXPERT_IN]->(e)
-    OPTIONAL MATCH (c)-[:DESCRIBED_IN]->(s:SourceSpan)-[:PART_OF]->(d:Document)
     OPTIONAL MATCH (c)-[:QUANTIFIED_BY]->(m:Measurement)
     OPTIONAL MATCH (c)-[:APPLIED_IN_GEOGRAPHY]->(g:Geography)
     OPTIONAL MATCH (c)-[:DEGRADED_TO]->(o:Observation)

@@ -40,6 +40,10 @@ class FakeStorageAdapter:
             ]
         )
 
+    async def get_source(self, source_span_id, access_roles):
+        result = await self.search("nickel", {}, access_roles, 1)
+        return result.items[0].source
+
 
 def test_query_endpoint_with_mock_model() -> None:
     query_ir = QueryIR(
@@ -62,6 +66,8 @@ def test_query_endpoint_with_mock_model() -> None:
                 json={"scored_items": [], "warnings": []},
                 request=httpx.Request("POST", url),
             )
+        if url.endswith("/v1/graph/evidence"):
+            return httpx.Response(200, json=[], request=httpx.Request("POST", url))
         return httpx.Response(404, request=httpx.Request("POST", url))
 
     with TestClient(app) as client:

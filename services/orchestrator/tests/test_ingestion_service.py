@@ -20,7 +20,7 @@ class FakeRepository:
         self.transitions: list[str] = []
         self.audit_events: list[dict[str, object]] = []
 
-    async def create(self, user_id: UUID) -> IngestionTask:
+    async def create(self, user_id: UUID, task_kind=None, dictionary_version_id=None) -> IngestionTask:
         now = datetime.now(UTC)
         self.task = IngestionTask(
             id=uuid4(),
@@ -28,6 +28,8 @@ class FakeRepository:
             status="pending",
             created_at=now,
             updated_at=now,
+            task_kind=(task_kind.value if task_kind else "document_ingestion"),
+            dictionary_version_id=dictionary_version_id,
         )
         self.transitions.append("pending")
         return self.task
@@ -133,6 +135,7 @@ def service(repository: FakeRepository, client: httpx.AsyncClient) -> Orchestrat
         "http://knowledge",
         "http://retrieval",
         "http://model",
+        enforce_active_dictionary=False,
     )
 
 
@@ -253,7 +256,8 @@ def test_empty_normalization_marks_task_failed() -> None:
     async def run() -> None:
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
             service = OrchestratorService(
-                repository, client, "http://ingestion", "http://knowledge", "http://retrieval", "http://model"
+                repository, client, "http://ingestion", "http://knowledge", "http://retrieval", "http://model",
+                enforce_active_dictionary=False,
             )
             with pytest.raises(OrchestratorServiceError) as error:
                 await service.create_task(

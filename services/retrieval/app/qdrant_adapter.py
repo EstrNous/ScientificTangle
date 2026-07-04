@@ -95,13 +95,17 @@ class QdrantRetrievalStorageAdapter:
         if not question.strip():
             return SearchResultPayload(items=[], total_found=0, warnings=["empty_question"])
         vector = await self._embed(question, "query")
+        request_payload = {
+            "vector": vector,
+            "limit": max(limit * 3, limit),
+            "with_payload": True,
+        }
+        query_filter = build_filter(filters, access_roles)
+        if query_filter:
+            request_payload["filter"] = query_filter
         response = await self._client.post(
             qdrant_url(f"/collections/{COLLECTION_NAME}/points/search"),
-            json={
-                "vector": vector,
-                "limit": max(limit * 3, limit),
-                "with_payload": True,
-            },
+            json=request_payload,
         )
         if response.status_code == 404:
             return SearchResultPayload(items=[], total_found=0, warnings=["collection_not_found"])
@@ -115,6 +119,40 @@ class QdrantRetrievalStorageAdapter:
             if len(items) >= limit:
                 break
         return SearchResultPayload(items=items, total_found=len(items), warnings=warnings)
+
+    async def search_lexical(
+        self,
+        tokens: list[str],
+        filters: dict,
+        access_roles: list[str],
+        limit: int,
+        table_only: bool = False,
+    ) -> SearchResultPayload:
+        if not tokens:
+            return SearchResultPayload()
+        query_filter = build_filter(filters, access_roles)
+        query_filter.setdefault("must", []).append(
+            {"key": "lexical_tokens", "match": {"any": tokens}}
+        )
+        if table_only:
+            query_filter["must"].append({"key": "item_type", "match": {"value": "table_row"}})
+        response = await self._client.post(
+            qdrant_url(f"/collections/{COLLECTION_NAME}/points/scroll"),
+            json={"filter": query_filter, "limit": max(limit * 3, limit), "with_payload": True},
+        )
+        if response.status_code == 404:
+            return SearchResultPayload(warnings=["collection_not_found"])
+        response.raise_for_status()
+        points = response.json().get("result", {}).get("points", [])
+        token_set = set(tokens)
+        ranked = []
+        for point in points:
+            payload = point.get("payload") or {}
+            matched = len(token_set & set(payload.get("lexical_tokens") or []))
+            if matched:
+                ranked.append(payload_to_search_result(payload, matched / max(len(token_set), 1)))
+        ranked.sort(key=lambda item: item.relevance_score, reverse=True)
+        return SearchResultPayload(items=ranked[:limit], total_found=len(ranked[:limit]))
 
     async def get_source(
         self,
@@ -154,3 +192,49 @@ class QdrantRetrievalStorageAdapter:
         if not embeddings:
             raise httpx.HTTPError("empty_embeddings_response")
         return list(embeddings[0]["vector"])
+
+
+def build_filter(filters: dict, access_roles: list[str]) -> dict:
+    must: list[dict] = []
+    if "admin" not in access_roles:
+        access_should = [{"key": "access_level", "match": {"value": "public"}}]
+        if access_roles:
+            if set(access_roles) & {"researcher", "analyst", "manager"}:
+                access_should.append(
+                    {
+                        "must": [{"key": "access_level", "match": {"value": "internal"}}],
+                        "should": [
+                            {"key": "allowed_roles", "match": {"any": access_roles}},
+                            {"is_empty": {"key": "allowed_roles"}},
+                        ],
+                    }
+                )
+            access_should.append({"key": "allowed_roles", "match": {"any": access_roles}})
+        must.append({"should": access_should})
+    source_types = list(filters.get("source_type_constraints") or filters.get("source_types") or [])
+    if source_types:
+        must.append({"key": "document_source_type", "match": {"any": source_types}})
+    geo = [str(value).lower() for value in filters.get("geo_constraints") or []]
+    if geo:
+        must.append({"should": [
+            {"key": "geo_bucket", "match": {"any": geo}},
+            {"key": "geo_country", "match": {"any": geo}},
+        ]})
+    numeric = [item for item in filters.get("numeric_constraints", []) if isinstance(item, dict)]
+    for constraint in numeric:
+        unit = str(constraint.get("unit", "")).lower()
+        if unit:
+            must.append({"key": "units", "match": {"value": unit}})
+        minimum = constraint.get("range_min", constraint.get("value"))
+        maximum = constraint.get("range_max", constraint.get("value"))
+        if maximum is not None:
+            must.append({"key": "numeric_min", "range": {"lte": float(maximum)}})
+        if minimum is not None:
+            must.append({"key": "numeric_max", "range": {"gte": float(minimum)}})
+    time_constraints = filters.get("time_constraints") or {}
+    if isinstance(time_constraints, dict):
+        if time_constraints.get("start_year") is not None:
+            must.append({"key": "published_year", "range": {"gte": int(time_constraints["start_year"])}})
+        if time_constraints.get("end_year") is not None:
+            must.append({"key": "published_year", "range": {"lte": int(time_constraints["end_year"])}})
+    return {"must": must} if must else {}

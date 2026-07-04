@@ -4,6 +4,11 @@ from shared.contracts.models import (
     ApiError,
     AuditEvent,
     Claim,
+    DictionaryFilePayload,
+    DictionaryIngestionReport,
+    DictionaryPackagePayload,
+    DictionaryVersionPayload,
+    DictionaryVersionStatus,
     EvidenceBundle,
     EvidenceItem,
     ExportPayload,
@@ -50,6 +55,7 @@ from shared.contracts.models import (
     StrategicEvaluationSummary,
     StrategicMetricsPayload,
     TableBlock,
+    TaskKind,
     UserRole,
 )
 
@@ -61,6 +67,11 @@ __all__ = [
     "ExportPayload",
     "ExportRequest",
     "Claim",
+    "DictionaryFilePayload",
+    "DictionaryIngestionReport",
+    "DictionaryPackagePayload",
+    "DictionaryVersionPayload",
+    "DictionaryVersionStatus",
     "EvidenceBundle",
     "EvidenceItem",
     "GeoContext",
@@ -105,5 +116,6 @@ __all__ = [
     "StoredSource",
     "StorageWriteResult",
     "TableBlock",
+    "TaskKind",
     "UserRole",
 ]

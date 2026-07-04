@@ -37,7 +37,9 @@ async def test_build_subgraph_by_evidence_runs_query() -> None:
     driver.session.return_value = session
 
     adapter = Neo4jKnowledgeAdapter(driver)
-    subgraph = await adapter.build_subgraph_by_evidence(["claim-1"], [], [])
+    subgraph = await adapter.build_subgraph_by_evidence(
+        ["claim-1"], [], [], ["public", "internal"]
+    )
     assert "claim-1" in subgraph.claim_ids
     assert any(node.id == "claim-1" for node in subgraph.nodes)
 

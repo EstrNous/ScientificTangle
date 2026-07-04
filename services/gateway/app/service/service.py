@@ -3,7 +3,7 @@ from uuid import UUID
 import httpx
 from fastapi import UploadFile, status
 
-from shared.contracts import ApiError, IngestionTaskPayload
+from shared.contracts import ApiError, DictionaryVersionPayload, IngestionTaskPayload
 
 
 class GatewayServiceError(Exception):
@@ -69,6 +69,68 @@ class GatewayService:
         if response.status_code != status.HTTP_200_OK:
             raise self._downstream_error(response)
         return self._task_payload(response)
+
+    async def upload_dictionary(
+        self,
+        package: UploadFile,
+        authorization: str,
+        request_id: str,
+    ) -> IngestionTaskPayload:
+        await self._measure_uploads([package])
+        response = await self._request(
+            "POST",
+            "/dictionaries/upload",
+            authorization,
+            request_id,
+            files=[(
+                "package",
+                (package.filename, package.file, package.content_type or "application/zip"),
+            )],
+        )
+        if response.status_code != status.HTTP_202_ACCEPTED:
+            raise self._downstream_error(response)
+        return self._task_payload(response)
+
+    async def list_dictionaries(
+        self, authorization: str, request_id: str
+    ) -> list[DictionaryVersionPayload]:
+        response = await self._request("GET", "/dictionaries", authorization, request_id)
+        if response.status_code != status.HTTP_200_OK:
+            raise self._downstream_error(response)
+        try:
+            return [DictionaryVersionPayload.model_validate(item) for item in response.json()]
+        except (TypeError, ValueError) as error:
+            raise GatewayServiceError(502, "invalid_orchestrator_response", "Orchestrator returned invalid data") from error
+
+    async def get_active_dictionary(
+        self, authorization: str, request_id: str
+    ) -> DictionaryVersionPayload:
+        try:
+            return DictionaryVersionPayload.model_validate(
+                await self._get_json("/dictionaries/active", authorization, request_id)
+            )
+        except ValueError as error:
+            raise GatewayServiceError(
+                502, "invalid_orchestrator_response", "Orchestrator returned invalid data"
+            ) from error
+
+    async def activate_dictionary(
+        self,
+        version_id: UUID,
+        authorization: str,
+        request_id: str,
+    ) -> DictionaryVersionPayload:
+        response = await self._request(
+            "POST", f"/dictionaries/{version_id}/activate", authorization, request_id, json_body={}
+        )
+        if response.status_code != status.HTTP_200_OK:
+            raise self._downstream_error(response)
+        try:
+            return DictionaryVersionPayload.model_validate(self._json_payload(response))
+        except ValueError as error:
+            raise GatewayServiceError(
+                502, "invalid_orchestrator_response", "Orchestrator returned invalid data"
+            ) from error
 
     async def run_query(
         self,

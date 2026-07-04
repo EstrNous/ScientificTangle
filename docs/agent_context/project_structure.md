@@ -131,6 +131,7 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 ### Справочники (`dictionaries/`)
 
 - `dictionaries/aliases_mvp.json` — MVP-словарь алиасов для demo/eval.
+- `dictionaries/units_mvp.json`, `dictionaries/geographies_mvp.json` — версионируемые seed-данные единиц и географии для demo-пакета справочников.
 - `dictionaries/materials/` — материалы (руды, минералы, сплавы).
 - `dictionaries/equipment/` — оборудование (печи, мельницы, реакторы).
 - `dictionaries/properties/` — свойства материалов.
@@ -175,11 +176,13 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 ### ML integration slice
 
 - `services/ingestion/app/api/documents.py` — internal text/table fallback normalization endpoint; task pipeline дополнительно нормализует сохранённые PDF, DOCX, PPTX, DOC и ZIP через реестр parser-адаптеров.
-- `services/knowledge/app/api/extraction.py` — internal handoff `NormalizedDocument` → model structured extraction → `Neo4jKnowledgeAdapter.write_bundle`.
+- `services/ingestion/app/api/dictionaries.py` — безопасное сохранение и проверка ZIP-пакета `dictionary-package.v1`.
+- `services/knowledge/app/api/dictionaries.py` — версии справочников, атомарная активация и обогащение Query IR закреплённой версией.
+- `services/knowledge/app/api/extraction.py` — internal handoff `NormalizedDocument` → model structured extraction → `Neo4jKnowledgeAdapter.write_bundle` с закреплённой версией справочника.
 - `services/knowledge/app/api/graph.py` — bootstrap/reset/subgraph/neighbors/aliases/conflicts/gaps/entities/filter/measurements/evidence/claims-rank.
 - `services/knowledge/adapters/` — `Neo4jKnowledgeAdapter`, DTO, mapper, Query IR compiler, graph operations.
 - `services/retrieval/app/api/indexing.py` — legacy internal mock boundary индексации документов, не подключается в FastAPI app.
-- `services/retrieval/app/api/query.py` — internal Query IR, Qdrant bootstrap/index/reset, Qdrant-first evidence retrieval, lexical fallback и model rerank; переданные `NormalizedDocument` остаются in-memory fallback.
+- `services/retrieval/app/api/query.py` — Query IR, dense/lexical/table/graph retrieval, детерминированный fusion, проверка доступа и model rerank.
 - `services/orchestrator/app/api/query.py` и `services/gateway/app/api/query.py` — тонкий query run/proxy path для eval-compatible ответа через `EvidenceBundle` и answer synthesis.
 
 ### services/auth_audit/
@@ -213,6 +216,7 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 - `database.py` — `create_database()`, `get_session()`.
 - `config.py` — `OrchestratorDbSettings` (env prefix `ORCHESTRATOR_`).
 - Alembic: `services/orchestrator/alembic.ini`, миграции в `services/orchestrator/storage/versions/` (`0001` — ingestion_tasks, `0002` — query_runs/export_jobs, `0003` — совместимость query_runs с прежним init SQL, `0004` — полный сохраняемый результат query run).
+- `0007_add_dictionary_pinning.py` добавляет тип ingestion-задачи и закреплённую версию справочника для задач и query run.
 
 ### infra/postgres/chat_ui_db/
 

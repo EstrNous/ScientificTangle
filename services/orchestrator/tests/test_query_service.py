@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from uuid import UUID, uuid4
 
 import httpx
+import pytest
 from app.service.service import OrchestratorService, OrchestratorServiceError
 
 from infra.postgres.orchestrator_db import ExportJob, QueryRun
@@ -20,7 +21,7 @@ class FakeQueryRepository:
         self.export_transitions: list[str] = []
         self.last_audit_filters: dict[str, object] | None = None
 
-    async def create(self, user_id, question, request_id):
+    async def create(self, user_id, question, request_id, dictionary_version_id=None):
         now = datetime.now(UTC)
         self.run = QueryRun(
             id=uuid4(),
@@ -32,6 +33,7 @@ class FakeQueryRepository:
             graph_subgraph={},
             created_at=now,
             updated_at=now,
+            dictionary_version_id=dictionary_version_id,
         )
         self.transitions.append("pending")
         return self.run
@@ -179,6 +181,7 @@ def service(client, repository):
         retrieval_url="http://retrieval",
         model_url="http://model",
         query_repository=repository,
+        enforce_active_dictionary=False,
     )
 
 
@@ -274,6 +277,39 @@ def test_query_failure_is_persisted_and_exposes_run_id() -> None:
 
     assert error.query_run_id == repository.run.id
     assert repository.transitions == ["pending", "processing", "failed"]
+
+
+def test_query_requires_active_dictionary_before_creating_run() -> None:
+    repository = FakeQueryRepository()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/v1/dictionaries/active"
+        return httpx.Response(
+            404,
+            json={
+                "code": "active_dictionary_not_found",
+                "message": "Active dictionary was not found",
+                "request_id": "request-1",
+            },
+        )
+
+    async def execute():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            orchestrator = OrchestratorService(
+                repository=None,
+                client=client,
+                ingestion_url="http://ingestion",
+                knowledge_url="http://knowledge",
+                retrieval_url="http://retrieval",
+                model_url="http://model",
+                query_repository=repository,
+            )
+            with pytest.raises(OrchestratorServiceError) as error:
+                await orchestrator.run_query(principal(), "никель", {}, "request-1", 20)
+            assert error.value.code == "active_dictionary_required"
+
+    asyncio.run(execute())
+    assert repository.run is None
 
 
 def test_empty_evidence_skips_synthesis_and_completes_with_warning() -> None:

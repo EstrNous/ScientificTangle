@@ -11,6 +11,7 @@ from shared.contracts import (
 from shared.utils.request_id import generate_request_id
 
 from ..core.config import settings
+from .dictionaries import _load_version
 
 router = APIRouter(prefix="/v1/documents", tags=["knowledge"])
 
@@ -28,6 +29,27 @@ async def extract_document(
     )
     response.raise_for_status()
     extraction = response.json()
+    if request.dictionary_version_id is not None:
+        dictionary = await _load_version(app_request, request.dictionary_version_id)
+        canonical_by_alias = {}
+        for file in dictionary.files:
+            if file.kind not in {"aliases", "entities", "units", "geographies"}:
+                continue
+            for entry in file.entries:
+                canonical = str(entry.get("canonical") or entry.get("name") or "").strip()
+                for value in [canonical, *entry.get("aliases", [])]:
+                    if value:
+                        canonical_by_alias[str(value).casefold()] = canonical or str(value)
+        for layer in ("confirmed", "candidates"):
+            for artifact in extraction.get(layer, []):
+                if not isinstance(artifact, dict):
+                    continue
+                value = str(artifact.get("value", ""))
+                if value.casefold() in canonical_by_alias:
+                    artifact["value"] = canonical_by_alias[value.casefold()]
+                metadata = artifact.setdefault("metadata", {})
+                if isinstance(metadata, dict):
+                    metadata["dictionary_version_id"] = str(dictionary.id)
     confirmed = extraction.get("confirmed", [])
     candidates = extraction.get("candidates", [])
     records_count = len(confirmed) + len(candidates)

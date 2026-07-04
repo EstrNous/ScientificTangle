@@ -242,6 +242,8 @@ services:
       - "8005:8005"
     env_file: .env
     depends_on:
+      knowledge:
+        condition: service_healthy
       model:
         condition: service_healthy
       qdrant:

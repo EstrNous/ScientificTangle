@@ -149,6 +149,7 @@ class Neo4jKnowledgeAdapter:
         claim_ids: list[str],
         entity_ids: list[str],
         source_span_ids: list[str],
+        access_levels: list[str],
         request_id: str | None = None,
     ) -> GraphSubgraphDTO:
         if not claim_ids and not entity_ids and not source_span_ids:
@@ -159,6 +160,7 @@ class Neo4jKnowledgeAdapter:
                 claim_ids=claim_ids,
                 entity_ids=entity_ids,
                 source_span_ids=source_span_ids,
+                access_levels=access_levels,
             )
             records = [record async for record in result]
         return records_to_subgraph(records)
@@ -201,18 +203,48 @@ class Neo4jKnowledgeAdapter:
     ) -> GraphSubgraphDTO:
         plan = compile_query_ir(query_ir, access_levels=access_levels)
         numeric = query_ir.numeric_filter
-        time_constraints = query_ir.filters.get("time_constraints", {}) if isinstance(query_ir.filters, dict) else {}
+        filters = query_ir.filters if isinstance(query_ir.filters, dict) else {}
+        numeric_constraints = [
+            item for item in filters.get("numeric_constraints", []) if isinstance(item, dict)
+        ]
+        numeric_constraint = numeric_constraints[0] if numeric_constraints else {}
+        numeric_min = (
+            numeric.range_min
+            if numeric and numeric.range_min is not None
+            else numeric_constraint.get("range_min", numeric_constraint.get("value"))
+        )
+        numeric_max = (
+            numeric.range_max
+            if numeric and numeric.range_max is not None
+            else numeric_constraint.get("range_max", numeric_constraint.get("value"))
+        )
+        geo_constraints = filters.get("geo_constraints", [])
+        geo_name = (
+            query_ir.geo_filter.location_name
+            if query_ir.geo_filter
+            else str(geo_constraints[0])
+            if len(geo_constraints) == 1
+            else None
+        )
+        time_constraints = filters.get("time_constraints", {})
+        published_after = None
+        published_before = None
+        if isinstance(time_constraints, dict):
+            if time_constraints.get("start_year") is not None:
+                published_after = f"{int(time_constraints['start_year'])}-01-01"
+            if time_constraints.get("end_year") is not None:
+                published_before = f"{int(time_constraints['end_year'])}-12-31"
         async with self._driver.session() as session:
             result = await session.run(
                 queries.FILTER_BY_CONSTRAINTS,
                 access_levels=plan.access_levels,
                 min_confidence=query_ir.filters.get("min_confidence") if isinstance(query_ir.filters, dict) else None,
                 status=query_ir.filters.get("status") if isinstance(query_ir.filters, dict) else None,
-                geo_name=query_ir.geo_filter.location_name if query_ir.geo_filter else None,
-                numeric_min=numeric.range_min if numeric else None,
-                numeric_max=numeric.range_max if numeric else None,
-                published_after=time_constraints.get("from") if isinstance(time_constraints, dict) else None,
-                published_before=time_constraints.get("to") if isinstance(time_constraints, dict) else None,
+                geo_name=geo_name,
+                numeric_min=numeric_min,
+                numeric_max=numeric_max,
+                published_after=published_after,
+                published_before=published_before,
                 limit=plan.limit,
             )
             records = [record async for record in result]

@@ -12,6 +12,7 @@ from shared.web import install_error_handlers, request_id_middleware
 from .api.admin import router as admin_router
 from .api.chat import router as chat_router
 from .api.documents import router as documents_router
+from .api.dictionaries import router as dictionaries_router
 from .api.graph import router as graph_router
 from .api.health import router as health_router
 from .api.query import router as query_router
@@ -63,6 +64,7 @@ install_error_handlers(app)
 app.include_router(build_metrics_router())
 app.include_router(health_router)
 app.include_router(documents_router)
+app.include_router(dictionaries_router)
 app.include_router(query_router)
 app.include_router(chat_router)
 app.include_router(graph_router)

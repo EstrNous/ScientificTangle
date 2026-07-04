@@ -17,7 +17,7 @@ from shared.contracts import (
 )
 
 
-def test_existing_ingestion_contracts_remain_frozen() -> None:
+def test_ingestion_contract_extension_is_additive() -> None:
     assert list(IngestionReport.model_fields) == [
         "stage",
         "sources",
@@ -33,6 +33,8 @@ def test_existing_ingestion_contracts_remain_frozen() -> None:
     assert list(IngestionTaskPayload.model_fields) == [
         "id",
         "status",
+        "task_kind",
+        "dictionary_version_id",
         "report",
         "error_message",
         "created_at",

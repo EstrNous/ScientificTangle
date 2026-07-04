@@ -1,5 +1,6 @@
 import hashlib
 import re
+from datetime import UTC, datetime
 from typing import Any
 from uuid import UUID
 
@@ -15,6 +16,7 @@ from shared.contracts import (
     QueryIR,
     RetrievalIndexRequest,
     RetrievalIndexResponse,
+    SearchResult,
     SearchResultPayload,
     SourcePayload,
     SourceSpan,
@@ -40,6 +42,7 @@ class RetrievalQueryRequest(BaseModel):
     filters: dict[str, Any] = Field(default_factory=dict)
     access_roles: list[str] = Field(default_factory=list)
     limit: int = Field(default=20, ge=1, le=100)
+    dictionary_version_id: UUID | None = None
 
 
 class RetrievalQueryResponse(BaseModel):
@@ -214,30 +217,71 @@ async def run_query(
     query_ir = QueryIR.model_validate(query_ir_response.json()["query_ir"])
     query_ir.filters = {**query_ir.filters, **request.filters}
     query_ir.limit = request.limit
+    if request.dictionary_version_id is not None:
+        enrichment_response = await client.post(
+            f"{settings.knowledge_url.rstrip('/')}/v1/dictionaries/{request.dictionary_version_id}/enrich-query-ir",
+            json={"query_ir": query_ir.model_dump(mode="json")},
+        )
+        enrichment_response.raise_for_status()
+        query_ir = QueryIR.model_validate(enrichment_response.json())
+    time_constraints = query_ir.filters.get("time_constraints") or {}
+    if isinstance(time_constraints, dict) and time_constraints.get("relative_years"):
+        years = int(time_constraints["relative_years"])
+        current_year = datetime.now(UTC).year
+        query_ir.filters["time_constraints"] = {
+            **time_constraints,
+            "start_year": current_year - years,
+            "end_year": current_year,
+        }
     try:
-        results = await adapter.search(
+        dense_results = await adapter.search(
             request.question,
             query_ir.filters,
             request.access_roles,
             request.limit,
         )
+        lexical_search = getattr(adapter, "search_lexical", None)
+        tokens = sorted(normalized_tokens(request.question))
+        lexical_results = (
+            await lexical_search(tokens, query_ir.filters, request.access_roles, request.limit)
+            if lexical_search is not None
+            else SearchResultPayload()
+        )
+        table_results = (
+            await lexical_search(tokens, query_ir.filters, request.access_roles, request.limit, True)
+            if lexical_search is not None
+            else SearchResultPayload()
+        )
     except StorageAdapterNotReady as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
-    allowed = [
-        item
-        for item in results.items
-        if access_allowed(item.source.access_policy, request.access_roles)
-    ]
-    evidence_items = [
-        EvidenceItem(
-            source_span=item.source.source_span,
-            relevance_score=item.relevance_score,
-            claim_ids=item.claim_ids,
-            entity_ids=item.entity_ids,
-            extraction_method="semantic",
+    graph_results = await graph_evidence(client, adapter, query_ir, request.access_roles)
+    fused_items = fuse_channels(
+        {
+            "dense": dense_results.items,
+            "lexical": lexical_results.items,
+            "table": table_results.items,
+            "graph": graph_results,
+        },
+        request.limit,
+    )
+    evidence_items = []
+    for item in fused_items:
+        if not access_allowed(item.source.access_policy, request.access_roles):
+            continue
+        verified = await adapter.get_source(item.source.source_span.id, request.access_roles)
+        if verified is None:
+            continue
+        evidence_items.append(
+            EvidenceItem(
+                source_span=verified.source_span,
+                relevance_score=item.relevance_score,
+                claim_ids=item.claim_ids,
+                entity_ids=item.entity_ids,
+                extraction_method=(
+                    "table" if verified.source_span.source_type == "table" else "semantic"
+                ),
+            )
         )
-        for item in allowed
-    ]
     rerank_response = await client.post(
         f"{settings.model_url.rstrip('/')}/v1/rerank",
         json={
@@ -266,13 +310,85 @@ async def run_query(
         query_ir=query_ir,
         evidence_bundle=evidence_bundle,
         retrieval_trace={
-            "storage": "qdrant",
-            "retrieved": len(results.items),
+            "storage": "hybrid",
+            "channels": {
+                "dense": len(dense_results.items),
+                "lexical": len(lexical_results.items),
+                "table": len(table_results.items),
+                "graph": len(graph_results),
+            },
+            "raw_candidates": sum(
+                map(len, [dense_results.items, lexical_results.items, table_results.items, graph_results])
+            ),
+            "retrieved": len(fused_items),
+            "fused": len(fused_items),
             "accessible": len(evidence_items),
             "reranked": len(ranked_items),
         },
-        warnings=[*query_ir_response.json().get("warnings", []), *results.warnings],
+        warnings=[
+            *query_ir_response.json().get("warnings", []),
+            *dense_results.warnings,
+            *lexical_results.warnings,
+            *table_results.warnings,
+        ],
     )
+
+
+async def graph_evidence(
+    client: httpx.AsyncClient,
+    adapter: RetrievalStorageAdapter,
+    query_ir: QueryIR,
+    access_roles: list[str],
+) -> list[SearchResult]:
+    response = await client.post(
+        f"{settings.knowledge_url.rstrip('/')}/v1/graph/evidence",
+        json={
+            "query_ir": query_ir.model_dump(mode="json"),
+            "access_levels": access_levels_for_roles(access_roles),
+        },
+    )
+    response.raise_for_status()
+    results = []
+    for record in response.json():
+        span = record.get("source_span") if isinstance(record, dict) else None
+        if not isinstance(span, dict) or not span.get("source_span_id"):
+            continue
+        source = await adapter.get_source(str(span["source_span_id"]), access_roles)
+        if source is None:
+            continue
+        results.append(
+            SearchResult(
+                source=source,
+                relevance_score=float(record.get("confidence") or 0.0),
+                claim_ids=[str(record.get("claim_id"))] if record.get("claim_id") else [],
+            )
+        )
+    return results
+
+
+def fuse_channels(channels: dict[str, list[SearchResult]], limit: int) -> list[SearchResult]:
+    scores: dict[str, float] = {}
+    items: dict[str, SearchResult] = {}
+    for channel_items in channels.values():
+        for rank, item in enumerate(channel_items, start=1):
+            span_id = item.source.source_span.id
+            scores[span_id] = scores.get(span_id, 0.0) + 1.0 / (60 + rank)
+            if span_id in items:
+                existing = items[span_id]
+                existing.claim_ids = list(dict.fromkeys([*existing.claim_ids, *item.claim_ids]))
+                existing.entity_ids = list(dict.fromkeys([*existing.entity_ids, *item.entity_ids]))
+            else:
+                items[span_id] = item.model_copy(deep=True)
+    ranked_ids = sorted(scores, key=lambda span_id: (-scores[span_id], span_id))[:limit]
+    return [items[span_id].model_copy(update={"relevance_score": scores[span_id]}) for span_id in ranked_ids]
+
+
+def access_levels_for_roles(roles: list[str]) -> list[str]:
+    if "admin" in roles:
+        return ["public", "internal", "restricted"]
+    if set(roles) & {"researcher", "analyst", "manager"}:
+        return ["public", "internal"]
+    return ["public"]
 
 
 async def ensure_collection(client: httpx.AsyncClient) -> BootstrapIndexResponse:
@@ -314,6 +430,7 @@ def payload_indexes() -> dict[str, str]:
         "document_id": "keyword",
         "source_span_id": "keyword",
         "source_type": "keyword",
+        "document_source_type": "keyword",
         "access_level": "keyword",
         "allowed_roles": "keyword",
         "table_block_id": "keyword",
@@ -322,8 +439,11 @@ def payload_indexes() -> dict[str, str]:
         "geo_country": "keyword",
         "claim_ids": "keyword",
         "graph_entity_ids": "keyword",
+        "lexical_tokens": "keyword",
         "numeric_min": "float",
         "numeric_max": "float",
+        "published_year": "integer",
+        "dictionary_version_id": "keyword",
     }
 
 
@@ -409,11 +529,13 @@ def build_payload(
         "numeric_min": min(numeric_values) if numeric_values else None,
         "numeric_max": max(numeric_values) if numeric_values else None,
         "units": units,
-        "geo_bucket": geo_bucket,
-        "geo_country": geo_country,
+        "geo_bucket": geo_bucket.lower(),
+        "geo_country": geo_country.lower(),
         "claim_ids": claim_ids,
         "graph_entity_ids": graph_entity_ids,
         "document_metadata": document.metadata,
+        "published_year": document.metadata.get("year"),
+        "dictionary_version_id": document.metadata.get("dictionary_version_id", ""),
     }
 
 

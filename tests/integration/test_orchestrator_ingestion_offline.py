@@ -175,6 +175,7 @@ def test_orchestrator_ingestion_pipeline_offline() -> None:
                 "http://knowledge",
                 "http://retrieval",
                 "http://model",
+                enforce_active_dictionary=False,
             )
             result = await service.create_task(
                 principal(),

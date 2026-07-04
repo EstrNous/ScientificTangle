@@ -30,6 +30,18 @@ class QueryRunStatus(StrEnum):
     FAILED = "failed"
 
 
+class TaskKind(StrEnum):
+    DOCUMENT_INGESTION = "document_ingestion"
+    DICTIONARY_INGESTION = "dictionary_ingestion"
+
+
+class DictionaryVersionStatus(StrEnum):
+    VALIDATED = "validated"
+    VALIDATION_FAILED = "validation_failed"
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+
+
 class StoredSource(BaseModel):
     object_key: str
     original_filename: str
@@ -51,10 +63,48 @@ class IngestionReport(BaseModel):
     candidates_count: int = 0
 
 
+class DictionaryFilePayload(BaseModel):
+    path: str
+    kind: Literal["entities", "aliases", "units", "geographies"]
+    sha256: str = Field(min_length=64, max_length=64)
+    entries: list[dict] = Field(default_factory=list)
+
+
+class DictionaryPackagePayload(BaseModel):
+    schema_version: Literal["dictionary-package.v1"] = "dictionary-package.v1"
+    version: str = Field(min_length=1, max_length=128)
+    package_sha256: str = Field(min_length=64, max_length=64)
+    source: StoredSource
+    files: list[DictionaryFilePayload] = Field(min_length=1)
+
+
+class DictionaryIngestionReport(BaseModel):
+    stage: Literal["dictionary"] = "dictionary"
+    dictionary_version_id: UUID | None = None
+    version: str = ""
+    package_sha256: str = ""
+    files_count: int = 0
+    entries_count: int = 0
+    warnings: list[str] = Field(default_factory=list)
+
+
+class DictionaryVersionPayload(BaseModel):
+    id: UUID
+    version: str
+    package_sha256: str
+    status: DictionaryVersionStatus
+    files: list[DictionaryFilePayload] = Field(default_factory=list)
+    uploaded_by: UUID
+    created_at: datetime
+    activated_at: datetime | None = None
+
+
 class IngestionTaskPayload(BaseModel):
     id: UUID
     status: IngestionTaskStatus
-    report: IngestionReport | None = None
+    task_kind: TaskKind = TaskKind.DOCUMENT_INGESTION
+    dictionary_version_id: UUID | None = None
+    report: IngestionReport | DictionaryIngestionReport | None = None
     error_message: str | None = None
     created_at: datetime
     updated_at: datetime
@@ -157,6 +207,7 @@ class StorageWriteResult(BaseModel):
 
 class KnowledgeIngestionRequest(BaseModel):
     document: NormalizedDocument
+    dictionary_version_id: UUID | None = None
 
 
 class KnowledgeIngestionResponse(BaseModel):
@@ -307,6 +358,7 @@ class QueryRunPayload(BaseModel):
     error_message: str | None = None
     request_id: str
     latency_ms: int | None = None
+    dictionary_version_id: UUID | None = None
     created_at: datetime
     updated_at: datetime
 
