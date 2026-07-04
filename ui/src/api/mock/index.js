@@ -1,14 +1,10 @@
 import ingestion from './ingestion.json';
-import lab from './lab.json';
-import strategic from './strategic.json';
 import audit from './audit.json';
 import admin from './admin.json';
 import notifications from './notifications.json';
 
 export const mockData = {
   ingestion,
-  lab,
-  strategic,
   audit,
   admin,
   notifications,
@@ -28,17 +24,9 @@ export async function mockFetch(resource, options = {}) {
   }
   if (resource === 'strategic/metrics' || resource === 'strategic/evaluation' || resource.startsWith('strategic/')) {
     throw new Error('Strategic API requires backend connection');
+  }
   if (resource === 'lab/coverage' || resource.startsWith('lab/')) {
     throw new Error('Lab API requires backend connection');
-  }
-  if (resource === 'ingestion/tasks') {
-    return ingestion.tasks;
-  }
-  if (resource === 'strategic/metrics') {
-    return strategic.manager;
-  }
-  if (resource === 'lab/coverage') {
-    return lab;
   }
   if (resource === 'ingestion/tasks') {
     return ingestion.tasks;
