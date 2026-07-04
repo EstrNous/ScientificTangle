@@ -89,4 +89,17 @@ describe('sourceResolver facade', () => {
     const { resolveSourceRef } = await import('./index.js');
     expect(() => resolveSourceRef('span-1')).toThrow('source_mock_unavailable');
   });
+
+  it('does not preload mock adapter in production builds', async () => {
+    vi.resetModules();
+    vi.stubEnv('VITE_USE_MOCK', 'true');
+    vi.stubEnv('PROD', 'true');
+    vi.doMock('../../utils/uiFeatureFlags.js', () => ({
+      isSourceLiveModeEnabled: () => true,
+    }));
+    const { ensureMockSourceResolver, getSourceMode, sourceRefLabel } = await import('./index.js');
+    await expect(ensureMockSourceResolver()).resolves.toBeNull();
+    expect(getSourceMode()).toBe('live');
+    expect(sourceRefLabel('span-1')).toBe('span-1');
+  });
 });

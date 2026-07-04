@@ -6,7 +6,7 @@ let mockAdapterModule = null;
 let mockAdapterPromise = null;
 
 export async function ensureMockSourceResolver() {
-  if (!resolveUseMock()) {
+  if (import.meta.env.PROD || !resolveUseMock()) {
     return null;
   }
   if (mockAdapterModule) {
@@ -21,7 +21,7 @@ export async function ensureMockSourceResolver() {
   return mockAdapterPromise;
 }
 
-if (import.meta.env.VITE_USE_MOCK === 'true') {
+if (!import.meta.env.PROD && import.meta.env.VITE_USE_MOCK === 'true') {
   void ensureMockSourceResolver();
 }
 
@@ -29,7 +29,7 @@ function getAdapter() {
   if (isSourceLiveModeEnabled()) {
     return liveAdapter;
   }
-  if (!resolveUseMock()) {
+  if (import.meta.env.PROD || !resolveUseMock()) {
     throw new Error('source_mock_unavailable');
   }
   if (!mockAdapterModule) {

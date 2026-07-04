@@ -57,4 +57,15 @@ describe('uiFeatureFlags', () => {
     const flags = await import('../utils/uiFeatureFlags.js');
     expect(flags.isReviewActionsEnabled()).toBe(true);
   });
+
+  it('forces source live mode in production builds even when mock is enabled', async () => {
+    vi.stubEnv('PROD', 'true');
+    vi.doMock('./runtimeMode.js', () => ({
+      useMock: true,
+      resolveUseMock: () => true,
+    }));
+    vi.resetModules();
+    const flags = await import('../utils/uiFeatureFlags.js');
+    expect(flags.isSourceLiveModeEnabled()).toBe(true);
+  });
 });
