@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import SourceLink from './SourceLink.jsx';
-import { sourceRefLabel } from '../../api/mock/sourceBindings.js';
+import { sourceRefLabel } from '../../api/sourceResolver/index.js';
 
 export default function SourceRefsPopover({ state, onClose }) {
   const { t } = useTranslation();

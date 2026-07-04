@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next';
-import { getEvidenceRowSources } from '../../api/mock/sourceBindings.js';
+import { getEvidenceRowSources } from '../../api/sourceResolver/index.js';
 import { useSourceRefsPopover } from '../../hooks/useSourceRefsPopover.js';
 import { isSourceColumnName } from '../../utils/sourceColumn.js';
 import CopyButton from '../shared/CopyButton.jsx';
