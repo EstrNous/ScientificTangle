@@ -283,8 +283,6 @@ services:
         SERVICE_DIR: services/export
         SERVICE_PORT: 8007
     container_name: st-export
-    ports:
-      - "8007:8007"
     env_file: .env
     depends_on:
       postgres:
@@ -302,8 +300,6 @@ services:
       context: .
       dockerfile: services/notification/Dockerfile
     container_name: st-notification
-    ports:
-      - "8008:8008"
     env_file: .env
     depends_on:
       postgres:

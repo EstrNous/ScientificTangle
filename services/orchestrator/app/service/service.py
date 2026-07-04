@@ -82,8 +82,9 @@ class OrchestratorService(BaseService):
         export_url: str,
         query_repository: QueryRunRepository | None = None,
         enforce_active_dictionary: bool = True,
+        internal_service_token: str = "",
     ) -> None:
-        super().__init__(client)
+        super().__init__(client, internal_service_token=internal_service_token)
         self._repository = repository
         self._ingestion_url = ingestion_url.rstrip("/")
         self._knowledge_url = knowledge_url.rstrip("/")
@@ -975,6 +976,7 @@ class OrchestratorService(BaseService):
                 },
                 request_id,
                 "export",
+                internal_auth=True,
             )
         except OrchestratorServiceError as error:
             await repository.mark_export_failed(export_job, error.message)

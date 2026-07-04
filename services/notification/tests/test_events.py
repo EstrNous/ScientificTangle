@@ -4,6 +4,21 @@ from infra.postgres.notification_db.repository import NotificationData
 
 
 @pytest.mark.asyncio
+async def test_internal_create_event_requires_token(client, fake_repository, principal) -> None:
+    response = await client.post(
+        "/internal/v1/events",
+        headers={"X-Internal-Service-Token": "wrong-token"},
+        json={
+            "user_id": str(principal.user_id),
+            "type": "conflict_detected",
+            "message": "Обнаружено противоречие",
+        },
+    )
+    assert response.status_code == 401
+    assert response.json()["code"] == "authentication_required"
+
+
+@pytest.mark.asyncio
 async def test_internal_create_event(client, fake_repository, principal) -> None:
     response = await client.post(
         "/internal/v1/events",

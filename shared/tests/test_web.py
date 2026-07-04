@@ -6,6 +6,7 @@ from shared.web import (
     ServiceError,
     install_error_handlers,
     request_id_middleware,
+    require_internal_service,
     require_principal,
 )
 
@@ -14,6 +15,7 @@ def make_app() -> FastAPI:
     app = FastAPI()
     app.middleware("http")(request_id_middleware)
     install_error_handlers(app)
+    app.state.internal_service_token = "test-internal-token"
 
     @app.get("/failure")
     async def failure() -> None:
@@ -24,6 +26,10 @@ def make_app() -> FastAPI:
         principal: AuthenticatedPrincipal = Depends(require_principal),
     ) -> dict[str, str]:
         return {"user_id": str(principal.user_id)}
+
+    @app.get("/internal")
+    async def internal(_: None = Depends(require_internal_service)) -> dict[str, str]:
+        return {"status": "ok"}
 
     return app
 
@@ -48,3 +54,27 @@ def test_missing_bearer_token_has_normalized_error() -> None:
     assert response.status_code == 401
     assert response.json()["code"] == "authentication_required"
     assert response.json()["request_id"] == response.headers["X-Request-ID"]
+
+
+def test_internal_service_token_is_required() -> None:
+    with TestClient(make_app()) as client:
+        response = client.get("/internal")
+
+    assert response.status_code == 401
+    assert response.json()["code"] == "authentication_required"
+
+
+def test_internal_service_token_accepts_valid_header() -> None:
+    with TestClient(make_app()) as client:
+        response = client.get("/internal", headers={"X-Internal-Service-Token": "test-internal-token"})
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}
+
+
+def test_internal_service_token_rejects_invalid_header() -> None:
+    with TestClient(make_app()) as client:
+        response = client.get("/internal", headers={"X-Internal-Service-Token": "wrong-token"})
+
+    assert response.status_code == 401
+    assert response.json()["code"] == "authentication_required"

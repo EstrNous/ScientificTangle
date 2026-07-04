@@ -20,6 +20,7 @@ class ExportService:
         retrieval_url: str = "http://retrieval",
         model_url: str = "http://model",
         export_url: str = "http://export",
+        internal_service_token: str = "",
     ) -> None:
         self._service = OrchestratorService(
             _UnusedIngestionRepository(),
@@ -31,6 +32,7 @@ class ExportService:
             export_url,
             query_repository=query_repository,
             enforce_active_dictionary=False,
+            internal_service_token=internal_service_token,
         )
 
     async def export_query_run(

@@ -51,13 +51,18 @@ def test_create_conflict_event_posts_internal_api() -> None:
 
     def handler(request: httpx.Request) -> httpx.Response:
         captured["path"] = request.url.path
+        captured["headers"] = dict(request.headers)
         import json as json_module
         captured["body"] = json_module.loads(request.content.decode())
         return httpx.Response(200, json={"id": str(uuid4()), "type": "conflict_detected"})
 
     async def run() -> None:
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            service = NotificationService(client, notification_url="http://notification")
+            service = NotificationService(
+                client,
+                notification_url="http://notification",
+                internal_service_token="test-internal-token",
+            )
             user_id = uuid4()
             await service.create_conflict_event(
                 user_id=user_id,
@@ -71,6 +76,7 @@ def test_create_conflict_event_posts_internal_api() -> None:
                 request_id="req-2",
             )
             assert captured["path"] == "/internal/v1/events"
+            assert captured["headers"]["x-internal-service-token"] == "test-internal-token"
             assert captured["body"]["type"] == "conflict_detected"
             assert captured["body"]["user_id"] == str(user_id)
 
