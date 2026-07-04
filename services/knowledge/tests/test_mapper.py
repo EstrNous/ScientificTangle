@@ -1,6 +1,6 @@
-from shared.contracts import NormalizedDocument, SourceSpan
-
 from adapters.mapper import artifacts_to_bundle, entity_id_for_name
+
+from shared.contracts import NormalizedDocument, SourceSpan
 
 
 def test_entity_id_for_name_stable() -> None:

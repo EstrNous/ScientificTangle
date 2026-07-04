@@ -1,6 +1,6 @@
-from shared.contracts import QueryIR
-
 from adapters.query_compiler import compile_query_ir
+
+from shared.contracts import QueryIR
 
 
 def test_compile_query_ir_includes_entity_resolution() -> None:

@@ -1,5 +1,3 @@
-import hashlib
-from uuid import UUID
 
 import httpx
 

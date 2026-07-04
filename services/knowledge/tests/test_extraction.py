@@ -2,30 +2,14 @@ from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
+from adapters.neo4j_adapter import Neo4jKnowledgeAdapter
 from app.main import app
 from fastapi.testclient import TestClient
 
-from adapters.neo4j_adapter import Neo4jKnowledgeAdapter
-from app.main import app
-from shared.utils.source_span import compute_source_span_id
-from app.api.extraction import extract_document
 from shared.contracts import (
-    KnowledgeIngestionRequest,
     NormalizedDocument,
     SourceSpan,
 )
-
-
-class FakeStorageAdapter:
-    is_ready = True
-
-    async def write_extraction(self, document, extraction):
-        return StorageWriteResult(
-            backend="neo4j",
-            mode="live",
-            document_ids=[document.id],
-            records_count=len(extraction.get("confirmed", [])),
-        )
 
 
 def test_extraction_uses_real_neo4j_adapter() -> None:
@@ -67,7 +51,6 @@ def test_extract_document_writes_to_neo4j_when_adapter_available(client: TestCli
             )
         ],
     )
-    span_id = compute_source_span_id(document.source_spans[0])
     mock_response = httpx.Response(
         200,
         json={
@@ -96,6 +79,7 @@ def test_extract_document_writes_to_neo4j_when_adapter_available(client: TestCli
     assert payload["graph_write"]["mode"] == "live"
     assert payload["graph_write"]["confirmed_count"] == 1
     adapter.write_bundle.assert_awaited_once()
+
 
 def test_health_smoke(client: TestClient) -> None:
     assert client.get("/health").status_code == 200

@@ -1,17 +1,16 @@
 import httpx
-from fastapi import APIRouter, HTTPException, Request
+from adapters.mapper import artifacts_to_bundle
+from adapters.neo4j_adapter import Neo4jKnowledgeAdapter
+from fastapi import APIRouter, Request
 
 from shared.contracts import (
     KnowledgeIngestionRequest,
     KnowledgeIngestionResponse,
     StorageWriteResult,
 )
-from adapters.mapper import artifacts_to_bundle
-from adapters.neo4j_adapter import Neo4jKnowledgeAdapter
 from shared.utils.request_id import generate_request_id
 
 from ..core.config import settings
-from ..storage import KnowledgeStorageAdapter, StorageAdapterNotReady
 
 router = APIRouter(prefix="/v1/documents", tags=["knowledge"])
 

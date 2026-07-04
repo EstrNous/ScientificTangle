@@ -2,6 +2,7 @@ import asyncio
 from types import SimpleNamespace
 
 from app.api.graph import SubgraphRequest, build_subgraph
+
 from shared.contracts import GraphNode, GraphSubgraph
 
 

@@ -1,8 +1,7 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
-from adapters.dto import ClaimsBundleDTO, ClaimDTO, DocumentDTO, SourceSpanDTO
+from adapters.dto import ClaimDTO, ClaimsBundleDTO, DocumentDTO, SourceSpanDTO
 from adapters.neo4j_adapter import Neo4jKnowledgeAdapter
 
 

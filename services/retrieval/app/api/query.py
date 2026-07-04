@@ -21,8 +21,8 @@ from shared.contracts import (
     StorageWriteResult,
     TableBlock,
 )
-
 from shared.utils.source_span import compute_source_span_id as source_span_id
+
 from ..core.config import settings
 from ..storage import RetrievalStorageAdapter, StorageAdapterNotReady, access_allowed
 
@@ -622,14 +622,6 @@ def payload_to_span(payload: dict[str, Any]) -> SourceSpan:
             else "text"
         ),
     )
-
-
-def source_span_id(span: SourceSpan) -> str:
-    raw = (
-        f"{span.document_id}:{span.page}:{span.start_offset}:"
-        f"{span.end_offset}:{span.table_block_id or ''}"
-    )
-    return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
 
 
 def point_id(span_id: str) -> str:

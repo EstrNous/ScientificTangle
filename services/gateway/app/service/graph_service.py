@@ -2,7 +2,6 @@ import httpx
 
 from shared.contracts import GraphPayload, SearchResultsPayload
 
-from ..core.config import settings
 from .analytics_service import GraphService as KnowledgeGraphService
 
 

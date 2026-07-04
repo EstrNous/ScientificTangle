@@ -1,10 +1,8 @@
 from typing import Annotated
-from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 
-from shared.contracts import AuditEvent
-from shared.contracts import UserRole
+from shared.contracts import AuditEvent, UserRole
 from shared.security import AuthenticatedPrincipal
 from shared.web import ServiceError, require_principal
 

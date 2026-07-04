@@ -1,6 +1,3 @@
-from fastapi import APIRouter, Request, HTTPException
-from pydantic import BaseModel, Field
-
 from adapters.dto import (
     BootstrapResultDTO,
     EvidenceRecordDTO,
@@ -12,8 +9,12 @@ from adapters.dto import (
 )
 from adapters.neo4j_adapter import Neo4jKnowledgeAdapter
 from adapters.schema import reset_database, seed_schema_registry
-from shared.contracts import QueryIR,GraphSubgraph
+from fastapi import APIRouter, HTTPException, Request
+from pydantic import BaseModel, Field
+
+from shared.contracts import GraphSubgraph, QueryIR
 from shared.utils.request_id import generate_request_id
+
 from ..storage import KnowledgeStorageAdapter, StorageAdapterNotReady
 
 router = APIRouter(prefix="/v1/graph", tags=["graph"])
