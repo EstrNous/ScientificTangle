@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../stores/authStore.js';
 
@@ -14,13 +15,13 @@ export default function ProfileButton() {
   const role = useAuthStore((s) => s.role);
 
   return (
-    <button
-      type="button"
+    <Link
+      to="/profile"
       aria-label={t('common.profile')}
       title={t(`roles.${role}`)}
       className="flex h-9 w-9 items-center justify-center rounded-full border border-nn-blue bg-nn-blue-light text-nn-blue transition-colors hover:bg-nn-blue hover:text-white dark:bg-slate-800 dark:hover:bg-nn-blue"
     >
       <ProfileIcon />
-    </button>
+    </Link>
   );
 }

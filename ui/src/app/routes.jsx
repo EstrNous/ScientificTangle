@@ -16,6 +16,7 @@ import SearchPage from '../pages/SearchPage.jsx';
 import RegisterPage from '../pages/RegisterPage.jsx';
 import LoginPage from '../pages/LoginPage.jsx';
 import ForgotPasswordPage from '../pages/ForgotPasswordPage.jsx';
+import ProfilePage from '../pages/ProfilePage.jsx';
 import RoleRoute from '../components/shared/RoleRoute.jsx';
 
 export const routes = [
@@ -124,6 +125,14 @@ export const routes = [
         element: (
           <RoleRoute paths={['lab', 'search']}>
             <SearchPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: '/profile',
+        element: (
+          <RoleRoute paths={['profile']}>
+            <ProfilePage />
           </RoleRoute>
         ),
       },

@@ -9,11 +9,11 @@ export const ROLES = {
 };
 
 const ROLE_PAGES = {
-  [ROLES.DIRECTOR]: ['chat', 'graph', 'strategic', 'lab', 'admin', 'upload', 'search'],
-  [ROLES.RESEARCHER]: ['chat', 'graph', 'lab', 'upload', 'search'],
-  [ROLES.ANALYST]: ['chat', 'graph', 'lab', 'upload', 'search'],
-  [ROLES.ADMIN]: ['admin', 'upload'],
-  [ROLES.EXTERNAL_PARTNER]: ['chat'],
+  [ROLES.DIRECTOR]: ['chat', 'graph', 'strategic', 'lab', 'admin', 'upload', 'search', 'profile'],
+  [ROLES.RESEARCHER]: ['chat', 'graph', 'lab', 'upload', 'search', 'profile'],
+  [ROLES.ANALYST]: ['chat', 'graph', 'lab', 'upload', 'search', 'profile'],
+  [ROLES.ADMIN]: ['admin', 'upload', 'profile'],
+  [ROLES.EXTERNAL_PARTNER]: ['chat', 'profile'],
 };
 
 export const useAuthStore = create((set) => ({
