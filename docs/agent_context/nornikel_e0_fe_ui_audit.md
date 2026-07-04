@@ -5,7 +5,7 @@
 **Этап:** E0 — baseline и аудит  
 **База:** `origin/dev` (проверка по коду, без изменений production behavior)
 
-Связанные документы: [`nornikel_parallel_execution_plan.md`](nornikel_parallel_execution_plan.md), [`top1_e0_ui_audit.md`](top1_e0_ui_audit.md) (узкий chat-аудит Top-1), [`docs/tz/mvp.md`](../tz/mvp.md).
+Связанные документы: [`nornikel_parallel_execution_plan.md`](nornikel_parallel_execution_plan.md), [`nornikel_e0_db_baseline.md`](nornikel_e0_db_baseline.md), [`nornikel_e0_bml_contract_api_eval_baseline.md`](nornikel_e0_bml_contract_api_eval_baseline.md), [`top1_e0_ui_audit.md`](top1_e0_ui_audit.md) (узкий chat-аудит Top-1), [`docs/tz/mvp.md`](../tz/mvp.md).
 
 **E0 dependency:** блокеров от других ролей нет — карточка audit-only.  
 **Live models:** не использовались; live quality gates помечены `blocked_by_policy`.

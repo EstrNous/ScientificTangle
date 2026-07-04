@@ -46,6 +46,10 @@
 - `docs/agent_context/query_pipeline.md` — сквозной пайплайн запроса user → answer.
 - `docs/agent_context/top1_parallel_execution_plan.md` — поэтапный план параллельной работы двух Backend/ML-специалистов и одного Frontend-специалиста.
 - `docs/agent_context/nornikel_parallel_execution_plan.md` — параллельный план закрытия gaps НорСинтез/ScientificTangle по ролям Databases, Backend/ML, Frontend и Validator без live model calls.
+- `docs/agent_context/nornikel_e0_db_baseline.md` — E0 storage baseline: PostgreSQL, MinIO, Neo4j, Qdrant, seed/reset gaps.
+- `docs/agent_context/nornikel_e0_bml_contract_api_eval_baseline.md` — E0 baseline контрактов, API, eval inputs и dataset checklist для E2.
+- `docs/agent_context/nornikel_e0_fe_ui_audit.md` — E0 UI audit: routes, stores, mock/live boundaries, frontend gaps E1–E7.
+- `docs/agent_context/nornikel_e0_validation_report.md` — E0 validation report: merge gate, unified gaps, blockers перед E1.
 - `docs/agent_context/top1_e0_contract_audit.md` — аудит контрактов query path и freeze points для этапов E1–E4.
 - `docs/agent_context/top1_e1_bm2_ml_policy.md` — E1 policy для классов запросов, retrieval planner rules, verification reason codes и synthesis/AnswerPayloadV2 expectations.
 - `docs/agent_context/top1_e4_bm1_eval_regression.md` — E4 pinned demo artifact, eval suites и comparison gate для regression checks.
