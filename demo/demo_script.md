@@ -15,9 +15,9 @@
 
 | Роль | Логин | Пароль по умолчанию |
 |------|-------|---------------------|
-| admin | `admin` | `admin123` |
-| researcher | `researcher` | `researcher123` |
-| manager | `director` | `director123` |
+| admin | `admin` | `admin` |
+| researcher | `researcher` | `researcher` |
+| manager | `manager` | `manager` |
 
 ## 1. Поднятие стенда
 
@@ -67,7 +67,7 @@ cd ui && RUN_UI_E2E=1 npm run test:e2e:stack
 ```bash
 export EVAL_AUTH_TOKEN="$(curl -s http://localhost/api/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"identifier":"admin","password":"admin123"}' | python -c 'import sys,json; print(json.load(sys.stdin)["access_token"])')"
+  -d '{"identifier":"admin","password":"admin"}' | python -c 'import sys,json; print(json.load(sys.stdin)["access_token"])')"
 make eval
 ```
 
@@ -100,7 +100,7 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST http://127.0.0.1/api/documents/
 
 ## 4. UI journeys (живое демо, ~15 мин)
 
-Войти как **researcher** / **researcher123**, затем при необходимости переключить роль через admin.
+Войти как **researcher** / **researcher**, затем при необходimости переключить роль через admin.
 
 ### 4.1 Вход и i18n
 
@@ -132,7 +132,7 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST http://127.0.0.1/api/documents/
 
 ### 4.5 Аналитика
 
-Войти как **director** / **director123**:
+Войти как **manager** / **manager**:
 
 1. `/strategic/coverage` — матрица покрытия направлений; экспорт PDF.
 2. `/strategic/quality` — метрики качества ответов (citation coverage, latency).
