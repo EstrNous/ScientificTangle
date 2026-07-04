@@ -247,6 +247,22 @@ class NeighborhoodFallbackResultDTO(BaseModel):
     expanded_entity_ids: list[str] = Field(default_factory=list)
 
 
+GraphExactFallbackState = Literal["none", "no_evidence", "partial", "contradiction"]
+
+
+class GraphExactSearchResultDTO(BaseModel):
+    source_span_ids: list[str] = Field(default_factory=list)
+    claim_ids: list[str] = Field(default_factory=list)
+    measurement_ids: list[str] = Field(default_factory=list)
+    evidence: list[EvidenceRecordDTO] = Field(default_factory=list)
+    conflicts: list[str] = Field(default_factory=list)
+    gaps: list[str] = Field(default_factory=list)
+    patterns_executed: list[str] = Field(default_factory=list)
+    fallback_state: GraphExactFallbackState = "none"
+    used_fallback: bool = False
+    spec_patterns: list[str] = Field(default_factory=list)
+
+
 class BootstrapResultDTO(BaseModel):
     schema_version: str
     seeded_entity_types: int = 0
