@@ -14,11 +14,11 @@ class Settings(ServiceSettings):
     minio_endpoint: str = "minio:9000"
     minio_secure: bool = False
     source_bucket: str = "source-files"
-    upload_limit_bytes: int = 100 * 1024 * 1024
+    upload_limit_bytes: int = 200 * 1024 * 1024
     libreoffice_binary: str = "soffice"
     doc_conversion_timeout_seconds: float = 60.0
     archive_max_entries: int = 200
-    archive_max_uncompressed_bytes: int = 100 * 1024 * 1024
+    archive_max_uncompressed_bytes: int = 200 * 1024 * 1024
     model_config = SettingsConfigDict(env_prefix="", env_file=".env", extra="ignore")
 
 

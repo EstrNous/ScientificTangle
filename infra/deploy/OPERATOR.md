@@ -141,7 +141,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compos
 Если поиск/чат без источников или UI «не видит» датасет:
 
 1. **Не делать** `down -v` без явной необходимости — volumes могут содержать нужные данные.
-2. **Не запускать** `scripts/seed_demo.py` на полном корпусе одним запросом — лимит upload 100 MB, будет `413`.
+2. **Не запускать** `scripts/seed_demo.py` на полном корпусе одним запросом — лимит upload 200 MB на пачку, один multipart на 2.2G даст `413`.
 3. Проверить, есть ли файлы на диске VM:
 
 ```bash
@@ -149,7 +149,7 @@ du -sh ~/ScientificTangle/demo/seed_data/yandex_disk_corpus
 find ~/ScientificTangle/demo/seed_data/yandex_disk_corpus -type f | wc -l
 ```
 
-4. Файлы на диске ≠ данные в приложении. Корпус нужно отправить через `/api/documents/upload` batch-ами (см. Task B: `scripts/seed_corpus_batches.py` после merge) или маленькими пачками через UI Upload.
+4. Файлы на диске ≠ данные в приложении. Корпус нужно отправить через `scripts/seed_corpus_batches.py` (см. ниже) или маленькими пачками через UI Upload.
 5. После каждой пачки:
 
 ```bash
@@ -174,6 +174,31 @@ make cloud-verify
 make cloud-down
 ```
 
+## 8. Загрузка корпуса batch-ами
+
+Для корпуса больше 200 MB не используйте `seed_demo.py` — он отправляет все файлы одним запросом и получит `413`.
+
+После деплоя с `--no-demo`:
+
+```bash
+python3 -m pip install -q httpx
+python3 eval/yandex_disk_corpus.py --output-dir demo/seed_data/yandex_disk_corpus
+
+ADMIN_PASS="$(grep AUTH_SEED_ADMIN_PASSWORD .env | cut -d= -f2-)"
+ADMIN_PASS="${ADMIN_PASS:-admin}"
+
+python3 scripts/seed_corpus_batches.py \
+  --api-url http://127.0.0.1/api \
+  --corpus-dir demo/seed_data/yandex_disk_corpus \
+  --username admin \
+  --password "$ADMIN_PASS" \
+  --resume
+```
+
+Если словарь уже активен, добавьте `--skip-dictionary`.
+
+Скрипт группирует файлы пачками (~80 MB), пишет прогресс в `.seed_corpus_batches_state.json` и поддерживает `--resume` после падения.
+
 ## Yandex Cloud: cloud-init (опционально)
 
 При создании VM вставьте в **user-data** содержимое `infra/deploy/yandex-cloud-init.yaml`, предварительно заменив:
@@ -187,7 +212,7 @@ make cloud-down
 |---------|---------|
 | `Health check failed` | `docker compose ... logs gateway auth_audit orchestrator`; подождать 5–10 мин после первого build |
 | Не открывается в браузере | проверить security group: порт 80 открыт; `curl http://127.0.0.1/` на VM |
-| `seed_demo` failed / `413` | полный корпус не влезает в 100 MB; используйте `--no-demo` и batch upload, не один multipart |
+| `seed_demo` failed / `413` | полный корпус не влезает в один upload; используйте `--no-demo` и `seed_corpus_batches.py` |
 | Корпус на диске, но поиск пустой | файлы не в MinIO/Postgres/Qdrant; см. раздел Recovery runbook, `./scripts/cloud_verify.sh` |
 | `/model` или `/retrieval` доступны снаружи | устаревший dev nginx; `git pull`, `docker compose ... up -d nginx` или deploy с `--https` |
 | LLM не отвечает | добавить `YANDEX_API_KEY` и `YANDEX_FOLDER_ID` в `.env`, `docker compose ... up -d model gateway` |

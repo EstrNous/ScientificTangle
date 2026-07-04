@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   mapAdminPolicy,
   mapDeleteDocumentResult,
+  mapDocumentCatalogItem,
   mapExportPayload,
   mapInterest,
   mapInterestsProfile,
@@ -81,6 +82,15 @@ describe('productApi mappers', () => {
     expect(mapAdminPolicy({ id: 'p1', document_id: 'd1', level: 'internal', export_allowed: true }).exportAllowed).toBe(
       true,
     );
+    expect(
+      mapDocumentCatalogItem({
+        document_id: 'doc-1',
+        title: 'report.pdf',
+        status: 'completed',
+        source_spans_count: 2,
+        indexed_points_count: 2,
+      }).sourceSpansCount,
+    ).toBe(2);
   });
 });
 

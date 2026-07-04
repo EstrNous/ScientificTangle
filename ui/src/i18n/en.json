@@ -434,7 +434,19 @@
     "nav": {
       "management": "Management",
       "stats": "Statistics",
-      "audit": "Audit log"
+      "audit": "Audit log",
+      "documents": "Documents"
+    },
+    "documents": {
+      "title": "Document catalog",
+      "subtitle": "Total records: {{total}}",
+      "filters": {
+        "all": "All",
+        "completed": "Indexed",
+        "failed": "Failed",
+        "noIndex": "No index",
+        "noSourceSpans": "No source spans"
+      }
     },
     "stats": {
       "summaryTitle": "Summary"

@@ -112,6 +112,27 @@ class IngestionTaskPayload(BaseModel):
     updated_at: datetime
 
 
+class DocumentCatalogItem(BaseModel):
+    document_id: str
+    title: str
+    source_path: str | None = None
+    source_type: str
+    ingestion_task_id: UUID | None = None
+    status: Literal["completed", "failed", "processing", "no_index", "no_source_spans"]
+    access_level: str = "internal"
+    source_spans_count: int = 0
+    indexed_points_count: int = 0
+    created_at: datetime
+    warnings: list[str] = Field(default_factory=list)
+    error_message: str | None = None
+
+
+class DocumentCatalogResponse(BaseModel):
+    items: list[DocumentCatalogItem] = Field(default_factory=list)
+    total: int = 0
+    filters_applied: dict = Field(default_factory=dict)
+
+
 class ApiError(BaseModel):
     code: str
     message: str

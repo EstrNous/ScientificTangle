@@ -62,7 +62,11 @@ def test_upload_forwards_authentication_and_request_id() -> None:
 
 @pytest.mark.parametrize(
     ("content", "limit", "code"),
-    [(b"", 10, "empty_file"), (b"1234", 3, "upload_too_large")],
+    [
+        (b"", 10, "empty_file"),
+        (b"1234", 3, "upload_too_large"),
+        (b"x" * 11, 10, "upload_too_large"),
+    ],
 )
 def test_upload_validation(content: bytes, limit: int, code: str) -> None:
     async def run() -> None:
@@ -79,7 +83,22 @@ def test_upload_validation(content: bytes, limit: int, code: str) -> None:
     asyncio.run(run())
 
 
-def test_delete_document_proxies_to_orchestrator() -> None:
+def test_upload_rejects_payload_above_200mb_default_limit() -> None:
+    limit = 200 * 1024 * 1024
+
+    async def run() -> None:
+        async with httpx.AsyncClient() as client:
+            service = GatewayService(client, "http://orchestrator", limit)
+            with pytest.raises(GatewayServiceError) as error:
+                await service.upload_documents(
+                    [UploadFile(file=BytesIO(b"x" * (limit + 1)), filename="large.bin")],
+                    "Bearer token",
+                    "request-1",
+                )
+            assert error.value.code == "upload_too_large"
+
+    asyncio.run(run())
+
     captured: dict[str, str] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:

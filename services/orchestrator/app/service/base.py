@@ -36,6 +36,7 @@ class BaseService:
         service_name: str,
         authorization: str | None = None,
         internal_auth: bool = False,
+        timeout: float | None = None,
     ) -> dict | list:
         headers = {"X-Request-ID": request_id}
         if authorization is not None:
@@ -48,6 +49,7 @@ class BaseService:
                 f"{base_url}{path}",
                 json=payload,
                 headers=headers,
+                timeout=timeout,
             )
             if response.status_code >= 400:
                 raise self._downstream_error(response, service_name)
