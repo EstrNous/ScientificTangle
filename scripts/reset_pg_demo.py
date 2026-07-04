@@ -9,6 +9,10 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 
 DEFAULT_TABLES = (
+    "export_artifacts",
+    "notification_match_results",
+    "extracted_entities",
+    "review_decisions",
     "audit_events",
     "role_permissions",
     "permissions",
