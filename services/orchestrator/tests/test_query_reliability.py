@@ -6,8 +6,8 @@ from uuid import uuid4
 import httpx
 import pytest
 from app.core.config import settings
-from app.service.query import QueryService
 from app.service.base import OrchestratorServiceError
+from app.service.query import QueryService
 
 from infra.postgres.orchestrator_db import QueryRun
 from shared.contracts import QueryRunStatus, UserRole

@@ -1,5 +1,3 @@
-from shared.contracts import QueryRunStatus
-
 import asyncio
 from datetime import UTC, datetime
 from uuid import uuid4
@@ -7,10 +5,9 @@ from uuid import uuid4
 import httpx
 from app.core.config import settings
 from app.service.query import QueryService
-from app.service.base import OrchestratorServiceError
 
-from infra.postgres.orchestrator_db import ExportJob, QueryRun
-from shared.contracts import UserRole
+from infra.postgres.orchestrator_db import QueryRun
+from shared.contracts import QueryRunStatus, UserRole
 from shared.security import AuthenticatedPrincipal
 
 

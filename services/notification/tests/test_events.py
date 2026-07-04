@@ -1,7 +1,5 @@
 import pytest
 
-from infra.postgres.notification_db.repository import NotificationData
-
 
 @pytest.mark.asyncio
 async def test_internal_create_event(client, fake_repository, principal) -> None:

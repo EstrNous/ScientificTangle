@@ -2,8 +2,8 @@ import asyncio
 from uuid import uuid4
 
 import httpx
-
 from app.service.matching_service import MatchingService
+
 from tests.conftest import FakeInterest, FakeRepository
 
 
