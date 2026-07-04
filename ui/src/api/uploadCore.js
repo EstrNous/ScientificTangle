@@ -39,8 +39,10 @@ export function resolveDocumentIdFromAuditEvent(event) {
   return null;
 }
 
+const DELETABLE_UPLOAD_ACTIONS = new Set(['ingestion_upload', 'document_uploaded']);
+
 export function canDeleteAuditDocument(event) {
-  return event?.action === 'ingestion_upload' && resolveDocumentIdFromAuditEvent(event) != null;
+  return DELETABLE_UPLOAD_ACTIONS.has(event?.action) && resolveDocumentIdFromAuditEvent(event) != null;
 }
 
 export function resolveUploadedDocuments(report) {
