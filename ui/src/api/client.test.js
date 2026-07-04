@@ -73,4 +73,19 @@ describe('api client', () => {
     const { apiOptions } = await import('../api/client.js');
     expect(apiOptions()).toEqual({});
   });
+
+  it('apiDelete returns null for 204 responses', async () => {
+    vi.stubEnv('VITE_USE_MOCK', 'false');
+    const axios = (await import('axios')).default;
+    const deleteSpy = vi.spyOn(axios.Axios.prototype, 'request').mockResolvedValue({
+      status: 204,
+      data: undefined,
+      headers: {},
+      config: {},
+    });
+    const { apiDelete } = await import('../api/client.js');
+    const data = await apiDelete('/documents/doc-1');
+    expect(data).toBeNull();
+    deleteSpy.mockRestore();
+  });
 });

@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import * as auth from './auth.js';
+
+vi.mock('./auth.js', () => ({
+  ensureAuth: vi.fn(async () => 'token'),
+}));
+
 import {
   canDeleteAuditDocument,
   resolveDocumentIdFromAuditEvent,
@@ -9,8 +13,8 @@ import {
 
 describe('uploadCore helpers', () => {
   afterEach(() => {
-    vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it('resolves document id from audit details', () => {
@@ -50,22 +54,19 @@ describe('uploadCore helpers', () => {
   });
 
   it('waits until ingestion task completes', async () => {
-    vi.spyOn(auth, 'ensureAuth').mockResolvedValue('token');
-    vi.stubGlobal(
-      'fetch',
-      vi
-        .fn()
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ status: 'pending' }),
-        })
-        .mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({ status: 'completed', id: 'task-1' }),
-        }),
-    );
-
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status: 'pending' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ status: 'completed', id: 'task-1' }),
+      });
+    vi.stubGlobal('fetch', fetchMock);
     const result = await waitForIngestionTask('task-1', { intervalMs: 1, timeoutMs: 1000 });
     expect(result.status).toBe('completed');
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
