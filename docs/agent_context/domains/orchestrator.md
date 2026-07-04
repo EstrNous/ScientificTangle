@@ -26,13 +26,17 @@ retrieval/v1/query → model gaps → knowledge/v1/graph/subgraph → model answ
 
 ## Export
 
-Export Markdown/JSON выполняется в orchestrator (`export_query_run`), не в export microservice. `ExportJob` сохраняется в `orchestrator_db`.
+```
+gateway → orchestrator/export_query_run → export/v1/jobs → MinIO
+```
+
+Orchestrator остаётся authoritative owner для `ExportJob`/`export_artifacts` в `orchestrator_db`: повторно проверяет доступ к `SourceSpan`, пишет audit и сохраняет metadata артефакта. Export service рендерит Markdown/JSON/JSON-LD и кладёт artifact в MinIO.
 
 ## Зависимости downstream
 
-ingestion, knowledge, retrieval, model; JWT через JWKS (auth_audit).
+ingestion, knowledge, retrieval, model, export; JWT через JWKS (auth_audit).
 
 ## Gaps
 
 - `service.py` концентрирует ingestion + query + export (~940 строк) — кандидат на декомпозицию
-- Export/notification microservices не подключены
+- Internal export call пока без service-to-service auth

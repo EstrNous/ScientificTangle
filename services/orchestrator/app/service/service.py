@@ -79,7 +79,7 @@ class OrchestratorService(BaseService):
         knowledge_url: str,
         retrieval_url: str,
         model_url: str,
-        export_url: str,
+        export_url: str = "http://export",
         query_repository: QueryRunRepository | None = None,
         enforce_active_dictionary: bool = True,
     ) -> None:

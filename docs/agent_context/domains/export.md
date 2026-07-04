@@ -4,16 +4,16 @@
 
 ## Статус
 
-`✅ MVP via orchestrator/gateway` — authoritative path: `POST /api/export` → gateway → `POST /export` в orchestrator. `services/export` остаётся reserved boundary: HTTP-сервис отдаёт только `/health` и `/ready`.
+`wired with gaps` — authoritative path: `POST /api/export` → gateway → `POST /export` в orchestrator → `POST /v1/jobs` в export → MinIO artifact. Gateway скачивает artifact напрямую из export через `GET /api/export/jobs/{id}/artifact`.
 
 ## Граница
 
-- **Orchestrator (authoritative):** `export_jobs` + `export_artifacts` в `orchestrator_db`, access revalidation, audit `document_exported`
-- **Export service:** рендер Markdown/JSON/JSON-LD, upload в MinIO bucket `exports`, job status cache (Redis/in-memory), download API
+- **Orchestrator (authoritative):** `export_jobs` + `export_artifacts` в `orchestrator_db`, access revalidation, audit `document_exported`, вызов export service
+- **Export service:** рендер Markdown/JSON/JSON-LD, upload в MinIO bucket `exports`, job status cache (Redis/in-memory), status/download API
 
 Export payload включает answer, evidence, sources, graph, gaps, conflicts, `QueryIR`, `retrieval_trace`, role/access scope, warnings и `latency_ms`. Перед выдачей orchestrator повторно resolve-ит каждый `SourceSpan`; при drift доступа возвращается `export_access_changed` и пишется audit `access_denied`.
 
-## Backlog
+## API
 
 | Endpoint | Назначение |
 |----------|------------|
@@ -25,9 +25,14 @@ Export payload включает answer, evidence, sources, graph, gaps, conflict
 ## Форматы
 
 - `markdown`, `json` — из export document
-- `jsonld` — `POST model/v1/jsonld/enrich`
+- `jsonld` — export service вызывает model enrichment
 - `pdf` — backlog (P3)
 
 ## Зависимости
 
-MinIO (`exports`), Redis, model (JSON-LD), orchestrator (caller).
+MinIO (`exports`), Redis, model (JSON-LD), auth_audit/JWT principal, orchestrator (caller), gateway (download proxy).
+
+## Gaps
+
+- Internal `POST /v1/jobs` пока не защищён service-to-service auth.
+- PDF renderer не подключён.

@@ -9,10 +9,10 @@
 | orchestrator | `orchestrator.md` | 4 — ingestion + query + export |
 | ingestion | `ingestion.md` | 4 — parsers, MinIO |
 | knowledge | `knowledge.md` | 4 — Neo4j live |
-| retrieval | `retrieval.md` | 4 — Qdrant live; hybrid gaps |
+| retrieval | `retrieval.md` | 4 — hybrid live; quality-report gap |
 | model | `model.md` | 5 — 13 v1 endpoints |
-| export | `export.md` | 2 — stub HTTP |
-| notification | `notification.md` | 2 — stub HTTP |
+| export | `export.md` | 3.5 — wired with gaps |
+| notification | `notification.md` | 3.5 — wired with gaps |
 
 **Сводка vs ТЗ:** [`implementation_quality_report.md`](../implementation_quality_report.md)  
 **ML статус:** [`ml_mvp_status.md`](../ml_mvp_status.md)  
