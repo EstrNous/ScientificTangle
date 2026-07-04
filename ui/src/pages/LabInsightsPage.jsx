@@ -5,13 +5,10 @@ import Loader from '../components/shared/Loader.jsx';
 import PdfDownloadButton from '../components/shared/PdfDownloadButton.jsx';
 import { GapAnalysisView, GapConflictView, LabSubNav } from '../components/lab/index.js';
 import { ensureAuth } from '../api/auth.js';
+import { getApiErrorMessage } from '../api/errors.js';
 import { fetchLabCoverage } from '../api/lab.js';
 import { captureElementImage } from '../utils/captureElement.js';
 import { exportLabInsightsPdf } from '../utils/pagePdfExport.js';
-
-function getApiErrorMessage(error, fallback) {
-  return error?.response?.data?.message ?? error?.message ?? fallback;
-}
 
 export default function LabInsightsPage() {
   const { t, i18n } = useTranslation();
@@ -60,7 +57,7 @@ export default function LabInsightsPage() {
     return (
       <PageShell>
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
-          {error}
+          {t(`lab.errors.${error}`, { defaultValue: error })}
         </div>
       </PageShell>
     );

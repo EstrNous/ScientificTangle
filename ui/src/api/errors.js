@@ -1,3 +1,11 @@
+export function getApiErrorMessage(error, fallbackCode = 'request_failed') {
+  const message = error?.response?.data?.message ?? error?.message;
+  if (typeof message === 'string' && message.length > 0) {
+    return message;
+  }
+  return fallbackCode;
+}
+
 export function mapApiError(error, fallbackCode = 'request_failed') {
   const status = error?.response?.status;
   if (status === 403) {

@@ -5,6 +5,7 @@ import Loader from '../components/shared/Loader.jsx';
 import { ErrorBanner } from '../components/shared/PageState.jsx';
 import { ChatSidebar, ChatWindow, ChatInput } from '../components/chat/index.js';
 import { ensureAuth } from '../api/auth.js';
+import { getApiErrorMessage } from '../api/errors.js';
 import {
   createChatSession,
   deleteChatSession,
@@ -12,16 +13,7 @@ import {
   fetchChatSessions,
 } from '../api/chat.js';
 import { useChatAnswerFlow } from '../hooks/useChatAnswerFlow.js';
-
-function sessionTitleFromText(text) {
-  const trimmed = text.trim();
-  if (!trimmed) return 'Новый запрос';
-  return trimmed.length > 64 ? `${trimmed.slice(0, 61)}…` : trimmed;
-}
-
-function getApiErrorMessage(error, fallback) {
-  return error?.response?.data?.message ?? error?.message ?? fallback;
-}
+import { isEmptyDraftSession, sessionTitleFromText } from '../utils/chatSession.js';
 
 export default function ChatPage() {
   const { t } = useTranslation();
@@ -31,6 +23,7 @@ export default function ChatPage() {
   const [activeId, setActiveId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [creatingChat, setCreatingChat] = useState(false);
   const {
     phase,
     retrievalTrace,
@@ -41,6 +34,7 @@ export default function ChatPage() {
     isActive,
     streamingUxEnabled,
     sendAnswerQuery,
+    reset,
   } = useChatAnswerFlow();
 
   useEffect(() => {
@@ -91,6 +85,42 @@ export default function ChatPage() {
 
   if (loading) return <Loader />;
 
+  const defaultSessionTitle = t('chat.defaultSessionTitle');
+
+  const handleSelectSession = (id) => {
+    if (id !== activeId) {
+      reset();
+    }
+    setActiveId(id);
+    setSidebarOpen(false);
+  };
+
+  const handleNewChat = async () => {
+    if (creatingChat || isActive) return;
+
+    setError(null);
+
+    if (isEmptyDraftSession(activeSession, messages, defaultSessionTitle)) {
+      reset();
+      setSidebarOpen(false);
+      return;
+    }
+
+    setCreatingChat(true);
+    try {
+      const created = await createChatSession(defaultSessionTitle);
+      reset();
+      setSessions((prev) => [created, ...prev]);
+      setActiveId(created.id);
+      setMessages([]);
+      setSidebarOpen(false);
+    } catch (createError) {
+      setError(getApiErrorMessage(createError, 'chat_create_failed'));
+    } finally {
+      setCreatingChat(false);
+    }
+  };
+
   const handleSend = async ({ text, files }) => {
     if (isActive || !text.trim()) return;
 
@@ -108,7 +138,7 @@ export default function ChatPage() {
 
     try {
       if (!sessionId) {
-        const created = await createChatSession(sessionTitleFromText(text));
+        const created = await createChatSession(sessionTitleFromText(text, defaultSessionTitle));
         sessionId = created.id;
         setSessions((prev) => [created, ...prev]);
         setActiveId(sessionId);
@@ -120,7 +150,7 @@ export default function ChatPage() {
       setSessions((prev) =>
         prev.map((session) =>
           session.id === sessionId
-            ? { ...session, title: session.title || sessionTitleFromText(text) }
+            ? { ...session, title: session.title || sessionTitleFromText(text, defaultSessionTitle) }
             : session,
         ),
       );
@@ -147,6 +177,7 @@ export default function ChatPage() {
         const next = prev.filter((s) => s.id !== id);
         if (activeId === id) {
           const nextActive = next[0]?.id ?? null;
+          reset();
           setActiveId(nextActive);
           if (!nextActive) setMessages([]);
         }
@@ -164,11 +195,19 @@ export default function ChatPage() {
       {error && (
         <ErrorBanner
           className="mb-3"
-          message={t('chat.backendError', { message: error })}
+          message={t(`chat.errors.${error}`, { defaultValue: error })}
         />
       )}
       <div className="flex h-full min-h-0 flex-col lg:flex-row">
         <div className="mb-2 flex shrink-0 items-center gap-2 lg:hidden">
+          <button
+            type="button"
+            onClick={handleNewChat}
+            disabled={creatingChat || isActive}
+            className="rounded-lg border border-nn-border px-3 py-1.5 text-sm text-gray-900 transition-colors hover:bg-nn-gray-light disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800"
+          >
+            {t('chat.newChat')}
+          </button>
           <button
             type="button"
             onClick={() => setSidebarOpen((open) => !open)}
@@ -182,11 +221,10 @@ export default function ChatPage() {
           className={sidebarOpen ? 'flex' : 'hidden lg:flex'}
           sessions={sessions}
           activeId={activeId}
-          onSelect={(id) => {
-            setActiveId(id);
-            setSidebarOpen(false);
-          }}
+          onSelect={handleSelectSession}
           onDelete={handleDeleteSession}
+          onNewChat={handleNewChat}
+          creatingChat={creatingChat || isActive}
           sessionId={activeId}
           sessionTitle={activeSession?.title}
           messages={messages}

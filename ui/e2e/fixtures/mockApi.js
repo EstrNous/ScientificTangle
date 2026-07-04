@@ -21,6 +21,18 @@ function routeMatch(url, pattern) {
   return path === pattern || path.startsWith(`${pattern}/`);
 }
 
+function chatSessionsListPath(pathname) {
+  return pathname === '/api/chat/sessions';
+}
+
+function chatSessionMessagesPath(pathname) {
+  return /^\/api\/chat\/sessions\/[^/]+\/messages$/.test(pathname);
+}
+
+function chatSessionItemPath(pathname) {
+  return /^\/api\/chat\/sessions\/[^/]+$/.test(pathname);
+}
+
 export function createMockState() {
   return {
     user: DIRECTOR_USER,
@@ -156,6 +168,8 @@ export function createMockState() {
       content: '{"query_run":"run-e2e-1"}',
       content_type: 'application/json',
     },
+    chatSessions: [],
+    chatMessagesBySession: {},
   };
 }
 
@@ -166,6 +180,7 @@ export async function installProductionApiMocks(page) {
     const request = route.request();
     const url = request.url();
     const method = request.method();
+    const pathname = new URL(url).pathname;
 
     if (routeMatch(url, '/api/auth/login') && method === 'POST') {
       await route.fulfill(json({ access_token: ACCESS_TOKEN, user: state.user }));
@@ -177,8 +192,37 @@ export async function installProductionApiMocks(page) {
       return;
     }
 
-    if (routeMatch(url, '/api/chat/sessions') && method === 'GET') {
-      await route.fulfill(json([]));
+    if (chatSessionMessagesPath(pathname) && method === 'GET') {
+      const sessionId = pathname.split('/')[4];
+      await route.fulfill(json(state.chatMessagesBySession[sessionId] ?? []));
+      return;
+    }
+
+    if (chatSessionItemPath(pathname) && method === 'DELETE') {
+      const sessionId = pathname.split('/').pop();
+      state.chatSessions = state.chatSessions.filter((item) => item.id !== sessionId);
+      delete state.chatMessagesBySession[sessionId];
+      await route.fulfill({ status: 204, body: '' });
+      return;
+    }
+
+    if (chatSessionsListPath(pathname) && method === 'GET') {
+      await route.fulfill(json(state.chatSessions));
+      return;
+    }
+
+    if (chatSessionsListPath(pathname) && method === 'POST') {
+      const body = request.postDataJSON();
+      const now = new Date().toISOString();
+      const session = {
+        id: `session-${Date.now()}`,
+        title: body.title ?? 'Новый запрос',
+        created_at: now,
+        updated_at: now,
+      };
+      state.chatSessions.unshift(session);
+      state.chatMessagesBySession[session.id] = [];
+      await route.fulfill(json(session, 201));
       return;
     }
 

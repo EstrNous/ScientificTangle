@@ -13,6 +13,7 @@ import {
 } from '../components/graph/index.js';
 import { ALL_GRAPH_NODE_TYPES } from '../components/graph/graphNodeTypes.js';
 import { ensureAuth } from '../api/auth.js';
+import { getApiErrorMessage } from '../api/errors.js';
 import { fetchGraphData, fetchSearchCatalog } from '../api/graph.js';
 import { filterGraphSearchResults } from '../utils/graphSearch.js';
 import { filterEntitiesByNodeTypes, filterSubgraphByNodeTypes } from '../utils/graphFilters.js';
@@ -22,10 +23,6 @@ const PANELS = {
   VERIFICATION: 'verification',
   SEARCH: 'search',
 };
-
-function getApiErrorMessage(error, fallback) {
-  return error?.response?.data?.message ?? error?.message ?? fallback;
-}
 
 export default function GraphPage() {
   const { t } = useTranslation();
@@ -179,7 +176,7 @@ export default function GraphPage() {
     return (
       <PageShell>
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
-          {error}
+          {t(`graph.errors.${error}`, { defaultValue: error })}
         </div>
       </PageShell>
     );

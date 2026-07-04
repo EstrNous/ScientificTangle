@@ -13,13 +13,10 @@ import {
   MatrixConfigPanel,
 } from '../components/lab/index.js';
 import { ensureAuth } from '../api/auth.js';
+import { getApiErrorMessage } from '../api/errors.js';
 import { fetchLabCoverage } from '../api/lab.js';
 import { captureElementImage, waitForPaint } from '../utils/captureElement.js';
 import { exportLabMatrixPdf } from '../utils/pagePdfExport.js';
-
-function getApiErrorMessage(error, fallback) {
-  return error?.response?.data?.message ?? error?.message ?? fallback;
-}
 
 export default function LabMatrixPage() {
   const { t, i18n } = useTranslation();
@@ -97,7 +94,7 @@ export default function LabMatrixPage() {
     return (
       <PageShell>
         <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
-          {error}
+          {t(`lab.errors.${error}`, { defaultValue: error })}
         </div>
       </PageShell>
     );

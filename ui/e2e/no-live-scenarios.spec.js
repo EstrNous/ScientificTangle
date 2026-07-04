@@ -77,6 +77,13 @@ test.describe('E6 no-live UI scenarios @offline', () => {
     await expect(page.getByRole('button', { name: /Скачать JSON-LD/i })).toBeDisabled();
   });
 
+  test('scenario 5c: new chat creates session in history', async ({ page }) => {
+    await page.goto('/chat');
+    await page.getByRole('button', { name: 'Новый чат' }).first().click();
+    await expect(page.getByRole('button', { name: 'Новый запрос' })).toBeVisible();
+    await expect(page.getByText('Задайте вопрос, чтобы начать диалог')).toBeVisible();
+  });
+
   test('scenario 6: admin save all persists dirty rows', async ({ page }) => {
     await page.goto('/admin');
     const roleSelect = page.locator('select').first();
