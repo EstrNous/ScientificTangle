@@ -31,7 +31,7 @@ USER appuser
 
 EXPOSE 8008
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=5 \
     CMD python -c "import httpx; response = httpx.get('http://localhost:8008/health'); assert response.status_code == 200"
 
 CMD ["sh", "-c", "cd /app/infra/postgres/notification_db && alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8008"]

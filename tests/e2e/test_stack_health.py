@@ -15,8 +15,6 @@ BASE_SERVICE_URLS = {
     "ingestion": "http://localhost:8003",
     "knowledge": "http://localhost:8004",
     "retrieval": "http://localhost:8005",
-    "export": "http://localhost:8007",
-    "notification": "http://localhost:8008",
 }
 
 MODEL_SERVICE_URL = ("model", "http://localhost:8006")

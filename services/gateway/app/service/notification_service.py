@@ -11,6 +11,7 @@ from shared.contracts import (
     UserInterestsUpdatePayload,
 )
 from shared.security import AuthenticatedPrincipal
+from shared.web import INTERNAL_SERVICE_TOKEN_HEADER
 
 from ..core.config import settings
 
@@ -28,9 +29,15 @@ class NotificationService:
         self,
         client: httpx.AsyncClient,
         notification_url: str | None = None,
+        internal_service_token: str | None = None,
     ) -> None:
         self._client = client
         self._notification_url = (notification_url or settings.notification_url).rstrip("/")
+        self._internal_service_token = (
+            internal_service_token
+            if internal_service_token is not None
+            else settings.internal_service_token
+        )
 
     async def list_notifications(
         self,
@@ -130,7 +137,10 @@ class NotificationService:
                     "match_reason": match_reason,
                     "match_payload": match_payload,
                 },
-                headers={"X-Request-ID": request_id},
+                headers={
+                    "X-Request-ID": request_id,
+                    INTERNAL_SERVICE_TOKEN_HEADER: self._internal_service_token,
+                },
             )
         except httpx.HTTPError:
             return

@@ -6,12 +6,17 @@ from pydantic import BaseModel, Field
 
 from infra.postgres.notification_db.repository import NotificationData
 from shared.contracts import NotificationPayload
+from shared.web import require_internal_service
 
 from ..core.dependencies import get_matching_service, get_notification_service
 from ..service.matching_service import MatchingService
 from ..service.notification_service import NotificationService
 
-router = APIRouter(prefix="/internal/v1", tags=["internal"])
+router = APIRouter(
+    prefix="/internal/v1",
+    tags=["internal"],
+    dependencies=[Depends(require_internal_service)],
+)
 
 
 class NotificationEventCreate(BaseModel):

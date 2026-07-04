@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response
 
 from shared.security import AuthenticatedPrincipal
-from shared.web import ServiceError, require_principal
+from shared.web import ServiceError, require_internal_service, require_principal
 
 from ..schemas import ExportJobCreateRequest, ExportJobProcessResponse, ExportJobStatusResponse
 from ..service.service import ExportService, ExportServiceError
@@ -26,6 +26,7 @@ async def create_job(
     request: Request,
     payload: ExportJobCreateRequest,
     service: Annotated[ExportService, Depends(get_export_service)],
+    _: Annotated[None, Depends(require_internal_service)],
 ) -> ExportJobProcessResponse:
     try:
         return await service.create_job(payload, request.state.request_id)

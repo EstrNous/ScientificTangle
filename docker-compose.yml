@@ -121,6 +121,12 @@ services:
     environment:
       GATEWAY_DATABASE_URL: postgresql+asyncpg://st_user:st_pass@postgres:5432/scientific_tangle
       POSTGRES_URL: postgresql+asyncpg://st_user:st_pass@postgres:5432/scientific_tangle
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; r=httpx.get('http://localhost:8000/health'); assert r.status_code == 200"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
     depends_on:
       postgres:
         condition: service_healthy
@@ -285,8 +291,6 @@ services:
         SERVICE_DIR: services/export
         SERVICE_PORT: 8007
     container_name: st-export
-    ports:
-      - "8007:8007"
     env_file: .env
     depends_on:
       minio:
@@ -306,9 +310,13 @@ services:
       context: .
       dockerfile: services/notification/Dockerfile
     container_name: st-notification
-    ports:
-      - "8008:8008"
     env_file: .env
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; r=httpx.get('http://localhost:8008/health'); assert r.status_code == 200"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
     depends_on:
       postgres:
         condition: service_healthy

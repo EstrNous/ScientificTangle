@@ -27,6 +27,8 @@ def create_app(resolved_settings: Settings | None = None) -> FastAPI:
         from infra.postgres.notification_db.database import create_database
 
         logger = structlog.get_logger()
+        if not resolved.internal_service_token:
+            logger.warning("internal_service_token_not_configured")
         engine, session_factory = create_database(resolved.postgres_url)
         http_client = httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=5.0))
         app.state.engine = engine
@@ -40,6 +42,7 @@ def create_app(resolved_settings: Settings | None = None) -> FastAPI:
             clock_skew_seconds=resolved.auth_clock_skew_seconds,
             client=http_client,
         )
+        app.state.internal_service_token = resolved.internal_service_token
         logger.info("service_started", service=resolved.service_name, port=resolved.port)
         yield
         await http_client.aclose()

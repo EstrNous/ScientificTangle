@@ -15,5 +15,6 @@ class ServiceSettings(BaseSettings):
     minio_url: str = "http://minio:9000"
     minio_access_key: str = "minioadmin"
     minio_secret_key: str = "minioadmin123"
+    internal_service_token: str = ""
 
     model_config = SettingsConfigDict(env_prefix="", env_file=".env", extra="ignore")

@@ -102,7 +102,13 @@ def notification_service(fake_repository: FakeRepository) -> NotificationService
 def test_app(fake_repository: FakeRepository, principal: AuthenticatedPrincipal):
     from unittest.mock import AsyncMock
 
-    app = create_app(Settings(service_name="notification-test"))
+    app = create_app(
+        Settings(
+            service_name="notification-test",
+            internal_service_token="test-internal-token",
+        )
+    )
+    app.state.internal_service_token = "test-internal-token"
     app.state.jwt_validator = AsyncMock()
     app.state.jwt_validator.validate = AsyncMock(return_value=principal)
     app.state.http_client = None
@@ -119,5 +125,9 @@ def test_app(fake_repository: FakeRepository, principal: AuthenticatedPrincipal)
 @pytest.fixture
 async def client(test_app):
     transport = ASGITransport(app=test_app)
-    async with AsyncClient(transport=transport, base_url="http://test") as async_client:
+    async with AsyncClient(
+        transport=transport,
+        base_url="http://test",
+        headers={"X-Internal-Service-Token": "test-internal-token"},
+    ) as async_client:
         yield async_client

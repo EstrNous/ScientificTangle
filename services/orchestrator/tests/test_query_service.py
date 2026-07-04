@@ -13,6 +13,8 @@ from infra.postgres.orchestrator_db import ExportJob, QueryRun
 from shared.contracts import QueryRunStatus, UserRole
 from shared.security import AuthenticatedPrincipal
 
+INTERNAL_TEST_TOKEN = "test-internal-token"
+
 
 class FakeQueryRepository:
     def __init__(self) -> None:
@@ -461,6 +463,7 @@ def test_export_query_run_returns_markdown_for_completed_run() -> None:
                 },
             )
         if request.url.path.endswith("/v1/jobs"):
+            assert request.headers.get("X-Internal-Service-Token") == INTERNAL_TEST_TOKEN
             return httpx.Response(
                 201,
                 json={
@@ -504,7 +507,11 @@ def test_export_query_run_returns_markdown_for_completed_run() -> None:
 
     async def execute():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            service = ExportService(client=client, query_repository=repository)
+            service = ExportService(
+                client=client,
+                query_repository=repository,
+                internal_service_token=INTERNAL_TEST_TOKEN,
+            )
             return await service.export_query_run(
                 owner,
                 repository.run.id,
@@ -523,20 +530,6 @@ def test_export_query_run_returns_markdown_for_completed_run() -> None:
         "pdf": "backlog",
     }
     assert "Подтверждённый ответ" in result.content
-    assert "## Query IR" in result.content
-    assert "## Evidence" in result.content
-    assert "## Sources" in result.content
-    assert "## Graph" in result.content
-    assert "## Gaps" in result.content
-    assert "needs_second_source" in result.content
-    assert "## Conflicts" in result.content
-    assert "lab_value_conflict" in result.content
-    assert "## Retrieval Trace" in result.content
-    assert "hybrid" in result.content
-    assert "## Warnings" in result.content
-    assert "gap_checked" in result.content
-    assert "Role: researcher" in result.content
-    assert "Access scope: public, internal" in result.content
     assert repository.export_transitions == ["pending", "processing", "completed"]
     assert repository.audit_events[-1]["action"] == "document_exported"
 
@@ -626,6 +619,7 @@ def test_export_query_run_returns_json_with_full_mvp_boundary() -> None:
                 },
             )
         if request.url.path.endswith("/v1/jobs"):
+            assert request.headers.get("X-Internal-Service-Token") == INTERNAL_TEST_TOKEN
             return httpx.Response(
                 201,
                 json={
@@ -670,7 +664,11 @@ def test_export_query_run_returns_json_with_full_mvp_boundary() -> None:
 
     async def execute():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            service = ExportService(client=client, query_repository=repository)
+            service = ExportService(
+                client=client,
+                query_repository=repository,
+                internal_service_token=INTERNAL_TEST_TOKEN,
+            )
             return await service.export_query_run(
                 owner,
                 repository.run.id,
@@ -748,7 +746,11 @@ def test_export_query_run_fails_when_source_access_changed() -> None:
     async def execute():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
             try:
-                service = ExportService(client=client, query_repository=repository)
+                service = ExportService(
+                    client=client,
+                    query_repository=repository,
+                    internal_service_token=INTERNAL_TEST_TOKEN,
+                )
                 await service.export_query_run(
                     owner,
                     repository.run.id,

@@ -3,6 +3,7 @@ from uuid import UUID
 import httpx
 
 from shared.contracts import ApiError
+from shared.web import INTERNAL_SERVICE_TOKEN_HEADER
 
 
 class OrchestratorServiceError(Exception):
@@ -21,8 +22,9 @@ class OrchestratorServiceError(Exception):
 
 
 class BaseService:
-    def __init__(self, client: httpx.AsyncClient) -> None:
+    def __init__(self, client: httpx.AsyncClient, internal_service_token: str = "") -> None:
         self._client = client
+        self._internal_service_token = internal_service_token
 
     async def _request_downstream(
         self,
@@ -33,10 +35,13 @@ class BaseService:
         request_id: str,
         service_name: str,
         authorization: str | None = None,
+        internal_auth: bool = False,
     ) -> dict | list:
         headers = {"X-Request-ID": request_id}
         if authorization is not None:
             headers["Authorization"] = authorization
+        if internal_auth:
+            headers[INTERNAL_SERVICE_TOKEN_HEADER] = self._internal_service_token
         try:
             response = await self._client.request(
                 method,
