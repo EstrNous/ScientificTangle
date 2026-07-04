@@ -63,7 +63,7 @@
 | Review/delete skeleton 501 | `review.py`, `documents.py` | **pass** — честные `*_not_implemented` до E3 |
 | E1 DTO exported | `shared/contracts/__init__.py` | **pass** |
 | Mock layer расширен без удаления | `ui/src/api/mock/index.js` | **pass** |
-| `VITE_USE_MOCK` default сохранён | `client.js` `useMock = !== 'false'` | **pass** |
+| `VITE_USE_MOCK` default live | `utils/runtimeMode.js` `=== 'true'` | **pass** |
 
 ---
 

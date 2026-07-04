@@ -168,7 +168,6 @@ flowchart TB
 |----------|-----|---------|
 | Orchestrator god-service | `orchestrator/app/service/service.py` | Сложность эволюции |
 | UI mock в production path | SourceLink, EvidenceTable, SourceDocumentContext (10 файлов) | Неверные source refs |
-| `VITE_USE_MOCK` default true | `ui/src/api/client.js` | Demo vs real расхождение |
 | Admin без persist | `AdminPage.jsx` | Изменения ролей не сохраняются |
 | Doc drift | `audit_report.md`, `domains/retrieval.md` | Устаревший статус инфра |
 | Нет pytest-cov | CI | Покрытие неизмеряется |

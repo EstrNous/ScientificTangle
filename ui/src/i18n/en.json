@@ -31,7 +31,8 @@
     "downloadPdf": "Download PDF",
     "downloadingPdf": "PDF…",
     "exportedAt": "Exported: {{date}}",
-    "retry": "Retry"
+    "retry": "Retry",
+    "mockModeActive": "Mock mode: data comes from local fixtures, not the backend. For live API use npm run dev or VITE_USE_MOCK=false."
   },
   "errors": {
     "boundaryTitle": "Interface error",

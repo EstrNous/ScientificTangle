@@ -106,9 +106,9 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 
 ### UI (`ui/`)
 
-Фронтенд-приложение Vite + React. Работает автономно на mock API (`VITE_USE_MOCK=true`).
+Фронтенд-приложение Vite + React. По умолчанию работает с real API (`VITE_USE_MOCK=false`); mock включается явно (`VITE_USE_MOCK=true` или `npm run dev:mock`).
 
-- `ui/package.json` — зависимости и скрипты (`dev`, `build`, `preview`, `lint`).
+- `ui/package.json` — зависимости и скрипты (`dev`, `dev:mock`, `build`, `preview`, `lint`).
 - `ui/vite.config.js` — Vite, proxy `/api` → Gateway.
 - `ui/tailwind.config.js`, `ui/postcss.config.js` — Tailwind CSS.
 - `ui/index.html` — точка входа HTML.

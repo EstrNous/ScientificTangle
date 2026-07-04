@@ -6,6 +6,7 @@
   "description": "UI для системы Научный Клубок — доказательная карта R&D знаний горно-металлургической отрасли",
   "scripts": {
     "dev": "vite",
+    "dev:mock": "vite --mode mock",
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",

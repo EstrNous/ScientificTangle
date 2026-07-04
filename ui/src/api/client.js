@@ -1,14 +1,22 @@
 import axios from 'axios';
+import { useMock } from '../utils/runtimeMode.js';
 import { ensureAuth, authHeaders } from './auth.js';
 import { mockFetch } from './mock/index.js';
 
-const useMock = import.meta.env.VITE_USE_MOCK !== 'false';
 const baseURL = import.meta.env.VITE_API_URL || '/api';
 
 const http = axios.create({ baseURL, timeout: 120000 });
 
+function usesLiveHttp(options = {}) {
+  return !useMock || Boolean(options.real);
+}
+
+function usesMockFetch(options = {}) {
+  return useMock && !options.real;
+}
+
 async function authorizedConfig(options = {}) {
-  if (!options.real) return options;
+  if (!usesLiveHttp(options)) return options;
   const token = await ensureAuth();
   return {
     ...options,
@@ -20,7 +28,7 @@ async function authorizedConfig(options = {}) {
 }
 
 export async function apiGet(path, options = {}) {
-  if (useMock && !options.real) {
+  if (usesMockFetch(options)) {
     return mockFetch(path.replace(/^\//, ''), options);
   }
   const { data } = await http.get(path, await authorizedConfig(options));
@@ -28,7 +36,7 @@ export async function apiGet(path, options = {}) {
 }
 
 export async function apiPost(path, body, options = {}) {
-  if (useMock && !options.real) {
+  if (usesMockFetch(options)) {
     return mockFetch(path.replace(/^\//, ''), { ...options, method: 'POST', body });
   }
   const response = await http.post(path, body, await authorizedConfig(options));
@@ -39,7 +47,7 @@ export async function apiPost(path, body, options = {}) {
 }
 
 export async function apiPut(path, body, options = {}) {
-  if (useMock && !options.real) {
+  if (usesMockFetch(options)) {
     return mockFetch(path.replace(/^\//, ''), { ...options, method: 'PUT', body });
   }
   const response = await http.put(path, body, await authorizedConfig(options));
@@ -50,7 +58,7 @@ export async function apiPut(path, body, options = {}) {
 }
 
 export async function apiPatch(path, body, options = {}) {
-  if (useMock && !options.real) {
+  if (usesMockFetch(options)) {
     return mockFetch(path.replace(/^\//, ''), { ...options, method: 'PATCH', body });
   }
   const response = await http.patch(path, body, await authorizedConfig(options));
@@ -61,7 +69,7 @@ export async function apiPatch(path, body, options = {}) {
 }
 
 export async function apiDelete(path, options = {}) {
-  if (useMock && !options.real) {
+  if (usesMockFetch(options)) {
     return mockFetch(path.replace(/^\//, ''), { ...options, method: 'DELETE' });
   }
   const { data } = await http.delete(path, await authorizedConfig(options));

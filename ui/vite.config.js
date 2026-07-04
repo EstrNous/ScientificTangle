@@ -15,12 +15,14 @@ function modeDefine(mode) {
       Object.entries(DEMO_ENV).map(([key, value]) => [`import.meta.env.${key}`, JSON.stringify(value)]),
     );
   }
-  if (mode === 'production') {
+  if (mode === 'mock') {
     return {
-      'import.meta.env.VITE_USE_MOCK': JSON.stringify('false'),
+      'import.meta.env.VITE_USE_MOCK': JSON.stringify('true'),
     };
   }
-  return {};
+  return {
+    'import.meta.env.VITE_USE_MOCK': JSON.stringify(process.env.VITE_USE_MOCK ?? 'false'),
+  };
 }
 
 export default defineConfig(({ mode }) => ({

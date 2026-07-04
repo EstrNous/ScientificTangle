@@ -1,7 +1,6 @@
 import axios from 'axios';
+import { useMock } from '../utils/runtimeMode.js';
 import { ROLES, useAuthStore } from '../stores/authStore.js';
-
-const useMock = import.meta.env.VITE_USE_MOCK !== 'false';
 
 const authHttp = axios.create({
   baseURL: import.meta.env.VITE_AUTH_URL || '',
@@ -84,18 +83,17 @@ export async function ensureAuth() {
   const state = useAuthStore.getState();
   if (state.accessToken) return state.accessToken;
 
+  if (!useMock) {
+    throw new Error('auth_required');
+  }
+
   const identifier = import.meta.env.VITE_AUTH_USERNAME;
   const password = import.meta.env.VITE_AUTH_PASSWORD;
   if (!identifier || !password) {
     throw new Error('auth_credentials_missing');
   }
 
-  if (useMock) {
-    return applyMockAuth(identifier);
-  }
-
-  const data = await login(identifier, password);
-  return data.access_token;
+  return applyMockAuth(identifier);
 }
 
 export function authHeaders(token) {

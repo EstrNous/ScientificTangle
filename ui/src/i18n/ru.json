@@ -31,7 +31,8 @@
     "downloadPdf": "Скачать PDF",
     "downloadingPdf": "PDF…",
     "exportedAt": "Экспорт: {{date}}",
-    "retry": "Повторить"
+    "retry": "Повторить",
+    "mockModeActive": "Режим mock: данные из локальных заглушек, не с backend. Для live API используйте npm run dev или VITE_USE_MOCK=false."
   },
   "errors": {
     "boundaryTitle": "Ошибка интерфейса",
