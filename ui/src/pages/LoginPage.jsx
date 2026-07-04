@@ -9,6 +9,8 @@ import {
   authSubmitClassName,
 } from '../components/auth/authFormStyles.js';
 import { login, mapAuthError } from '../api/auth.js';
+import { useAuthStore } from '../stores/authStore.js';
+import { resolvePostAuthPath } from '../utils/authNavigation.js';
 import { validateLoginForm } from '../utils/authValidation.js';
 
 export default function LoginPage() {
@@ -36,7 +38,8 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(identifier.trim(), password);
-      navigate(returnUrl.startsWith('/') ? returnUrl : '/chat', { replace: true });
+      const role = useAuthStore.getState().role;
+      navigate(resolvePostAuthPath(role, returnUrl), { replace: true });
     } catch (error) {
       const code = mapAuthError(error);
       setSubmitError(code);

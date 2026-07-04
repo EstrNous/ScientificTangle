@@ -1,9 +1,10 @@
 import { apiDelete, apiGet, apiPost } from './client.js';
+import { normalizeListResponse } from '../utils/listResponse.js';
 
 const real = { real: true };
 
 export function fetchChatSessions() {
-  return apiGet('/chat/sessions', real);
+  return apiGet('/chat/sessions', real).then(normalizeListResponse);
 }
 
 export function createChatSession(title) {
@@ -15,7 +16,7 @@ export function deleteChatSession(sessionId) {
 }
 
 export function fetchChatMessages(sessionId) {
-  return apiGet(`/chat/sessions/${sessionId}/messages`, real);
+  return apiGet(`/chat/sessions/${sessionId}/messages`, real).then(normalizeListResponse);
 }
 
 export function sendChatMessage(sessionId, content) {

@@ -191,17 +191,35 @@ export async function changePassword({ currentPassword, newPassword }) {
 }
 
 export async function logout() {
-  if (!useMock) {
-    await authHttp.post('/api/auth/logout', {}, authorizedConfig());
+  let error;
+  try {
+    if (!useMock) {
+      await authHttp.post('/api/auth/logout', {}, authorizedConfig());
+    }
+  } catch (caught) {
+    error = caught;
+  } finally {
+    useAuthStore.getState().clearAuth();
   }
-  useAuthStore.getState().clearAuth();
+  if (error) {
+    throw error;
+  }
 }
 
 export async function logoutAll() {
-  if (!useMock) {
-    await authHttp.post('/api/auth/logout-all', {}, authorizedConfig());
+  let error;
+  try {
+    if (!useMock) {
+      await authHttp.post('/api/auth/logout-all', {}, authorizedConfig());
+    }
+  } catch (caught) {
+    error = caught;
+  } finally {
+    useAuthStore.getState().clearAuth();
   }
-  useAuthStore.getState().clearAuth();
+  if (error) {
+    throw error;
+  }
 }
 
 export async function deactivateAccount(currentPassword) {

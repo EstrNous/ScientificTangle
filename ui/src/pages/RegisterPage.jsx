@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import AuthActionLink from '../components/auth/AuthActionLink.jsx';
 import { authInputClassName, authOutlineButtonClassName, authSubmitClassName } from '../components/auth/authFormStyles.js';
 import { mapAuthError, register } from '../api/auth.js';
+import { useAuthStore } from '../stores/authStore.js';
+import { getDefaultRouteForRole } from '../utils/authNavigation.js';
 import { validateRegisterForm } from '../utils/authValidation.js';
 
 export default function RegisterPage() {
@@ -36,7 +38,8 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await register(username.trim(), email.trim(), password);
-      navigate('/chat', { replace: true });
+      const role = useAuthStore.getState().role;
+      navigate(getDefaultRouteForRole(role), { replace: true });
     } catch (error) {
       const code = mapAuthError(error);
       setSubmitError(code);

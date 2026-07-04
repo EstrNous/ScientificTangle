@@ -7,6 +7,7 @@ export default function ProfileSection({
   title,
   summary,
   editing = false,
+  editable = true,
   onEdit,
   onCancel,
   children,
@@ -15,6 +16,7 @@ export default function ProfileSection({
   compact = false,
 }) {
   const { t } = useTranslation();
+  const expanded = editable ? editing : true;
 
   return (
     <section
@@ -32,18 +34,19 @@ export default function ProfileSection({
         ) : (
           <span />
         )}
-        {!editing ? (
-          <button type="button" onClick={onEdit} className={editButtonClassName}>
-            {t('profile.edit')}
-          </button>
-        ) : (
-          <button type="button" onClick={onCancel} className={editButtonClassName}>
-            {t('profile.cancel')}
-          </button>
-        )}
+        {editable &&
+          (!editing ? (
+            <button type="button" onClick={onEdit} className={editButtonClassName}>
+              {t('profile.edit')}
+            </button>
+          ) : (
+            <button type="button" onClick={onCancel} className={editButtonClassName}>
+              {t('profile.cancel')}
+            </button>
+          ))}
       </div>
-      <div className="min-h-0 flex-1 overflow-hidden">{!editing ? summary : children}</div>
-      {danger && editing && (
+      <div className="min-h-0 flex-1 overflow-hidden">{expanded ? children : summary}</div>
+      {danger && expanded && (
         <p className="mt-3 shrink-0 text-xs text-red-700 dark:text-red-300">{t('profile.dangerHint')}</p>
       )}
     </section>

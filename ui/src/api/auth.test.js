@@ -64,4 +64,19 @@ describe('ensureAuth', () => {
     expect(token).toBe('mock-access-token');
     expect(useAuthStore.getState().user?.username).toBe('researcher');
   });
+
+  it('clears auth when logout request fails', async () => {
+    vi.stubEnv('VITE_USE_MOCK', 'false');
+    vi.resetModules();
+    authHttp.post.mockRejectedValueOnce(new Error('network'));
+    const { logout } = await import('./auth.js');
+    const { useAuthStore } = await import('../stores/authStore.js');
+    useAuthStore.getState().setAuth({
+      accessToken: 'token',
+      user: { id: '1', username: 'admin', role: 'admin' },
+      role: 'admin',
+    });
+    await expect(logout()).rejects.toThrow('network');
+    expect(useAuthStore.getState().accessToken).toBeNull();
+  });
 });
