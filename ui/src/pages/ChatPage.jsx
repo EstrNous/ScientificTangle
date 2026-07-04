@@ -9,8 +9,8 @@ import {
   deleteChatSession,
   fetchChatMessages,
   fetchChatSessions,
-  sendChatMessage,
 } from '../api/chat.js';
+import { useChatAnswerFlow } from '../hooks/useChatAnswerFlow.js';
 
 function sessionTitleFromText(text) {
   const trimmed = text.trim();
@@ -29,7 +29,7 @@ export default function ChatPage() {
   const [sessions, setSessions] = useState([]);
   const [activeId, setActiveId] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [isQuerying, setIsQuerying] = useState(false);
+  const { phase, retrievalTrace, mode, isActive, sendAnswerQuery } = useChatAnswerFlow();
 
   useEffect(() => {
     let cancelled = false;
@@ -80,9 +80,8 @@ export default function ChatPage() {
   if (loading) return <Loader />;
 
   const handleSend = async ({ text, files }) => {
-    if (isQuerying || !text.trim()) return;
+    if (isActive || !text.trim()) return;
 
-    setIsQuerying(true);
     setError(null);
 
     const attachments = files.map((f) => f.name);
@@ -103,7 +102,7 @@ export default function ChatPage() {
       }
 
       setMessages((prev) => [...prev, optimisticUser]);
-      const reply = await sendChatMessage(sessionId, text);
+      const reply = await sendAnswerQuery({ sessionId, text, files });
       setMessages((prev) => [...prev.filter((m) => m.id !== optimisticUser.id), optimisticUser, reply]);
       setSessions((prev) =>
         prev.map((session) =>
@@ -115,8 +114,6 @@ export default function ChatPage() {
     } catch (sendError) {
       setMessages((prev) => prev.filter((m) => m.id !== optimisticUser.id));
       setError(getApiErrorMessage(sendError, 'chat_send_failed'));
-    } finally {
-      setIsQuerying(false);
     }
   };
 
@@ -158,8 +155,13 @@ export default function ChatPage() {
           messages={messages}
         />
         <div className="flex min-h-0 min-w-0 flex-1 flex-col pl-4">
-          <ChatWindow messages={messages} />
-          <ChatInput onSend={handleSend} disabled={isQuerying} />
+          <ChatWindow
+            messages={messages}
+            retrievalTrace={retrievalTrace}
+            answerPhase={phase}
+            answerMode={mode}
+          />
+          <ChatInput onSend={handleSend} disabled={isActive} />
         </div>
       </div>
     </PageShell>

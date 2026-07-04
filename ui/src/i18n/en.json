@@ -155,6 +155,19 @@
       "filterAccess": "Filtering results by access level",
       "synthesize": "Building answer with source citations",
       "methodHybrid": "BM25 + semantic search"
+    },
+    "lifecycle": {
+      "title": "Answer preparation",
+      "sessionWaiting": "Waiting for server response…",
+      "degraded": "Answer prepared with limited confidence",
+      "error": "Could not complete answer preparation",
+      "phases": {
+        "parsing": "Parsing query",
+        "retrieval": "Corpus retrieval",
+        "verification": "Evidence verification",
+        "synthesis": "Answer synthesis",
+        "citations": "Source citations"
+      }
     }
   },
   "graph": {
