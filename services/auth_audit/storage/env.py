@@ -17,20 +17,27 @@ config.set_main_option("sqlalchemy.url", settings.database_url)
 target_metadata = Base.metadata
 
 
-def run_migrations_offline() -> None:
+def configure_context(**values: object) -> None:
     context.configure(
-        url=config.get_main_option("sqlalchemy.url"),
         target_metadata=target_metadata,
+        compare_type=True,
+        version_table="alembic_version_auth_audit",
+        **values,
+    )
+
+
+def run_migrations_offline() -> None:
+    configure_context(
+        url=config.get_main_option("sqlalchemy.url"),
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
-        compare_type=True,
     )
     with context.begin_transaction():
         context.run_migrations()
 
 
 def do_run_migrations(connection: object) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
+    configure_context(connection=connection)
     with context.begin_transaction():
         context.run_migrations()
 
