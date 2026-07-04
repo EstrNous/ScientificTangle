@@ -1,4 +1,4 @@
-.PHONY: bootstrap up down build logs seed ingest-demo e2e eval eval-yandex-live perf-smoke reset-demo seed-counts reset-reseed-offline reset-reseed lint test test-model test-neo4j-integration test-yandex-live export-demo
+.PHONY: bootstrap up down build logs seed ingest-demo e2e eval eval-offline-quality eval-yandex-live perf-smoke reset-demo lint test test-model test-neo4j-integration test-yandex-live export-demo
 
 bootstrap:
 	python scripts/generate_auth_keys.py
@@ -28,6 +28,9 @@ e2e:
 
 eval:
 	python eval/run_eval.py --service-url $${EVAL_SERVICE_URL:-http://localhost:8000/api/query} --gold $${EVAL_GOLD:-eval/gold_questions.json} --auth-token-env EVAL_AUTH_TOKEN --official-only
+
+eval-offline-quality:
+	python eval/offline_quality_gate.py $(EVAL_OFFLINE_ARGS)
 
 eval-yandex-live:
 	RUN_MODEL_TESTS=1 python scripts/yandex_live_smoke.py
