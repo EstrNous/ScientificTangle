@@ -187,11 +187,42 @@ class AnswerSynthesisRequest(BaseModel):
     candidate_items: list[ExtractionArtifact] = Field(default_factory=list)
 
 
+class EvidenceLayerItem(BaseModel):
+    id: str = Field(default_factory=lambda: uuid.uuid4().hex)
+    layer: Literal["verified", "candidate", "conflicting", "unsupported"]
+    statement: str = Field(min_length=1)
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    reason_codes: list[CandidateReasonCode] = Field(default_factory=list)
+    source_span_ids: list[str] = Field(default_factory=list)
+    evidence_item_index: int | None = None
+    artifact_id: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class EvidenceSynthesisLayers(BaseModel):
+    verified: list[EvidenceLayerItem] = Field(default_factory=list)
+    candidate: list[EvidenceLayerItem] = Field(default_factory=list)
+    conflicting: list[EvidenceLayerItem] = Field(default_factory=list)
+    unsupported: list[EvidenceLayerItem] = Field(default_factory=list)
+
+
+class ScientificAnswerPayload(BaseModel):
+    short_answer: str
+    facts: list[str] = Field(default_factory=list)
+    limitations: list[str] = Field(default_factory=list)
+    conflicts: list[str] = Field(default_factory=list)
+    gaps: list[str] = Field(default_factory=list)
+    follow_up: list[str] = Field(default_factory=list)
+    sources_count: int = 0
+
+
 class AnswerSynthesisResponse(BaseModel):
     schema_version: str = "answer_synthesis.v1"
     prompt_version: str = "answer_synthesis.v1"
     mode: ModelMode = "deterministic_degraded"
     answer: AnswerPayload
+    answer_v2: ScientificAnswerPayload
+    evidence_layers: EvidenceSynthesisLayers = Field(default_factory=EvidenceSynthesisLayers)
     unsupported_warnings: list[UnsupportedWarning] = Field(default_factory=list)
     candidate_count: int = 0
     warnings: list[str] = Field(default_factory=list)
