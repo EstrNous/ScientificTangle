@@ -1,5 +1,4 @@
-from shared.contracts import EvidenceBundle, QueryIR, UserRole
-from shared.security import AuthenticatedPrincipal
+from uuid import uuid4
 
 from app.service.query_stream import (
     auth_context,
@@ -8,7 +7,9 @@ from app.service.query_stream import (
     iter_answer_chunks,
     terminal_phase,
 )
-from uuid import uuid4
+
+from shared.contracts import EvidenceBundle, QueryIR, UserRole
+from shared.security import AuthenticatedPrincipal
 
 
 def test_auth_context_contains_access_scope() -> None:

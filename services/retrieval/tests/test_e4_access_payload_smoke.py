@@ -1,5 +1,6 @@
-from infra.postgres.orchestrator_db.e4_fixtures import QDRANT_FILTER_FIELDS, load_e4_fixture
 from app.api.query import payload_indexes
+
+from infra.postgres.orchestrator_db.e4_fixtures import QDRANT_FILTER_FIELDS, load_e4_fixture
 
 
 def test_e4_fixture_qdrant_payloads_cover_filter_fields() -> None:

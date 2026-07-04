@@ -1,6 +1,6 @@
 from app.retrieval_planner import build_retrieval_plan
 
-from shared.contracts import GeoContext, QueryIR, Quantity
+from shared.contracts import GeoContext, Quantity, QueryIR
 
 
 def selected_profiles(plan) -> list[str]:

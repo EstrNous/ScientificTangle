@@ -9,8 +9,8 @@ from shared.metrics import build_metrics_router, setup_metrics
 from shared.security import JWKSValidator
 from shared.web import install_error_handlers, request_id_middleware
 
-from .api.documents import router as documents_router
 from .api.dictionaries import router as dictionaries_router
+from .api.documents import router as documents_router
 from .api.health import router as health_router
 from .api.ingestion import router as ingestion_router
 from .core.config import settings

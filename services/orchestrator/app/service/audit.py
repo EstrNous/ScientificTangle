@@ -1,9 +1,8 @@
 import json
 from uuid import UUID
 
-from shared.contracts import AuditEvent
-
 from infra.postgres.orchestrator_db import IngestionTaskRepository, QueryRunRepository
+from shared.contracts import AuditEvent
 
 
 class AuditService:

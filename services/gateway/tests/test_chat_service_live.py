@@ -1,8 +1,9 @@
 from uuid import uuid4
 
 from app.service.chat_service import ChatService
-from shared.security import AuthenticatedPrincipal
+
 from shared.contracts import UserRole
+from shared.security import AuthenticatedPrincipal
 
 
 def test_map_query_response_includes_live_fields() -> None:
