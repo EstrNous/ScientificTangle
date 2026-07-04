@@ -6,7 +6,7 @@ from uuid import UUID
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .models import Notification, UserInterest
+from .models import Notification, NotificationMatchResult, UserInterest
 
 
 @dataclass(frozen=True, slots=True)
@@ -16,6 +16,9 @@ class NotificationData:
     message: str
     reference_id: str | None = None
     reference_type: str | None = None
+    match_score: float | None = None
+    match_reason: str = ""
+    match_payload: dict | None = None
 
 class NotificationRepository(Protocol):
     async def get_user_notifications(self, user_id: UUID, limit: int = 20, since: datetime | None = None) -> list[Notification]: ...
@@ -43,7 +46,9 @@ class SqlAlchemyNotificationRepository:
             .order_by(Notification.created_at.desc())
             .limit(limit)
         )
-        return list(result)
+        notifications = list(result)
+        await self._attach_match_results(notifications)
+        return notifications
 
     async def mark_as_read(self, notification_id: UUID, user_id: UUID) -> bool:
         result = await self._session.execute(
@@ -72,8 +77,24 @@ class SqlAlchemyNotificationRepository:
             reference_type=data.reference_type,
         )
         self._session.add(note)
+        await self._session.flush()
+        if data.match_score is not None or data.match_payload:
+            self._session.add(
+                NotificationMatchResult(
+                    user_id=data.user_id,
+                    notification_id=note.id,
+                    reference_id=data.reference_id,
+                    reference_type=data.reference_type,
+                    match_score=data.match_score,
+                    match_payload={
+                        **(data.match_payload or {}),
+                        "reason": data.match_reason,
+                    },
+                )
+            )
         await self._session.commit()
         await self._session.refresh(note)
+        await self._attach_match_results([note])
         return note
 
     async def get_user_interests(self, user_id: UUID) -> UserInterest | None:
@@ -90,3 +111,22 @@ class SqlAlchemyNotificationRepository:
         await self._session.commit()
         await self._session.refresh(interest)
         return interest
+
+    async def _attach_match_results(self, notifications: list[Notification]) -> None:
+        notification_ids = [note.id for note in notifications]
+        if not notification_ids:
+            return
+        result = await self._session.scalars(
+            select(NotificationMatchResult)
+            .where(NotificationMatchResult.notification_id.in_(notification_ids))
+            .order_by(NotificationMatchResult.created_at.desc())
+        )
+        matches_by_notification = {}
+        for match in result:
+            if match.notification_id not in matches_by_notification:
+                matches_by_notification[match.notification_id] = match
+        for note in notifications:
+            match = matches_by_notification.get(note.id)
+            if match is not None:
+                note.match_score = match.match_score
+                note.match_payload = match.match_payload or {}

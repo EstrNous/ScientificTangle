@@ -300,6 +300,13 @@ class ExportRequest(BaseModel):
     format: Literal["markdown", "json"]
 
 
+class ExportFormatStatus(BaseModel):
+    format: Literal["markdown", "json", "jsonld", "pdf"]
+    available: bool
+    status: Literal["available", "unavailable", "backlog"]
+    reason: str = ""
+
+
 class ExportPayload(BaseModel):
     export_job_id: UUID
     query_run_id: UUID
@@ -309,6 +316,7 @@ class ExportPayload(BaseModel):
     content: str | dict
     file_url: str = ""
     warnings: list[str] = Field(default_factory=list)
+    format_status: list[ExportFormatStatus] = Field(default_factory=list)
     generated_at: datetime
 
 
