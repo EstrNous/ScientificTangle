@@ -123,6 +123,12 @@ services:
     environment:
       GATEWAY_DATABASE_URL: postgresql+asyncpg://st_user:st_pass@postgres:5432/scientific_tangle
       POSTGRES_URL: postgresql+asyncpg://st_user:st_pass@postgres:5432/scientific_tangle
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; r=httpx.get('http://localhost:8000/health'); assert r.status_code == 200"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
     depends_on:
       postgres:
         condition: service_healthy

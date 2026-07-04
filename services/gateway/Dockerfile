@@ -32,7 +32,7 @@ USER appuser
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=5 \
     CMD python -c "import httpx; response = httpx.get('http://localhost:8000/health'); assert response.status_code == 200"
 
 CMD ["sh", "-c", "cd /app/infra/postgres/chat_ui_db && alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000"]
