@@ -47,6 +47,9 @@ export function isReviewActionsEnabled() {
 }
 
 export function isSourceLiveModeEnabled() {
+  if (import.meta.env.PROD) {
+    return true;
+  }
   if (readFlag('VITE_SOURCE_LIVE_MODE', false)) {
     return true;
   }
