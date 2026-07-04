@@ -36,7 +36,15 @@
     "title": "Уведомления",
     "empty": "Нет уведомлений",
     "loading": "Загрузка…",
-    "markAllRead": "Прочитать все"
+    "markAllRead": "Прочитать все",
+    "newTitle": "Новое уведомление",
+    "types": {
+      "interest_match": "Совпадение с интересами",
+      "ingestion_complete": "Обработка документа завершена",
+      "conflict_detected": "Обнаружено противоречие",
+      "review_pending": "Кандидат на проверку",
+      "query_conflict": "Конфликт в ответе"
+    }
   },
   "auth": {
     "loginTitle": "Вход",
@@ -110,6 +118,11 @@
     "interestsPlaceholder": "Например: электроэкстракция никеля, циркуляция католита, обессоливание шахтных вод",
     "saveInterests": "Сохранить интересы",
     "interestsSaved": "Интересы сохранены",
+    "extractedEntities": "Извлечено сущностей: {{count}}",
+    "errors": {
+      "interests_load_failed": "Не удалось загрузить интересы",
+      "interests_save_failed": "Не удалось сохранить интересы"
+    },
     "securityTitle": "Безопасность",
     "securitySummary": "Выход из аккаунта и управление сессиями",
     "logout": "Выйти",
@@ -388,6 +401,18 @@
     "auditActions": "Действия",
     "deleteDocument": "Удалить документ",
     "confirmDeleteDocument": "Удалить документ «{{name}}» из базы?",
+    "saveRow": "Сохранить",
+    "saveAll": "Сохранить все ({{count}})",
+    "saving": "Сохранение…",
+    "savingAll": "Сохранение…",
+    "saved": "Изменения сохранены",
+    "errors": {
+      "admin_load_failed": "Не удалось загрузить данные администрирования",
+      "admin_user_save_failed": "Не удалось сохранить пользователя",
+      "admin_policy_save_failed": "Не удалось сохранить политику доступа",
+      "admin_save_failed": "Не удалось сохранить изменения",
+      "forbidden": "Недостаточно прав для этой операции"
+    },
     "filterAll": "Все действия",
     "actions": {
       "query_created": "запрос",
@@ -554,7 +579,10 @@
     },
     "errors": {
       "upload_failed": "Не удалось загрузить файлы",
-      "delete_failed": "Не удалось удалить документ"
+      "delete_failed": "Не удалось удалить документ",
+      "forbidden": "Недостаточно прав для удаления документа",
+      "not_found": "Документ не найден",
+      "document_delete_not_implemented": "Удаление документа пока недоступно на сервере"
     }
   },
   "review": {
@@ -565,7 +593,12 @@
     "conflictsTitle": "Конфликт значений",
     "sourcePanelTitle": "Источник кандидата",
     "sourceEmpty": "Выберите кандидата с привязкой к источнику",
-    "actionsBlocked": "Решения доступны только в mock-режиме до подключения backend workflow (E3)",
+    "actionsBlocked": "Решения доступны при включённом флаге review console и подключённом backend",
+    "errors": {
+      "review_queue_failed": "Не удалось загрузить очередь проверки",
+      "review_decision_failed": "Не удалось сохранить решение",
+      "review_storage_not_implemented": "Backend review workflow ещё не подключён"
+    },
     "filters": {
       "status": "Статус",
       "type": "Тип",

@@ -56,16 +56,18 @@ export default function AdminAuditPage() {
     if (!window.confirm(t('admin.confirmDeleteDocument', { name: label }))) {
       return;
     }
+    const snapshot = auditEvents;
     setDeletingDocumentId(documentId);
     setError(null);
+    setAuditEvents((current) => current.filter((item) => item.id !== event.id));
+    if (selectedEventId === event.id) {
+      setSelectedEventId(null);
+      setSelectedSpan(null);
+    }
     try {
       await deleteDocument(documentId);
-      setAuditEvents((current) => current.filter((item) => item.id !== event.id));
-      if (selectedEventId === event.id) {
-        setSelectedEventId(null);
-        setSelectedSpan(null);
-      }
     } catch (deleteError) {
+      setAuditEvents(snapshot);
       setError(deleteError?.message ?? 'delete_failed');
     } finally {
       setDeletingDocumentId(null);

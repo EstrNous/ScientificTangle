@@ -130,7 +130,7 @@ export default function ReviewConsolePage() {
     };
   }, [selectedCandidate]);
 
-  const { execute: decide, loading: deciding } = useAsyncAction(
+  const { execute: decide, loading: deciding, error: decisionError } = useAsyncAction(
     async (decision) => {
       if (!selectedCandidate) return null;
       return submitReviewDecision({
@@ -139,7 +139,21 @@ export default function ReviewConsolePage() {
       });
     },
     {
-      onSuccess: (result, decision) => {
+      onSuccess: (result) => {
+        if (result?.status !== 'accepted') {
+          loadQueue();
+        }
+      },
+    },
+  );
+
+  const handleDecision = (decision) => {
+    decide(decision, {
+      optimistic: () => {
+        const snapshot = {
+          items: items.map((item) => ({ ...item })),
+          selectedId,
+        };
         setItems((current) =>
           current.map((item) =>
             item.id === selectedCandidate?.id
@@ -147,12 +161,14 @@ export default function ReviewConsolePage() {
               : item,
           ),
         );
-        if (result?.status !== 'accepted') {
-          loadQueue();
-        }
+        return snapshot;
       },
-    },
-  );
+      rollback: (snapshot) => {
+        setItems(snapshot.items);
+        setSelectedId(snapshot.selectedId);
+      },
+    });
+  };
 
   if (loading && !items.length) {
     return <Loader />;
@@ -173,6 +189,11 @@ export default function ReviewConsolePage() {
             {error}
           </div>
         )}
+        {decisionError && (
+          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
+            {t(`review.errors.${decisionError}`, { defaultValue: decisionError })}
+          </div>
+        )}
 
         <div className="grid min-h-0 flex-1 gap-4 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
           <div className="flex min-h-0 flex-col gap-3">
@@ -180,7 +201,7 @@ export default function ReviewConsolePage() {
             <ReviewActionBar
               candidate={selectedCandidate}
               loading={deciding}
-              onDecision={(decision) => decide(decision)}
+              onDecision={handleDecision}
             />
           </div>
           <div className="flex min-h-0 flex-col gap-4">
