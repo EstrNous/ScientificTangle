@@ -137,6 +137,25 @@ def test_get_eval_report_summary_blocked_when_missing(monkeypatch, tmp_path: Pat
     asyncio.run(run())
 
 
+def test_analytics_service_builds_strategic_metrics_from_knowledge() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/v1/graph/gaps"):
+            return httpx.Response(200, json=["gap-a", "gap-b"])
+        if request.url.path.endswith("/v1/graph/entities"):
+            return httpx.Response(200, json={"entity_ids": ["Ni", "Cu", "Co", "Fe"]})
+        return httpx.Response(404)
+
+    async def run() -> None:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            payload = await AnalyticsService(client).get_strategic_metrics()
+            assert payload.totals["documents"] == 4
+            assert payload.totals["gaps"] == 2
+            assert len(payload.directions) == 2
+            assert payload.low_coverage_topics == ["gap-a", "gap-b"]
+
+    asyncio.run(run())
+
+
 def test_analytics_service_builds_lab_coverage_from_gaps() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path.endswith("/v1/graph/gaps"):
@@ -148,6 +167,39 @@ def test_analytics_service_builds_lab_coverage_from_gaps() -> None:
             payload = await AnalyticsService(client).get_lab_coverage()
             assert payload.summary["gap_count"] == 2
             assert payload.gaps[0].title.startswith("Ni")
+
+    asyncio.run(run())
+
+
+def test_admin_service_get_admin_stats_counts_restricted_documents() -> None:
+    user_id = uuid4()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/api/auth/users"):
+            return httpx.Response(
+                200,
+                json={"items": [{"id": str(user_id), "email": "a@b.c", "username": "Admin", "role": "admin"}]},
+            )
+        if request.url.path.endswith("/documents"):
+            return httpx.Response(
+                200,
+                json={
+                    "items": [
+                        {"document_id": "doc-1", "title": "Public", "access_level": "internal"},
+                        {"document_id": "doc-2", "title": "Secret", "access_level": "restricted"},
+                    ]
+                },
+            )
+        if request.url.path.endswith("/audit/events"):
+            return httpx.Response(200, json=[])
+        return httpx.Response(404)
+
+    async def run() -> None:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            stats = await AdminService(client).get_admin_stats("Bearer token")
+            assert stats["summary"]["users_count"] == 1
+            assert stats["summary"]["restricted_documents"] == 1
+            assert len(stats["access_policies"]) == 2
 
     asyncio.run(run())
 

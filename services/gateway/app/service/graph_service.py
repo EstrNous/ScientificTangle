@@ -6,8 +6,8 @@ from .analytics_service import GraphService as KnowledgeGraphService
 
 
 class GraphService:
-    def __init__(self, client: httpx.AsyncClient | None = None) -> None:
-        self._delegate = KnowledgeGraphService(client or httpx.AsyncClient(timeout=30.0))
+    def __init__(self, client: httpx.AsyncClient) -> None:
+        self._delegate = KnowledgeGraphService(client)
 
     async def get_graph(self) -> GraphPayload:
         return await self._delegate.get_graph()

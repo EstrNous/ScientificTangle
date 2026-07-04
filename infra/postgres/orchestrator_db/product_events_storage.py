@@ -125,8 +125,10 @@ class ProductEventsStorageRepository:
             if rows and rows[0].file_url:
                 job.file_url = rows[0].file_url
             await self._session.commit()
-        for row in rows:
-            await self._session.refresh(row)
+            for row in rows:
+                await self._session.refresh(row)
+        elif rows:
+            await self._session.flush()
         return rows
 
     async def get_export_job_with_artifacts(self, export_job_id: UUID) -> ExportJob | None:
@@ -228,16 +230,16 @@ class ProductEventsStorageRepository:
         row_count: int,
         csv_text: str | None = None,
     ) -> AuditCsvExport:
-        async with self._session.begin():
-            row = await self._session.get(AuditCsvExport, export_id)
-            if row is None:
-                raise KeyError(str(export_id))
-            row.status = AuditCsvExportStatus.COMPLETED.value
-            row.storage_key = storage_key
-            row.row_count = row_count
-            row.completed_at = datetime.now(UTC)
-            if csv_text is not None:
-                _ = csv_text
+        row = await self._session.get(AuditCsvExport, export_id)
+        if row is None:
+            raise KeyError(str(export_id))
+        row.status = AuditCsvExportStatus.COMPLETED.value
+        row.storage_key = storage_key
+        row.row_count = row_count
+        row.completed_at = datetime.now(UTC)
+        if csv_text is not None:
+            _ = csv_text
+        await self._session.commit()
         await self._session.refresh(row)
         return row
 
