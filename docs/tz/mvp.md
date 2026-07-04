@@ -30,11 +30,11 @@
 | ingestion → NormalizedDocument → SourceSpan | ✅ | parsers + MinIO |
 | claims в Neo4j | ✅ | Neo4jKnowledgeAdapter |
 | chunks в Qdrant | ✅ | `st_evidence_v1`, seed_demo |
-| Query IR + retrieval | ⚠️ | vector + rerank; graph/table/lexical fusion — нет |
+| Query IR + retrieval | ✅ | hybrid retrieval: dense + lexical + table + graph fusion, planner trace, rerank |
 | ответ в чат с таблицей и графом | ✅ | ChatPage, EvidenceTable, LocalGraph |
-| geo/numeric фильтры базово | ⚠️ | в Query IR и gaps; не в Qdrant search |
+| geo/numeric фильтры базово | ✅ | Query IR + Qdrant filters: units/ranges, geo bucket/country, published year |
 | audit и роли | ✅ backend / ⚠️ UI | RoleSwitcher в dev |
-| export Markdown/JSON | ⚠️ | orchestrator + UI client-side; export service — stub |
+| export Markdown/JSON | ✅ MVP via orchestrator/gateway | `POST /api/export` → `POST /export`; `services/export` reserved boundary |
 | demo script готов | ✅ | `make seed`, `make eval`, `scripts/seed_demo.py` |
 | ≥4 официальных вопроса | ⚠️ | dataset готов; pinned live eval artifact — нет |
 

@@ -152,6 +152,111 @@ def test_denied_evidence_is_not_sent_to_reranking() -> None:
     assert result.retrieval_trace["accessible"] == 1
 
 
+class HybridStorageAdapter:
+    is_ready = True
+
+    def __init__(self) -> None:
+        policy = AccessPolicy(level="internal", allowed_roles=["researcher"])
+        self.dense = source("dense-doc", policy, "dense nickel")
+        self.lexical = source("lexical-doc", policy, "lexical nickel")
+        self.table = source("table-doc", policy, "table nickel").model_copy(
+            update={
+                "source_span": source("table-doc", policy, "table nickel").source_span.model_copy(
+                    update={"source_type": "table"}
+                )
+            }
+        )
+        self.graph = source("graph-doc", policy, "graph nickel")
+        self.sources = {
+            item.source_span.id: item
+            for item in [self.dense, self.lexical, self.table, self.graph]
+        }
+
+    async def search(self, question, filters, access_roles, limit):
+        return SearchResultPayload(
+            items=[SearchResult(source=self.dense, relevance_score=0.9)]
+        )
+
+    async def search_lexical(self, tokens, filters, access_roles, limit, table_only=False):
+        selected = self.table if table_only else self.lexical
+        return SearchResultPayload(
+            items=[SearchResult(source=selected, relevance_score=0.8)]
+        )
+
+    async def get_source(self, source_span_id, access_roles):
+        return self.sources.get(source_span_id)
+
+
+def test_run_query_traces_dense_lexical_table_and_graph_channels() -> None:
+    adapter = HybridStorageAdapter()
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/query-ir"):
+            return httpx.Response(
+                200,
+                json={
+                    "query_ir": {"raw_query": "nickel", "filters": {}},
+                    "warnings": [],
+                },
+            )
+        if request.url.path.endswith("/graph/evidence"):
+            return httpx.Response(
+                200,
+                json=[
+                    {
+                        "source_span": {"source_span_id": adapter.graph.source_span.id},
+                        "claim_id": "graph-claim",
+                        "confidence": 0.7,
+                    }
+                ],
+            )
+        payload = json.loads(request.content)
+        return httpx.Response(
+            200,
+            json={
+                "scored_items": [
+                    {"evidence_item": item, "score": 1.0}
+                    for item in payload["evidence_items"]
+                ]
+            },
+        )
+
+    async def execute():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            request = SimpleNamespace(
+                app=SimpleNamespace(
+                    state=SimpleNamespace(
+                        http_client=client,
+                        storage_adapter=adapter,
+                    )
+                )
+            )
+            return await run_query(
+                RetrievalQueryRequest(
+                    question="nickel",
+                    access_roles=["researcher"],
+                    limit=10,
+                ),
+                request,
+            )
+
+    result = asyncio.run(execute())
+
+    assert result.retrieval_trace["storage"] == "hybrid"
+    assert result.retrieval_trace["channels"] == {
+        "dense": 1,
+        "lexical": 1,
+        "table": 1,
+        "graph": 1,
+    }
+    assert result.retrieval_trace["fused"] == 4
+    assert result.retrieval_trace["reranked"] == 4
+    assert {item.extraction_method for item in result.evidence_bundle.evidence_items} == {
+        "semantic",
+        "table",
+    }
+
+
 def test_source_and_search_repeat_access_filtering() -> None:
     request = SimpleNamespace(
         app=SimpleNamespace(state=SimpleNamespace(storage_adapter=FakeStorageAdapter()))

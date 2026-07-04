@@ -1,91 +1,77 @@
 import asyncio
-from datetime import UTC, datetime
 from uuid import uuid4
 
 import httpx
-from app.service.notification_service import TYPE_TITLES, NotificationService
+from app.service.notification_service import NotificationService
 
 
-class FakeNotification:
-    def __init__(self) -> None:
-        self.id = uuid4()
-        self.type = "interest_match"
-        self.message = "Совпадение с подпиской: никель, католит"
-        self.reference_id = "nickel_report.pdf"
-        self.reference_type = "document"
-        self.is_read = False
-        self.match_score = 0.86
-        self.match_payload = {"reason": "offline_interest_match"}
-        self.created_at = FakeNotification._now()
-
-    @staticmethod
-    def _now():
-        from datetime import UTC, datetime
-
-        return datetime(2026, 7, 4, 5, 10, tzinfo=UTC)
-
-
-def test_notification_payload_maps_ui_fields() -> None:
-    note = FakeNotification()
-    payload = NotificationService._payload(note)
-
-    assert payload.title == TYPE_TITLES["interest_match"]
-    assert payload.reason == note.message
-    assert payload.reference_id == "nickel_report.pdf"
-    assert payload.reference_type == "document"
-    assert payload.match_score == 0.86
-    assert payload.match_reason == "offline_interest_match"
-    assert payload.read is False
-    assert payload.created_at.isoformat().startswith("2026-07-04")
-
-
-class FakeInterest:
-    def __init__(self, raw_text: str, entities: dict) -> None:
-        self.raw_text = raw_text
-        self.extracted_entities = entities
-        self.updated_at = datetime(2026, 7, 4, 5, 15, tzinfo=UTC)
-
-
-class FakeRepository:
-    def __init__(self) -> None:
-        self.saved_raw_text = ""
-        self.saved_entities: dict | None = None
-
-    async def update_user_interests(self, user_id, raw_text: str, entities: dict) -> FakeInterest:
-        self.saved_raw_text = raw_text
-        self.saved_entities = entities
-        return FakeInterest(raw_text, entities)
-
-
-def test_update_interests_uses_offline_model_extraction_when_items_empty() -> None:
-    repository = FakeRepository()
-
+def test_proxy_list_notifications() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url.path == "/v1/interests/extract"
+        assert request.url.path == "/notifications"
+        assert request.headers["Authorization"] == "Bearer token"
         return httpx.Response(
             200,
             json={
-                "interests": [
-                    {"label": "materials", "weight": 0.7, "source_terms": ["никель"]}
+                "items": [
+                    {
+                        "id": str(uuid4()),
+                        "title": "Новый документ по интересам",
+                        "reason": "Совпадение",
+                        "type": "interest_match",
+                        "reference_id": "doc.pdf",
+                        "reference_type": "document",
+                        "read": False,
+                        "match_score": 0.8,
+                        "match_reason": "никель",
+                        "created_at": "2026-07-04T05:10:00+00:00",
+                    }
                 ],
-                "warnings": ["deterministic_degraded"],
+                "unread_count": 1,
             },
         )
 
     async def run() -> None:
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            service = NotificationService(repository, client=client, model_url="http://model")
+            service = NotificationService(client, notification_url="http://notification")
             principal = type("Principal", (), {"user_id": uuid4()})()
-            payload = type("Payload", (), {"raw_text": "Интересует никель", "interests": []})()
-            result = await service.update_interests(principal, payload)
-            assert result.interests[0].label == "materials"
-            assert result.warnings == ["deterministic_degraded"]
+            result = await service.list_notifications(
+                principal,
+                since=None,
+                authorization="Bearer token",
+                request_id="req-1",
+            )
+            assert len(result.items) == 1
+            assert result.unread_count == 1
 
     asyncio.run(run())
-    assert repository.saved_raw_text == "Интересует никель"
-    assert repository.saved_entities == {
-        "interests": [
-            {"label": "materials", "weight": 0.7, "source_terms": ["никель"]}
-        ],
-        "warnings": ["deterministic_degraded"],
-    }
+
+
+def test_create_conflict_event_posts_internal_api() -> None:
+    captured: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["path"] = request.url.path
+        import json as json_module
+        captured["body"] = json_module.loads(request.content.decode())
+        return httpx.Response(200, json={"id": str(uuid4()), "type": "conflict_detected"})
+
+    async def run() -> None:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            service = NotificationService(client, notification_url="http://notification")
+            user_id = uuid4()
+            await service.create_conflict_event(
+                user_id=user_id,
+                event_type="conflict_detected",
+                message="test",
+                reference_id="run-1",
+                reference_type="query_run",
+                match_score=1.0,
+                match_reason="query_conflict_detected",
+                match_payload={"conflict_count": 1},
+                request_id="req-2",
+            )
+            assert captured["path"] == "/internal/v1/events"
+            assert captured["body"]["type"] == "conflict_detected"
+            assert captured["body"]["user_id"] == str(user_id)
+
+    asyncio.run(run())

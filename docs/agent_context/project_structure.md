@@ -43,6 +43,7 @@
 - `docs/agent_context/sync_rules.md` — правила синхронизации контекста между агентами.
 - `docs/agent_context/ml_mvp_status.md` — текущий статус ML MVP, открытые gaps и позиция по VL/OCR.
 - `docs/agent_context/implementation_quality_report.md` — оценка реализации vs ТЗ по сервисам, стеку и gaps.
+- `docs/agent_context/feature_readiness_matrix.md` — матрица готовности фич (фронт/бэк/связь), backlog по приоритету и план закрытия MVP на 100%.
 - `docs/agent_context/query_pipeline.md` — сквозной пайплайн запроса user → answer.
 - `docs/agent_context/top1_parallel_execution_plan.md` — поэтапный план параллельной работы двух Backend/ML-специалистов и одного Frontend-специалиста.
 - `docs/agent_context/nornikel_parallel_execution_plan.md` — параллельный план закрытия gaps НорСинтез/ScientificTangle по ролям Databases, Backend/ML, Frontend и Validator без live model calls.
@@ -73,6 +74,7 @@
 - `docs/agent_context/audit_report.md` — P0/P1 аудит репозитория и статусы инфраструктуры.
 - `docs/agent_context/prod_readiness_analysis.md` — план глубокого production-readiness анализа: scenarios, gates, gaps и offline verification без live model calls.
 - `docs/agent_context/prod_readiness_task_cards.md` — пул task cards для закрытия production-readiness gaps с зависимостями и acceptance criteria.
+- `docs/agent_context/prod_readiness_gap_analysis.md` — фактический gap-анализ production-readiness: чего не хватает, почему это важно и как закрывать.
 
 ### Общий код (`shared/`)
 
@@ -296,9 +298,21 @@ Offline DB fixtures для user workflows E3 (`workflow_state.json`).
 - `storage/versions/0001_create_notification_tables.py` — стартовая миграция.
 - `storage/versions/0002_add_core_notification_storage.py` — `reference_type`, `extracted_entities`, `notification_match_results`, индексы poll/unread.
 
+Миграции Alembic запускаются при старте `services/notification` (не gateway).
+
+### services/notification/
+
+Владелец `notification_db`: interests CRUD, notification list/read, internal events и interest matching через model. JWT через JWKS; gateway проксирует user-facing API.
+
+- `app/api/factory.py` — lifespan, DB, JWKS, httpx client.
+- `app/api/interests.py`, `app/api/notifications.py` — продуктовые routes.
+- `app/api/events.py` — `POST /internal/v1/events`, `POST /internal/v1/match`.
+- `app/service/notification_service.py`, `app/service/matching_service.py` — бизнес-логика.
+- `Dockerfile` — COPY `infra/postgres/notification_db`, Alembic upgrade на старте.
+
 ### services/gateway/
 
-Внешний API для загрузки документов, чтения статуса ingestion-задач, чата, графа знаний и поиска. Проверяет JWT через JWKS, создаёт или принимает `request_id`, нормализует ошибки и передаёт запросы в Orchestrator. Chat history в `chat_ui_db`.
+Внешний API для загрузки документов, чтения статуса ingestion-задач, чата, графа знаний и поиска. Проверяет JWT через JWKS, создаёт или принимает `request_id`, нормализует ошибки и передаёт запросы в Orchestrator. Chat history в `chat_ui_db`. Interests и notifications проксируются в notification service (`NOTIFICATION_URL`); `conflict_detected` из chat — через internal events.
 
 - `app/api/query.py` — query, runs, export, source, subgraph, search.
 - `app/api/chat.py` — chat sessions и messages.

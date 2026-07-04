@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-const E2E_ENV = {
+const DEMO_ENV = {
   VITE_USE_MOCK: 'false',
   VITE_REVIEW_CONSOLE_ENABLED: 'true',
   VITE_LIVE_NOTIFICATIONS_ENABLED: 'true',
@@ -9,18 +9,23 @@ const E2E_ENV = {
   VITE_CHAT_STREAMING_UX: 'false',
 };
 
-function e2eDefine(mode) {
-  if (mode !== 'e2e') {
-    return {};
+function modeDefine(mode) {
+  if (mode === 'e2e') {
+    return Object.fromEntries(
+      Object.entries(DEMO_ENV).map(([key, value]) => [`import.meta.env.${key}`, JSON.stringify(value)]),
+    );
   }
-  return Object.fromEntries(
-    Object.entries(E2E_ENV).map(([key, value]) => [`import.meta.env.${key}`, JSON.stringify(value)]),
-  );
+  if (mode === 'production') {
+    return {
+      'import.meta.env.VITE_USE_MOCK': JSON.stringify('false'),
+    };
+  }
+  return {};
 }
 
 export default defineConfig(({ mode }) => ({
   plugins: [react()],
-  define: e2eDefine(mode),
+  define: modeDefine(mode),
   esbuild: {
     jsx: 'automatic',
   },

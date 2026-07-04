@@ -3,12 +3,10 @@ from uuid import UUID
 
 import httpx
 
-from infra.postgres.notification_db.repository import SqlAlchemyNotificationRepository
 from shared.contracts import (
+    ApiError,
     NotificationListPayload,
     NotificationMarkReadPayload,
-    NotificationPayload,
-    UserInterestItem,
     UserInterestsPayload,
     UserInterestsUpdatePayload,
 )
@@ -25,133 +23,150 @@ class NotificationServiceError(Exception):
         super().__init__(message)
 
 
-TYPE_TITLES = {
-    "interest_match": "Новый документ по интересам",
-    "ingestion_complete": "Документ обработан",
-    "conflict_detected": "Обнаружено противоречие",
-}
-
-
 class NotificationService:
     def __init__(
         self,
-        repository: SqlAlchemyNotificationRepository,
-        client: httpx.AsyncClient | None = None,
-        model_url: str | None = None,
+        client: httpx.AsyncClient,
+        notification_url: str | None = None,
     ) -> None:
-        self._repository = repository
         self._client = client
-        self._model_url = (model_url or settings.model_url).rstrip("/")
+        self._notification_url = (notification_url or settings.notification_url).rstrip("/")
 
     async def list_notifications(
         self,
         principal: AuthenticatedPrincipal,
-        since: datetime | None = None,
+        since: datetime | None,
+        authorization: str,
+        request_id: str,
     ) -> NotificationListPayload:
-        notes = await self._repository.get_user_notifications(principal.user_id, since=since)
-        items = [self._payload(note) for note in notes]
-        return NotificationListPayload(
-            items=items,
-            unread_count=sum(1 for item in items if not item.read),
+        params: dict[str, str] = {}
+        if since is not None:
+            params["since"] = since.isoformat()
+        response = await self._request(
+            "GET",
+            "/notifications",
+            authorization,
+            request_id,
+            params=params or None,
         )
+        return NotificationListPayload.model_validate(response.json())
 
     async def mark_read(
-        self, principal: AuthenticatedPrincipal, notification_id: UUID
+        self,
+        principal: AuthenticatedPrincipal,
+        notification_id: UUID,
+        authorization: str,
+        request_id: str,
     ) -> NotificationMarkReadPayload:
-        updated = await self._repository.mark_as_read(notification_id, principal.user_id)
-        if not updated:
-            raise NotificationServiceError(404, "notification_not_found", "Notification not found")
-        return NotificationMarkReadPayload(updated_count=1)
-
-    async def mark_all_read(self, principal: AuthenticatedPrincipal) -> NotificationMarkReadPayload:
-        return NotificationMarkReadPayload(
-            updated_count=await self._repository.mark_all_as_read(principal.user_id)
+        response = await self._request(
+            "POST",
+            f"/notifications/{notification_id}/read",
+            authorization,
+            request_id,
         )
+        return NotificationMarkReadPayload.model_validate(response.json())
 
-    async def get_interests(self, principal: AuthenticatedPrincipal) -> UserInterestsPayload:
-        interest = await self._repository.get_user_interests(principal.user_id)
-        if interest is None:
-            return UserInterestsPayload(user_id=principal.user_id)
-        entities = interest.extracted_entities or {}
-        return UserInterestsPayload(
-            user_id=principal.user_id,
-            raw_text=interest.raw_text,
-            interests=[
-                UserInterestItem.model_validate(item)
-                for item in entities.get("interests", [])
-                if isinstance(item, dict)
-            ],
-            extracted_entities=entities,
-            updated_at=interest.updated_at,
+    async def mark_all_read(
+        self,
+        principal: AuthenticatedPrincipal,
+        authorization: str,
+        request_id: str,
+    ) -> NotificationMarkReadPayload:
+        response = await self._request(
+            "POST",
+            "/notifications/read-all",
+            authorization,
+            request_id,
         )
+        return NotificationMarkReadPayload.model_validate(response.json())
+
+    async def get_interests(
+        self,
+        principal: AuthenticatedPrincipal,
+        authorization: str,
+        request_id: str,
+    ) -> UserInterestsPayload:
+        response = await self._request("GET", "/interests", authorization, request_id)
+        return UserInterestsPayload.model_validate(response.json())
 
     async def update_interests(
         self,
         principal: AuthenticatedPrincipal,
         payload: UserInterestsUpdatePayload,
+        authorization: str,
+        request_id: str,
     ) -> UserInterestsPayload:
-        interests = payload.interests
-        warnings = []
-        if payload.raw_text.strip() and not interests:
-            extracted = await self._extract_interests(payload.raw_text)
-            interests = extracted["interests"]
-            warnings = extracted["warnings"]
-        entities = {
-            "interests": [
-                item.model_dump(mode="json") for item in interests
-            ]
-        }
-        if warnings:
-            entities["warnings"] = warnings
-        interest = await self._repository.update_user_interests(
-            principal.user_id,
-            payload.raw_text,
-            entities,
+        response = await self._request(
+            "PUT",
+            "/interests",
+            authorization,
+            request_id,
+            json_body=payload.model_dump(mode="json"),
         )
-        return UserInterestsPayload(
-            user_id=principal.user_id,
-            raw_text=interest.raw_text,
-            interests=interests,
-            extracted_entities=interest.extracted_entities or entities,
-            updated_at=interest.updated_at,
-            warnings=warnings,
-        )
+        return UserInterestsPayload.model_validate(response.json())
 
-    async def _extract_interests(self, raw_text: str) -> dict[str, list]:
-        if self._client is None:
-            return {"interests": [], "warnings": ["model_interest_extraction_unavailable"]}
+    async def create_conflict_event(
+        self,
+        user_id: UUID,
+        event_type: str,
+        message: str,
+        reference_id: str | None,
+        reference_type: str | None,
+        match_score: float | None,
+        match_reason: str,
+        match_payload: dict | None,
+        request_id: str,
+    ) -> None:
         try:
-            response = await self._client.post(
-                f"{self._model_url}/v1/interests/extract",
-                json={"text": raw_text},
+            await self._client.post(
+                f"{self._notification_url}/internal/v1/events",
+                json={
+                    "user_id": str(user_id),
+                    "type": event_type,
+                    "message": message,
+                    "reference_id": reference_id,
+                    "reference_type": reference_type,
+                    "match_score": match_score,
+                    "match_reason": match_reason,
+                    "match_payload": match_payload,
+                },
+                headers={"X-Request-ID": request_id},
             )
-            response.raise_for_status()
-            payload = response.json()
-        except (httpx.HTTPError, ValueError):
-            return {"interests": [], "warnings": ["model_interest_extraction_failed"]}
-        interests = [
-            UserInterestItem.model_validate(item)
-            for item in payload.get("interests", [])
-            if isinstance(item, dict)
-        ]
-        return {
-            "interests": interests,
-            "warnings": [str(item) for item in payload.get("warnings", [])],
-        }
+        except httpx.HTTPError:
+            return
+
+    async def _request(
+        self,
+        method: str,
+        path: str,
+        authorization: str,
+        request_id: str,
+        json_body: dict | None = None,
+        params: dict[str, str] | None = None,
+    ) -> httpx.Response:
+        try:
+            response = await self._client.request(
+                method,
+                f"{self._notification_url}{path}",
+                json=json_body,
+                params=params,
+                headers={"Authorization": authorization, "X-Request-ID": request_id},
+            )
+        except httpx.TimeoutException as error:
+            raise NotificationServiceError(504, "notification_timeout", "Notification request timed out") from error
+        except httpx.HTTPError as error:
+            raise NotificationServiceError(503, "notification_unavailable", "Notification service is unavailable") from error
+        if response.status_code >= 400:
+            raise self._downstream_error(response)
+        return response
 
     @staticmethod
-    def _payload(note) -> NotificationPayload:
-        title = TYPE_TITLES.get(note.type) or note.message.split(".")[0]
-        reference_type = getattr(note, "reference_type", None) or "document"
-        return NotificationPayload(
-            id=note.id,
-            title=title,
-            reason=note.message,
-            type=note.type,
-            reference_id=note.reference_id,
-            reference_type=reference_type,
-            read=note.is_read,
-            match_score=getattr(note, "match_score", None),
-            match_reason=str((getattr(note, "match_payload", None) or {}).get("reason") or ""),
-            created_at=note.created_at,
-        )
+    def _downstream_error(response: httpx.Response) -> NotificationServiceError:
+        status_code = response.status_code if 400 <= response.status_code < 600 else 502
+        try:
+            payload = ApiError.model_validate(response.json())
+            return NotificationServiceError(status_code, payload.code, payload.message)
+        except (ValueError, TypeError):
+            return NotificationServiceError(
+                status_code, "downstream_error", "Notification service request failed"
+            )

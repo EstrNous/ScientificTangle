@@ -5,6 +5,8 @@
 **Этап:** E0 — baseline и аудит  
 **База:** `origin/dev` @ `dec5323` (после merge PR #68, #69, #70)
 
+> Актуализация 2026-07-04: historical E0 spot-check про пустые official `expected_source_span_ids` устарел. Текущий gold dataset содержит reviewed expected spans для всех `official-*`; live answer quality остаётся `blocked_by_policy`.
+
 Связанные документы:
 
 - [`nornikel_parallel_execution_plan.md`](nornikel_parallel_execution_plan.md)

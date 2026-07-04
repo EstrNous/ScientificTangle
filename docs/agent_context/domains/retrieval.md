@@ -18,14 +18,15 @@
 **Реализовано:**
 
 - Индексация `NormalizedDocument` → Qdrant points (source spans + table rows), `StorageWriteResult.mode=live`
-- Query path: model `query-ir` → Qdrant vector search → access filter → model `rerank` → `EvidenceBundle`
+- Query path: model `query-ir` → Qdrant dense search + lexical/table scroll + graph evidence → fusion → source access revalidation → model `rerank` → `EvidenceBundle`
 - Source resolve: `POST /v1/sources/{id}/resolve`
 - Access-aware payload: `access_level`, `allowed_roles`
+- `retrieval_trace`: channel counts (`dense`, `lexical`, `table`, `graph`), raw/fused/accessible/reranked counts, planner dump
+- Qdrant filters: source type, dictionary version, geo bucket/country, numeric units/ranges, `published_year`
 
-**Gaps vs ТЗ (гибридный поиск):**
+**Remaining gaps:**
 
-- Нет отдельного graph-channel, lexical/sparse и table-channel fusion
-- `geo_filter` / `numeric_filter` из Query IR не применяются в Qdrant search (только в model gaps)
+- Нужно подтвердить качество hybrid retrieval на seeded official e2e report; live answer quality остаётся `blocked_by_policy`
 - Legacy `api/indexing.py` не смонтирован в FastAPI app
 
 ## Зависимости

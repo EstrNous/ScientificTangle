@@ -417,8 +417,8 @@ def test_export_query_run_returns_markdown_for_completed_run() -> None:
                 }
             ],
             "total_found": 1,
-            "gaps": [],
-            "conflicts": [],
+            "gaps": ["needs_second_source"],
+            "conflicts": ["lab_value_conflict"],
         },
         answer={
             "query_ir": {"raw_query": "Никель 82 %", "filters": {}},
@@ -432,7 +432,7 @@ def test_export_query_run_returns_markdown_for_completed_run() -> None:
             "sources_count": 1,
         },
         graph_subgraph={"nodes": [{"id": "entity-1", "label": "Никель", "type": "Material"}], "links": []},
-        retrieval_trace={"storage": "qdrant"},
+        retrieval_trace={"storage": "hybrid", "channels": {"dense": 1, "lexical": 1, "table": 0, "graph": 1}},
         warnings=["gap_checked"],
         request_id="req-1",
         latency_ms=321,
@@ -506,7 +506,135 @@ def test_export_query_run_returns_markdown_for_completed_run() -> None:
         "pdf": "backlog",
     }
     assert "Подтверждённый ответ" in result.content
+    assert "## Query IR" in result.content
+    assert "## Evidence" in result.content
+    assert "## Sources" in result.content
+    assert "## Graph" in result.content
+    assert "## Gaps" in result.content
+    assert "needs_second_source" in result.content
+    assert "## Conflicts" in result.content
+    assert "lab_value_conflict" in result.content
+    assert "## Retrieval Trace" in result.content
+    assert "hybrid" in result.content
+    assert "## Warnings" in result.content
+    assert "gap_checked" in result.content
+    assert "Role: researcher" in result.content
+    assert "Access scope: public, internal" in result.content
     assert repository.export_transitions == ["pending", "processing", "completed"]
+    assert repository.audit_events[-1]["action"] == "document_exported"
+
+
+def test_export_query_run_returns_json_with_full_mvp_boundary() -> None:
+    repository = FakeQueryRepository()
+    owner = principal()
+    now = datetime.now(UTC)
+    repository.run = QueryRun(
+        id=uuid4(),
+        user_id=owner.user_id,
+        status=QueryRunStatus.COMPLETED.value,
+        raw_question="nickel 82 %",
+        query_ir={
+            "raw_query": "nickel 82 %",
+            "filters": {"numeric_constraints": [{"value": 82, "unit": "%"}]},
+        },
+        evidence_bundle={
+            "query_ir": {
+                "raw_query": "nickel 82 %",
+                "filters": {"numeric_constraints": [{"value": 82, "unit": "%"}]},
+            },
+            "evidence_items": [
+                {
+                    "source_span": {
+                        "id": "span-1",
+                        "document_id": "doc-1",
+                        "page": 1,
+                        "start_offset": 0,
+                        "end_offset": 11,
+                        "text": "Nickel 82 %",
+                        "source_type": "text",
+                    },
+                    "relevance_score": 0.9,
+                    "claim_ids": ["claim-1"],
+                    "entity_ids": ["entity-1"],
+                }
+            ],
+            "total_found": 1,
+            "gaps": ["needs_second_source"],
+            "conflicts": ["lab_value_conflict"],
+        },
+        answer={
+            "query_ir": {
+                "raw_query": "nickel 82 %",
+                "filters": {"numeric_constraints": [{"value": 82, "unit": "%"}]},
+            },
+            "evidence_bundle": {
+                "query_ir": {"raw_query": "nickel 82 %", "filters": {}},
+                "evidence_items": [],
+                "total_found": 0,
+            },
+            "answer_text": "Confirmed answer",
+            "confidence": 0.8,
+            "sources_count": 1,
+        },
+        graph_subgraph={
+            "nodes": [{"id": "entity-1", "label": "Nickel", "type": "Material"}],
+            "links": [],
+        },
+        retrieval_trace={"storage": "hybrid", "channels": {"dense": 1, "lexical": 1, "table": 0, "graph": 1}},
+        warnings=["gap_checked"],
+        request_id="req-1",
+        latency_ms=321,
+        created_at=now,
+        updated_at=now,
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path.endswith("/resolve")
+        return httpx.Response(
+            200,
+            json={
+                "source_span": {
+                    "id": "span-1",
+                    "document_id": "doc-1",
+                    "page": 1,
+                    "start_offset": 0,
+                    "end_offset": 11,
+                    "text": "Nickel 82 %",
+                    "source_type": "text",
+                },
+                "document_title": "doc-1.pdf",
+                "source_type": "pdf",
+                "metadata": {"year": 2024},
+                "access_policy": {"level": "internal", "allowed_roles": ["researcher"]},
+            },
+        )
+
+    async def execute():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            service = ExportService(client=client, query_repository=repository)
+            return await service.export_query_run(
+                owner,
+                repository.run.id,
+                "json",
+                "request-2",
+            )
+
+    result = asyncio.run(execute())
+
+    assert result.format == "json"
+    assert result.content_type == "application/json"
+    assert result.content["answer"] == "Confirmed answer"
+    assert result.content["evidence"][0]["source_span_id"] == "span-1"
+    assert result.content["sources"][0]["document_id"] == "doc-1"
+    assert result.content["graph"]["nodes"][0]["id"] == "entity-1"
+    assert result.content["gaps"] == ["needs_second_source"]
+    assert result.content["conflicts"] == ["lab_value_conflict"]
+    assert result.content["query_ir"]["filters"]["numeric_constraints"][0]["value"] == 82
+    assert result.content["retrieval_trace"]["channels"]["graph"] == 1
+    assert result.content["user_role"] == "researcher"
+    assert result.content["access_scope"] == ["public", "internal"]
+    assert result.content["warnings"] == ["gap_checked"]
+    assert {item.format: item.status for item in result.format_status}["jsonld"] == "backlog"
     assert repository.audit_events[-1]["action"] == "document_exported"
 
 

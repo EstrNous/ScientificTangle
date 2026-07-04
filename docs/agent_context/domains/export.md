@@ -4,14 +4,16 @@
 
 ## Статус
 
-`wired` — HTTP API, MinIO artifacts, orchestrator integration, JSON-LD через model.
+`✅ MVP via orchestrator/gateway` — authoritative path: `POST /api/export` → gateway → `POST /export` в orchestrator. `services/export` остаётся reserved boundary: HTTP-сервис отдаёт только `/health` и `/ready`.
 
 ## Граница
 
 - **Orchestrator (authoritative):** `export_jobs` + `export_artifacts` в `orchestrator_db`, access revalidation, audit `document_exported`
 - **Export service:** рендер Markdown/JSON/JSON-LD, upload в MinIO bucket `exports`, job status cache (Redis/in-memory), download API
 
-## API
+Export payload включает answer, evidence, sources, graph, gaps, conflicts, `QueryIR`, `retrieval_trace`, role/access scope, warnings и `latency_ms`. Перед выдачей orchestrator повторно resolve-ит каждый `SourceSpan`; при drift доступа возвращается `export_access_changed` и пишется audit `access_denied`.
+
+## Backlog
 
 | Endpoint | Назначение |
 |----------|------------|

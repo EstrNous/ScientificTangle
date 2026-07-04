@@ -3,22 +3,21 @@ from uuid import uuid4
 
 from app.service.chat_service import ChatService
 
-from infra.postgres.notification_db.repository import NotificationData
 from shared.contracts import UserRole
 from shared.security import AuthenticatedPrincipal
 
 
-class FakeNotificationRepository:
+class FakeNotificationService:
     def __init__(self) -> None:
-        self.created: NotificationData | None = None
+        self.last_event: dict | None = None
 
-    async def create_notification(self, data: NotificationData):
-        self.created = data
+    async def create_conflict_event(self, **kwargs) -> None:
+        self.last_event = kwargs
 
 
 def test_conflict_notification_uses_query_run_reference_and_match_payload() -> None:
-    repository = FakeNotificationRepository()
-    service = ChatService(repository=None, gateway_service=None, notification_repository=repository)
+    notification_service = FakeNotificationService()
+    service = ChatService(repository=None, gateway_service=None, notification_service=notification_service)
     principal = AuthenticatedPrincipal(user_id=uuid4(), role=UserRole.ANALYST, token_id=uuid4())
     run_id = uuid4()
 
@@ -29,16 +28,17 @@ def test_conflict_notification_uses_query_run_reference_and_match_payload() -> N
                 "id": str(run_id),
                 "evidence_bundle": {"conflicts": ["conflict-1", "conflict-2"]},
             },
+            "req-1",
         )
     )
 
-    assert repository.created is not None
-    assert repository.created.type == "conflict_detected"
-    assert repository.created.reference_id == str(run_id)
-    assert repository.created.reference_type == "query_run"
-    assert repository.created.match_score == 1.0
-    assert repository.created.match_reason == "query_conflict_detected"
-    assert repository.created.match_payload == {
+    assert notification_service.last_event is not None
+    assert notification_service.last_event["event_type"] == "conflict_detected"
+    assert notification_service.last_event["reference_id"] == str(run_id)
+    assert notification_service.last_event["reference_type"] == "query_run"
+    assert notification_service.last_event["match_score"] == 1.0
+    assert notification_service.last_event["match_reason"] == "query_conflict_detected"
+    assert notification_service.last_event["match_payload"] == {
         "conflict_count": 2,
         "query_run_id": str(run_id),
     }

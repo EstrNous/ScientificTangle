@@ -4,6 +4,8 @@
 **Ветка:** `feat/top1-e0-bm1-eval-baseline`
 **Scope:** аудит `eval/`, `demo/official_questions.md`, `scripts/*eval*`, `Makefile`; production query path не менялся.
 
+> Актуализация 2026-07-04: historical E0 выводы про пустые `expected_source_span_ids` устарели. В текущем `eval/gold_questions.json` все `official-*` имеют reviewed expected spans; live answer quality всё ещё `blocked_by_policy`.
+
 ## Вывод
 
 В репозитории уже есть минимальная eval-инфраструктура для Top-1: `eval/gold_questions.json`, `eval/run_eval.py`, `demo/official_questions.md`, `scripts/eval_yandex_live.py`, цель `make eval` и тесты отдельных метрик runner-а. Это пригодно как стартовая спецификация вопросов и метрик, но ещё не является pinned demo baseline.
