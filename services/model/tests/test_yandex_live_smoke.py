@@ -1,3 +1,5 @@
+import os
+
 import pytest
 from app.core.config import settings
 from app.main import app
@@ -6,8 +8,8 @@ from fastapi.testclient import TestClient
 from shared.contracts import NormalizedDocument, SourceSpan
 
 pytestmark = pytest.mark.skipif(
-    not settings.yandex_enabled,
-    reason="Yandex API credentials are not configured",
+    os.getenv("RUN_MODEL_TESTS") != "1" or not settings.yandex_enabled,
+    reason="Model live tests are opt-in: set RUN_MODEL_TESTS=1 and configure Yandex credentials",
 )
 
 client = TestClient(app)

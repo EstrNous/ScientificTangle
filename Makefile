@@ -1,4 +1,4 @@
-.PHONY: bootstrap up down build logs seed ingest-demo e2e eval eval-yandex-live perf-smoke reset-demo lint test test-neo4j-integration test-yandex-live export-demo
+.PHONY: bootstrap up down build logs seed ingest-demo e2e eval eval-yandex-live perf-smoke reset-demo lint test test-model test-neo4j-integration test-yandex-live export-demo
 
 bootstrap:
 	python scripts/generate_auth_keys.py
@@ -29,9 +29,9 @@ eval:
 	python eval/run_eval.py --service-url $${EVAL_SERVICE_URL:-http://localhost:8000/api/query} --gold $${EVAL_GOLD:-eval/gold_questions.json} --auth-token-env EVAL_AUTH_TOKEN --official-only
 
 eval-yandex-live:
-	python scripts/yandex_live_smoke.py
-	python scripts/seed_demo.py --fail-on-degraded
-	python scripts/eval_yandex_live.py
+	RUN_MODEL_TESTS=1 python scripts/yandex_live_smoke.py
+	RUN_MODEL_TESTS=1 python scripts/seed_demo.py --fail-on-degraded
+	RUN_MODEL_TESTS=1 python scripts/eval_yandex_live.py
 
 perf-smoke:
 	python scripts/perf_smoke.py
@@ -46,11 +46,14 @@ lint:
 test:
 	python scripts/run_tests.py
 
+test-model:
+	RUN_MODEL_TESTS=1 python scripts/run_tests.py
+
 test-neo4j-integration:
 	cd tests/integration && RUN_NEO4J_INTEGRATION=1 python -m pytest test_neo4j_smoke.py -v
 
 test-yandex-live:
-	python scripts/yandex_live_smoke.py
+	RUN_MODEL_TESTS=1 python scripts/yandex_live_smoke.py
 
 export-demo:
 	@echo "export-demo: use ui ExportPanel or eval reports"

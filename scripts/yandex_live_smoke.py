@@ -21,6 +21,11 @@ def load_env_file(path: str) -> None:
         os.environ.setdefault(key.strip(), value.strip())
 
 
+def require_model_tests_enabled() -> None:
+    if os.getenv("RUN_MODEL_TESTS") != "1":
+        raise SystemExit("Model scripts are opt-in: set RUN_MODEL_TESTS=1")
+
+
 def require_yandex_env() -> None:
     missing = [key for key in ("YANDEX_API_KEY", "YANDEX_FOLDER_ID") if not os.getenv(key)]
     if missing:
@@ -105,6 +110,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    require_model_tests_enabled()
     load_env_file(args.env_file)
     require_yandex_env()
     result = asyncio.run(run_smoke(args.model_url))
