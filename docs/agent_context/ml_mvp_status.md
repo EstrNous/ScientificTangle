@@ -25,6 +25,7 @@
 - Notification matching усилен metadata-aware scoring и штрафами для candidate/low-confidence artifacts.
 - JSON-LD enrichment расширен provenance-полями QueryIR, EvidenceBundle, SourceSpan, gaps/conflicts и не экспортирует candidates как facts.
 - Eval/perf отчеты получили versioned `eval/reports/*` artifacts, access leak и JSON-LD provenance метрики.
+- Eval regression получил pinned input manifest `eval/pinned_demo_artifact.json`, suite-разбиение `eval/regression_suites.json` и comparison report в `eval/run_eval.py`.
 
 ## Закрыто в интеграции (не только model)
 
@@ -37,7 +38,7 @@
 - Гибридный retrieval по ТЗ: graph/table/lexical channels и fusion поверх vector search.
 - Geo/numeric constraints из Query IR не enforced в Qdrant search (только в gap suggestions).
 - Нет UI evaluation dashboard; доступны Markdown/JSON eval reports.
-- Нет зафиксированного командного live eval artifact на общем demo corpus.
+- Нет зафиксированного командного live eval artifact с реальными ответами на общем demo corpus; E4 закрепил только входы и правила regression comparison.
 - Export service wiring: JSON-LD endpoint готов в model, HTTP export service — заглушка.
 - Notification service wiring: ML matching готов, HTTP notification service — заглушка.
 
