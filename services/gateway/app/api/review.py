@@ -22,7 +22,7 @@ async def review_queue(
     raise ServiceError(
         status.HTTP_501_NOT_IMPLEMENTED,
         "review_storage_not_implemented",
-        "Review queue API contract is available, review storage is not implemented in E1",
+        "Review queue API contract is available; E2 storage is merged, workflow wiring is deferred to E3",
     )
 
 
@@ -34,5 +34,5 @@ async def review_decision(
     raise ServiceError(
         status.HTTP_501_NOT_IMPLEMENTED,
         "review_storage_not_implemented",
-        "Review decision API contract is available, review storage is not implemented in E1",
+        "Review decision API contract is available; E2 storage is merged, workflow wiring is deferred to E3",
     )

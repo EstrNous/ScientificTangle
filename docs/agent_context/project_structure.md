@@ -53,6 +53,9 @@
 - `docs/agent_context/nornikel_e1_db_storage_ownership.md` — E1 Databases: migrations `0008`/`0002`, ownership таблиц, индексы, seed/reset.
 - `docs/agent_context/nornikel_e1_bml_no_live_policy.md` — E1 Backend/ML policy: no-live ограничения, контрактные skeleton routes и storage dependencies.
 - `docs/agent_context/nornikel_e1_validation_report.md` — E1 validation report: merge gate, contract/UI integration checks, blockers перед E2.
+- `docs/agent_context/nornikel_e2_db_storage_ownership.md` — E2 Databases: migration `0009`, review/source lookup, cascade delete metadata, fixtures.
+- `docs/agent_context/nornikel_e2_bml_gold_dataset_report.md` — E2 Backend/ML: offline gold dataset, reviewed SourceSpan fixtures, reason codes.
+- `docs/agent_context/nornikel_e2_validation_report.md` — E2 validation report: merge gate, dataset/source/review checks, blockers перед E3.
 - `docs/agent_context/top1_e0_contract_audit.md` — аудит контрактов query path и freeze points для этапов E1–E4.
 - `docs/agent_context/top1_e1_bm2_ml_policy.md` — E1 policy для классов запросов, retrieval planner rules, verification reason codes и synthesis/AnswerPayloadV2 expectations.
 - `docs/agent_context/top1_e4_bm1_eval_regression.md` — E4 pinned demo artifact, eval suites и comparison gate для regression checks.
