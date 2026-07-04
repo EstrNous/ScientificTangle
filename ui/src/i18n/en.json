@@ -221,6 +221,12 @@
     "newChatShortcut": "New chat ({{shortcut}})",
     "defaultSessionTitle": "New query",
     "deleteSession": "Delete query",
+    "inputPlaceholder": "Ask a question…",
+    "send": "Send",
+    "attachFile": "Attach file",
+    "attachFileHint": "Attach PDF, DOCX, TXT",
+    "removeAttachment": "Remove {{name}}",
+    "attachmentQuery": "What is in the attached documents?",
     "errors": {
       "chat_load_failed": "Failed to load chat sessions",
       "chat_messages_failed": "Failed to load messages",

@@ -104,6 +104,11 @@ export function useChatAnswerFlow() {
         await uploadFiles(files);
       }
 
+      let queryText = text.trim();
+      if (!queryText && files.length > 0) {
+        queryText = t('chat.attachmentQuery');
+      }
+
       if (liveProduction && streamingUxEnabled && isQueryStreamTransportAvailable()) {
         const handlers = createQueryEventHandlers({
           setPhase,
@@ -114,10 +119,10 @@ export function useChatAnswerFlow() {
           const token = await ensureAuth();
           const controller = new AbortController();
           const streamPromise = tryRunQueryEventStream(
-            { question: text, authorization: authHeaders(token).Authorization },
+            { question: queryText, authorization: authHeaders(token).Authorization },
             { onEvent: handlers.onEvent, signal: controller.signal },
           );
-          const reply = await sendChatMessage(sessionId, text);
+          const reply = await sendChatMessage(sessionId, queryText);
           controller.abort();
           await streamPromise;
           const trace = mapRetrievalTraceFromResponse(reply, t);
@@ -132,7 +137,7 @@ export function useChatAnswerFlow() {
       }
 
       try {
-        const reply = await sendChatMessage(sessionId, text);
+        const reply = await sendChatMessage(sessionId, queryText);
         if (streamingUxEnabled) {
           const trace = mapRetrievalTraceFromResponse(reply, t);
           if (trace) setRetrievalTrace(trace);

@@ -171,15 +171,18 @@ export default function ChatPage() {
   };
 
   const handleSend = async ({ text, files }) => {
-    if (isActive || (!text.trim() && files.length === 0)) return;
+    const trimmedText = text.trim();
+    if (isActive || (!trimmedText && files.length === 0)) return;
 
     setError(null);
+
+    const queryText = trimmedText || (files.length > 0 ? t('chat.attachmentQuery') : '');
 
     const attachments = files.map((f) => f.name);
     const optimisticUser = {
       id: `local-${Date.now()}`,
       role: 'user',
-      content: text,
+      content: queryText,
       attachments,
     };
 
@@ -197,7 +200,7 @@ export default function ChatPage() {
           sessionId = reusableDraft.id;
           setActiveId(sessionId);
         } else {
-          const created = await createChatSession(sessionTitleFromText(text, defaultSessionTitle));
+          const created = await createChatSession(sessionTitleFromText(queryText, defaultSessionTitle));
           sessionId = created.id;
           setSessions((prev) => [created, ...prev]);
           setActiveId(sessionId);
@@ -205,12 +208,12 @@ export default function ChatPage() {
       }
 
       setMessages((prev) => [...prev, optimisticUser]);
-      const reply = await sendAnswerQuery({ sessionId, text, files });
+      const reply = await sendAnswerQuery({ sessionId, text: queryText, files });
       setMessages((prev) => [...prev.filter((m) => m.id !== optimisticUser.id), optimisticUser, reply]);
       setSessions((prev) =>
         prev.map((session) =>
           session.id === sessionId
-            ? { ...session, title: session.title || sessionTitleFromText(text, defaultSessionTitle) }
+            ? { ...session, title: session.title || sessionTitleFromText(queryText, defaultSessionTitle) }
             : session,
         ),
       );

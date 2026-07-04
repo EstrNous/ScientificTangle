@@ -226,6 +226,7 @@
     "attachFile": "Прикрепить файл",
     "attachFileHint": "Прикрепить PDF, DOCX, TXT",
     "removeAttachment": "Убрать {{name}}",
+    "attachmentQuery": "Что содержится в прикреплённых документах?",
     "errors": {
       "chat_load_failed": "Не удалось загрузить список чатов",
       "chat_messages_failed": "Не удалось загрузить сообщения",
