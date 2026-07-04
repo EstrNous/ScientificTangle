@@ -1,11 +1,11 @@
 import asyncio
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import httpx
 from app.service.service import OrchestratorService, OrchestratorServiceError
 
-from infra.postgres.orchestrator_db import QueryRun
+from infra.postgres.orchestrator_db import ExportJob, QueryRun
 from shared.contracts import QueryRunStatus, UserRole
 from shared.security import AuthenticatedPrincipal
 
@@ -14,6 +14,11 @@ class FakeQueryRepository:
     def __init__(self) -> None:
         self.run = None
         self.transitions = []
+        self.audit_rows: list[dict[str, object]] = []
+        self.audit_events: list[dict[str, object]] = []
+        self.export_job = None
+        self.export_transitions: list[str] = []
+        self.last_audit_filters: dict[str, object] | None = None
 
     async def create(self, user_id, question, request_id):
         now = datetime.now(UTC)
@@ -89,7 +94,63 @@ class FakeQueryRepository:
         return run
 
     async def record_audit_event(self, user_id, action, resource_type, resource_id, details, request_id):
-        return None
+        self.audit_events.append(
+            {
+                "user_id": user_id,
+                "action": action,
+                "resource_type": resource_type,
+                "resource_id": resource_id,
+                "details": details,
+                "request_id": request_id,
+            }
+        )
+
+    async def create_export_job(self, user_id, query_run_id, export_format):
+        now = datetime.now(UTC)
+        self.export_job = ExportJob(
+            id=uuid4(),
+            user_id=user_id,
+            query_run_id=query_run_id,
+            status="pending",
+            format=export_format,
+            created_at=now,
+            updated_at=now,
+        )
+        self.export_transitions.append("pending")
+        return self.export_job
+
+    async def mark_export_processing(self, job):
+        job.status = "processing"
+        self.export_transitions.append("processing")
+        return job
+
+    async def mark_export_completed(self, job, payload, file_url):
+        job.status = "completed"
+        job.payload = payload.model_dump(mode="json")
+        job.file_url = file_url
+        self.export_transitions.append("completed")
+        return job
+
+    async def mark_export_failed(self, job, message):
+        job.status = "failed"
+        job.error_message = message
+        self.export_transitions.append("failed")
+        return job
+
+    async def list_audit_events(
+        self,
+        limit: int = 200,
+        offset: int = 0,
+        action: str | None = None,
+        user_id: UUID | None = None,
+    ):
+        self.last_audit_filters = {
+            "limit": limit,
+            "offset": offset,
+            "action": action,
+            "user_id": user_id,
+        }
+        return self.audit_rows
 
 
     async def mark_failed(self, run, code, message, latency_ms):
@@ -245,3 +306,217 @@ def test_empty_evidence_skips_synthesis_and_completes_with_warning() -> None:
     assert result.answer.sources_count == 0
     assert result.graph_subgraph.nodes == []
     assert "insufficient_accessible_evidence" in result.warnings
+
+
+def test_list_audit_events_maps_extended_fields_and_filters() -> None:
+    repository = FakeQueryRepository()
+    user_id = uuid4()
+    repository.audit_rows = [
+        {
+            "id": uuid4(),
+            "user_id": user_id,
+            "action": "source_viewed",
+            "resource_type": "source_span",
+            "resource_id": "span-1",
+            "details": {
+                "source_span_id": "span-1",
+                "role": "researcher",
+                "status": "success",
+            },
+            "request_id": "req-1",
+            "created_at": datetime(2026, 7, 4, tzinfo=UTC),
+        }
+    ]
+
+    async def execute():
+        async with httpx.AsyncClient() as client:
+            orchestrator = OrchestratorService(
+                repository=repository,
+                client=client,
+                ingestion_url="http://ingestion",
+                knowledge_url="http://knowledge",
+                retrieval_url="http://retrieval",
+                model_url="http://model",
+                query_repository=repository,
+            )
+            return await orchestrator.list_audit_events(
+                limit=25,
+                offset=10,
+                action="source_viewed",
+                user_id=user_id,
+            )
+
+    events = asyncio.run(execute())
+
+    assert repository.last_audit_filters == {
+        "limit": 25,
+        "offset": 10,
+        "action": "source_viewed",
+        "user_id": user_id,
+    }
+    assert events[0].user == str(user_id)
+    assert events[0].user_id == str(user_id)
+    assert events[0].role == "researcher"
+    assert events[0].status == "success"
+    assert events[0].resource_type == "source_span"
+    assert events[0].resource_id == "span-1"
+    assert events[0].request_id == "req-1"
+
+
+def test_export_query_run_returns_markdown_for_completed_run() -> None:
+    repository = FakeQueryRepository()
+    owner = principal()
+    now = datetime.now(UTC)
+    repository.run = QueryRun(
+        id=uuid4(),
+        user_id=owner.user_id,
+        status=QueryRunStatus.COMPLETED.value,
+        raw_question="Никель 82 %",
+        query_ir={"raw_query": "Никель 82 %", "filters": {}},
+        evidence_bundle={
+            "query_ir": {"raw_query": "Никель 82 %", "filters": {}},
+            "evidence_items": [
+                {
+                    "source_span": {
+                        "id": "span-1",
+                        "document_id": "doc-1",
+                        "page": 1,
+                        "start_offset": 0,
+                        "end_offset": 11,
+                        "text": "Никель 82 %",
+                        "source_type": "text",
+                    },
+                    "relevance_score": 0.9,
+                    "claim_ids": ["claim-1"],
+                    "entity_ids": ["entity-1"],
+                }
+            ],
+            "total_found": 1,
+            "gaps": [],
+            "conflicts": [],
+        },
+        answer={
+            "query_ir": {"raw_query": "Никель 82 %", "filters": {}},
+            "evidence_bundle": {
+                "query_ir": {"raw_query": "Никель 82 %", "filters": {}},
+                "evidence_items": [],
+                "total_found": 0,
+            },
+            "answer_text": "Подтверждённый ответ",
+            "confidence": 0.8,
+            "sources_count": 1,
+        },
+        graph_subgraph={"nodes": [{"id": "entity-1", "label": "Никель", "type": "Material"}], "links": []},
+        retrieval_trace={"storage": "qdrant"},
+        warnings=["gap_checked"],
+        request_id="req-1",
+        latency_ms=321,
+        created_at=now,
+        updated_at=now,
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path.endswith("/resolve")
+        return httpx.Response(
+            200,
+            json={
+                "source_span": {
+                    "id": "span-1",
+                    "document_id": "doc-1",
+                    "page": 1,
+                    "start_offset": 0,
+                    "end_offset": 11,
+                    "text": "Никель 82 %",
+                    "source_type": "text",
+                },
+                "document_title": "doc-1.pdf",
+                "source_type": "pdf",
+                "metadata": {"year": 2024},
+                "access_policy": {"level": "internal", "allowed_roles": ["researcher"]},
+            },
+        )
+
+    async def execute():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            return await service(client, repository).export_query_run(
+                owner,
+                repository.run.id,
+                "markdown",
+                "request-2",
+            )
+
+    result = asyncio.run(execute())
+
+    assert result.format == "markdown"
+    assert result.content_type == "text/markdown"
+    assert "Подтверждённый ответ" in result.content
+    assert repository.export_transitions == ["pending", "processing", "completed"]
+    assert repository.audit_events[-1]["action"] == "document_exported"
+
+
+def test_export_query_run_fails_when_source_access_changed() -> None:
+    repository = FakeQueryRepository()
+    owner = principal()
+    now = datetime.now(UTC)
+    repository.run = QueryRun(
+        id=uuid4(),
+        user_id=owner.user_id,
+        status=QueryRunStatus.COMPLETED.value,
+        raw_question="Закрытый источник",
+        query_ir={"raw_query": "Закрытый источник", "filters": {}},
+        evidence_bundle={
+            "query_ir": {"raw_query": "Закрытый источник", "filters": {}},
+            "evidence_items": [
+                {
+                    "source_span": {
+                        "id": "span-denied",
+                        "document_id": "doc-denied",
+                        "page": 1,
+                        "start_offset": 0,
+                        "end_offset": 16,
+                        "text": "Закрытый текст",
+                        "source_type": "text",
+                    }
+                }
+            ],
+            "total_found": 1,
+        },
+        answer={
+            "query_ir": {"raw_query": "Закрытый источник", "filters": {}},
+            "evidence_bundle": {
+                "query_ir": {"raw_query": "Закрытый источник", "filters": {}},
+                "evidence_items": [],
+                "total_found": 0,
+            },
+            "answer_text": "Ответ",
+        },
+        graph_subgraph={"nodes": [], "links": []},
+        retrieval_trace={"storage": "qdrant"},
+        warnings=[],
+        request_id="req-3",
+        latency_ms=100,
+        created_at=now,
+        updated_at=now,
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(404, json={"detail": "source_not_found"})
+
+    async def execute():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            try:
+                await service(client, repository).export_query_run(
+                    owner,
+                    repository.run.id,
+                    "json",
+                    "request-3",
+                )
+            except OrchestratorServiceError as error:
+                return error
+        raise AssertionError
+
+    error = asyncio.run(execute())
+
+    assert error.code == "export_access_changed"
+    assert repository.export_transitions == ["pending", "processing", "failed"]
+    assert repository.audit_events[-1]["action"] == "access_denied"

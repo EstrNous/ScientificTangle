@@ -105,6 +105,23 @@ class GatewayService:
             f"/source/{source_span_id}", authorization, request_id
         )
 
+    async def export_query_run(
+        self,
+        payload: dict,
+        authorization: str,
+        request_id: str,
+    ) -> dict:
+        response = await self._request(
+            "POST",
+            "/export",
+            authorization,
+            request_id,
+            json_body=payload,
+        )
+        if response.status_code != status.HTTP_200_OK:
+            raise self._downstream_error(response)
+        return self._json_payload(response)
+
     async def get_subgraph(
         self,
         run_id: UUID,

@@ -1,5 +1,6 @@
 import json
 import time
+from datetime import UTC, datetime
 from uuid import UUID
 
 import httpx
@@ -16,6 +17,7 @@ from shared.contracts import (
     ApiError,
     AuditEvent,
     EvidenceBundle,
+    ExportPayload,
     GraphSubgraph,
     IngestionReport,
     IngestionTaskPayload,
@@ -98,6 +100,7 @@ class OrchestratorService:
         authorization: str,
         request_id: str,
         session_factory,
+        role: str = "",
     ) -> None:
         async with session_factory() as session:
             repository = IngestionTaskRepository(session)
@@ -110,6 +113,7 @@ class OrchestratorService:
                     repository,
                     task,
                     user_id,
+                    role,
                     report,
                     authorization,
                     request_id,
@@ -138,6 +142,7 @@ class OrchestratorService:
                 self._repository,
                 task,
                 principal.user_id,
+                principal.role.value,
                 report,
                 authorization,
                 request_id,
@@ -201,6 +206,7 @@ class OrchestratorService:
         repository: IngestionTaskRepository,
         task: IngestionTask,
         user_id: UUID,
+        role: str,
         report: IngestionReport,
         authorization: str,
         request_id: str,
@@ -302,6 +308,8 @@ class OrchestratorService:
                 "documents_count": completed_report.documents_count,
                 "source_spans_count": completed_report.source_spans_count,
                 "indexed_points_count": completed_report.indexed_points_count,
+                "role": role,
+                "status": "completed",
             },
             request_id,
         )
@@ -334,7 +342,7 @@ class OrchestratorService:
             "query_created",
             "query_run",
             str(run.id),
-            {"question": question},
+            {"question": question, "role": principal.role.value, "status": "started"},
             request_id,
         )
         started_at = time.perf_counter()
@@ -436,7 +444,12 @@ class OrchestratorService:
                     "filtered_sources",
                     "query_run",
                     str(run.id),
-                    {"retrieved": retrieval_trace.get("retrieved", 0), "accessible": 0},
+                    {
+                        "retrieved": retrieval_trace.get("retrieved", 0),
+                        "accessible": 0,
+                        "role": principal.role.value,
+                        "status": "filtered",
+                    },
                     request_id,
                 )
                 answer = AnswerPayload(
@@ -504,7 +517,12 @@ class OrchestratorService:
             "source_viewed",
             "source_span",
             source_span_id,
-            {"document_id": payload.source_span.document_id},
+            {
+                "document_id": payload.source_span.document_id,
+                "source_span_id": source_span_id,
+                "role": principal.role.value,
+                "status": "success",
+            },
             request_id,
         )
         return payload
@@ -540,8 +558,103 @@ class OrchestratorService:
             )
         )
 
-    async def list_audit_events(self, limit: int = 200) -> list[AuditEvent]:
-        rows = await self._repository.list_audit_events(limit)
+    async def export_query_run(
+        self,
+        principal: AuthenticatedPrincipal,
+        run_id: UUID,
+        export_format: str,
+        request_id: str,
+    ) -> ExportPayload:
+        if export_format not in {"markdown", "json"}:
+            raise OrchestratorServiceError(422, "invalid_export_format", "Unsupported export format")
+        repository = self._require_query_repository()
+        run = await repository.get(run_id)
+        if run is None or (
+            principal.role != UserRole.ADMIN and run.user_id != principal.user_id
+        ):
+            raise OrchestratorServiceError(404, "query_run_not_found", "Query run not found")
+        if run.status != QueryRunStatus.COMPLETED.value:
+            raise OrchestratorServiceError(
+                409,
+                "query_run_not_completed",
+                "Export is available only for completed query runs",
+            )
+        if not run.query_ir or not run.evidence_bundle or not run.answer:
+            raise OrchestratorServiceError(
+                409,
+                "query_run_incomplete",
+                "Query run does not contain a complete exportable payload",
+            )
+        export_job = await repository.create_export_job(
+            principal.user_id,
+            run.id,
+            export_format,
+        )
+        await repository.mark_export_processing(export_job)
+        query_payload = self._query_payload(run)
+        try:
+            resolved_sources = await self._resolve_export_sources(
+                query_payload,
+                principal,
+                request_id,
+            )
+        except OrchestratorServiceError as error:
+            await repository.mark_export_failed(export_job, error.message)
+            if error.status_code in {403, 404, 409}:
+                await repository.record_audit_event(
+                    principal.user_id,
+                    "access_denied",
+                    "export_job",
+                    str(export_job.id),
+                    {
+                        "query_run_id": str(run.id),
+                        "format": export_format,
+                        "role": principal.role.value,
+                        "status": "denied",
+                    },
+                    request_id,
+                )
+            raise
+        generated_at = datetime.now(UTC)
+        file_url = self._export_file_url(export_job.id, export_format)
+        response_payload = self._build_export_payload(
+            export_job.id,
+            query_payload,
+            resolved_sources,
+            export_format,
+            principal.role.value,
+            file_url,
+            generated_at,
+        )
+        await repository.mark_export_completed(export_job, response_payload, file_url)
+        await repository.record_audit_event(
+            principal.user_id,
+            "document_exported",
+            "export_job",
+            str(export_job.id),
+            {
+                "query_run_id": str(run.id),
+                "format": export_format,
+                "role": principal.role.value,
+                "status": "completed",
+            },
+            request_id,
+        )
+        return response_payload
+
+    async def list_audit_events(
+        self,
+        limit: int = 200,
+        offset: int = 0,
+        action: str | None = None,
+        user_id: UUID | None = None,
+    ) -> list[AuditEvent]:
+        rows = await self._repository.list_audit_events(
+            limit=limit,
+            offset=offset,
+            action=action,
+            user_id=user_id,
+        )
         events = []
         for row in rows:
             details = row.get("details") or {}
@@ -554,10 +667,16 @@ class OrchestratorService:
                 AuditEvent(
                     id=str(row["id"]),
                     user=str(row.get("user_id") or ""),
-                    role="",
+                    user_id=str(row.get("user_id") or ""),
+                    role=str(details.get("role") or ""),
                     action=str(row["action"]),
                     object=str(row.get("resource_id") or ""),
+                    status=str(details.get("status") or ""),
+                    resource_type=str(row.get("resource_type") or ""),
+                    resource_id=str(row.get("resource_id") or ""),
+                    request_id=str(row.get("request_id") or ""),
                     timestamp=row["created_at"].isoformat() if row.get("created_at") else "",
+                    details=details if isinstance(details, dict) else {},
                     source_span_id=details.get("source_span_id"),
                 )
             )
@@ -567,6 +686,44 @@ class OrchestratorService:
         if self._query_repository is None:
             raise RuntimeError("query_repository_not_configured")
         return self._query_repository
+
+    async def _resolve_export_sources(
+        self,
+        payload: QueryRunPayload,
+        principal: AuthenticatedPrincipal,
+        request_id: str,
+    ) -> list[SourcePayload]:
+        evidence_bundle = payload.evidence_bundle
+        if evidence_bundle is None:
+            return []
+        resolved_sources: list[SourcePayload] = []
+        seen_ids: set[str] = set()
+        for item in evidence_bundle.evidence_items:
+            source_span_id = item.source_span.id
+            if source_span_id in seen_ids:
+                continue
+            seen_ids.add(source_span_id)
+            try:
+                source_payload = SourcePayload.model_validate(
+                    await self._request_downstream(
+                        "POST",
+                        self._retrieval_url,
+                        f"/v1/sources/{source_span_id}/resolve",
+                        {"access_roles": [principal.role.value]},
+                        request_id,
+                        "retrieval",
+                    )
+                )
+            except OrchestratorServiceError as error:
+                if error.status_code in {403, 404}:
+                    raise OrchestratorServiceError(
+                        409,
+                        "export_access_changed",
+                        "Export was rejected because source access changed",
+                    ) from error
+                raise
+            resolved_sources.append(source_payload)
+        return resolved_sources
 
     @staticmethod
     def _query_payload(run: QueryRun) -> QueryRunPayload:
@@ -591,6 +748,168 @@ class OrchestratorService:
             created_at=run.created_at,
             updated_at=run.updated_at,
         )
+
+    def _build_export_payload(
+        self,
+        export_job_id: UUID,
+        payload: QueryRunPayload,
+        sources: list[SourcePayload],
+        export_format: str,
+        role: str,
+        file_url: str,
+        generated_at: datetime,
+    ) -> ExportPayload:
+        export_document = self._export_document(payload, sources, role, generated_at)
+        content: str | dict
+        content_type: str
+        if export_format == "markdown":
+            content = self._render_export_markdown(export_document)
+            content_type = "text/markdown"
+        else:
+            content = export_document
+            content_type = "application/json"
+        return ExportPayload(
+            export_job_id=export_job_id,
+            query_run_id=payload.id,
+            format=export_format,
+            status=QueryRunStatus.COMPLETED,
+            content_type=content_type,
+            content=content,
+            file_url=file_url,
+            warnings=payload.warnings,
+            generated_at=generated_at,
+        )
+
+    def _export_document(
+        self,
+        payload: QueryRunPayload,
+        sources: list[SourcePayload],
+        role: str,
+        generated_at: datetime,
+    ) -> dict:
+        evidence_bundle = payload.evidence_bundle or EvidenceBundle(query_ir=payload.query_ir or QueryIR(raw_query=payload.question))
+        answer = payload.answer or AnswerPayload(
+            query_ir=payload.query_ir or QueryIR(raw_query=payload.question),
+            evidence_bundle=evidence_bundle,
+            answer_text="",
+        )
+        source_entries = [
+            {
+                "source_span_id": source.source_span.id,
+                "document_id": source.source_span.document_id,
+                "document_title": source.document_title,
+                "page": source.source_span.page,
+                "source_type": source.source_type,
+                "text": source.source_span.text,
+                "link": f"/api/source/{source.source_span.id}",
+                "metadata": source.metadata,
+            }
+            for source in sources
+        ]
+        evidence_entries = [
+            {
+                "source_span_id": item.source_span.id,
+                "text": item.source_span.text,
+                "relevance_score": item.relevance_score,
+                "claim_ids": item.claim_ids,
+                "entity_ids": item.entity_ids,
+                "page": item.source_span.page,
+            }
+            for item in evidence_bundle.evidence_items
+        ]
+        return {
+            "query_run_id": str(payload.id),
+            "question": payload.question,
+            "status": payload.status.value,
+            "role": role,
+            "generated_at": generated_at.isoformat(),
+            "answer": answer.answer_text,
+            "confidence": answer.confidence,
+            "sources_count": answer.sources_count,
+            "query_ir": answer.query_ir.model_dump(mode="json"),
+            "evidence": evidence_entries,
+            "sources": source_entries,
+            "graph": payload.graph_subgraph.model_dump(mode="json"),
+            "gaps": evidence_bundle.gaps,
+            "conflicts": evidence_bundle.conflicts,
+            "warnings": payload.warnings,
+            "retrieval_trace": payload.retrieval_trace,
+            "latency_ms": payload.latency_ms,
+        }
+
+    @staticmethod
+    def _render_export_markdown(document: dict) -> str:
+        lines = [
+            f"# Export for query run {document['query_run_id']}",
+            "",
+            f"- Question: {document['question']}",
+            f"- Role: {document['role']}",
+            f"- Generated at: {document['generated_at']}",
+            f"- Status: {document['status']}",
+            f"- Latency ms: {document['latency_ms'] if document['latency_ms'] is not None else ''}",
+            "",
+            "## Answer",
+            "",
+            str(document["answer"]),
+            "",
+            "## Query IR",
+            "",
+            "```json",
+            json.dumps(document["query_ir"], ensure_ascii=False, indent=2),
+            "```",
+            "",
+            "## Evidence",
+            "",
+        ]
+        for item in document["evidence"]:
+            lines.extend(
+                [
+                    f"- {item['source_span_id']} (page {item['page']}, score {item['relevance_score']})",
+                    f"  {item['text']}",
+                ]
+            )
+        lines.extend(["", "## Sources", ""])
+        for source in document["sources"]:
+            lines.extend(
+                [
+                    f"- {source['document_title']} [{source['source_span_id']}]({source['link']})",
+                    f"  {source['text']}",
+                ]
+            )
+        lines.extend(
+            [
+                "",
+                "## Graph",
+                "",
+                "```json",
+                json.dumps(document["graph"], ensure_ascii=False, indent=2),
+                "```",
+                "",
+                "## Gaps",
+                "",
+                *([f"- {item}" for item in document["gaps"]] or ["- none"]),
+                "",
+                "## Conflicts",
+                "",
+                *([f"- {item}" for item in document["conflicts"]] or ["- none"]),
+                "",
+                "## Retrieval Trace",
+                "",
+                "```json",
+                json.dumps(document["retrieval_trace"], ensure_ascii=False, indent=2),
+                "```",
+                "",
+                "## Warnings",
+                "",
+                *([f"- {item}" for item in document["warnings"]] or ["- none"]),
+            ]
+        )
+        return "\n".join(lines)
+
+    @staticmethod
+    def _export_file_url(export_job_id: UUID, export_format: str) -> str:
+        extension = "md" if export_format == "markdown" else "json"
+        return f"inline://export-jobs/{export_job_id}.{extension}"
 
     async def _request_downstream(
         self,

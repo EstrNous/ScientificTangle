@@ -241,10 +241,23 @@ class AdminService:
             "operations": {"latency_ms": 0, "errors": 0, "rps": 0, "services": []},
         }
 
-    async def list_audit_events(self, authorization: str) -> list[dict]:
+    async def list_audit_events(
+        self,
+        authorization: str,
+        action: str | None = None,
+        user_id: UUID | None = None,
+        limit: int = 200,
+        offset: int = 0,
+    ) -> list[dict]:
+        query: dict[str, str | int] = {"limit": limit, "offset": offset}
+        if action is not None:
+            query["action"] = action
+        if user_id is not None:
+            query["user_id"] = str(user_id)
         response = await self._client.get(
             f"{self._orchestrator_url}/audit/events",
             headers={"Authorization": authorization},
+            params=query,
         )
         if response.status_code != 200:
             return []

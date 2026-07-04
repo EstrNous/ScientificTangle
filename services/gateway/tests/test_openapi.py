@@ -18,6 +18,7 @@ def test_query_e2e_routes_are_in_openapi() -> None:
 
     assert "/query" in paths
     assert "/runs/{run_id}" in paths
+    assert "/export" in paths
     assert "/source/{source_span_id}" in paths
     assert "/graph/subgraph" in paths
     assert "/search" in paths
