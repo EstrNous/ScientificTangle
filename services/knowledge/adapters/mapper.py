@@ -54,6 +54,7 @@ def now_iso() -> str:
 
 
 def map_source_span(span: SourceSpan) -> SourceSpanDTO:
+    table_row_id = span.table_block_id if span.table_block_id and ":row:" in span.table_block_id else None
     return SourceSpanDTO(
         source_span_id=compute_source_span_id(span),
         document_id=span.document_id,
@@ -63,6 +64,9 @@ def map_source_span(span: SourceSpan) -> SourceSpanDTO:
         char_end=span.end_offset,
         source_type=span.source_type,
         table_block_id=span.table_block_id,
+        table_row_id=table_row_id,
+        highlight_start=span.start_offset,
+        highlight_end=span.end_offset,
     )
 
 

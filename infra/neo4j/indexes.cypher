@@ -7,5 +7,11 @@ CREATE INDEX document_access_level IF NOT EXISTS FOR (d:Document) ON (d.access_l
 CREATE INDEX entity_domain_type IF NOT EXISTS FOR (e:Entity) ON (e.domain_type);
 CREATE INDEX geography_name IF NOT EXISTS FOR (g:Geography) ON (g.name);
 CREATE INDEX measurement_normalized_value IF NOT EXISTS FOR (m:Measurement) ON (m.normalized_value);
+CREATE INDEX source_span_document_id IF NOT EXISTS FOR (s:SourceSpan) ON (s.document_id);
+CREATE INDEX source_span_page_number IF NOT EXISTS FOR (s:SourceSpan) ON (s.page_number);
+CREATE INDEX source_span_table_row_id IF NOT EXISTS FOR (s:SourceSpan) ON (s.table_row_id);
+CREATE INDEX candidate_entity_extracted_at IF NOT EXISTS FOR (ce:CandidateEntity) ON (ce.extracted_at);
+CREATE INDEX candidate_relation_extracted_at IF NOT EXISTS FOR (cr:CandidateRelation) ON (cr.extracted_at);
+CREATE INDEX candidate_class_extracted_at IF NOT EXISTS FOR (cc:CandidateClass) ON (cc.extracted_at);
 CREATE FULLTEXT INDEX entity_canonical_name_ft IF NOT EXISTS FOR (e:Entity) ON EACH [e.canonical_name];
 CREATE FULLTEXT INDEX alias_name_ft IF NOT EXISTS FOR (a:Alias) ON EACH [a.name];

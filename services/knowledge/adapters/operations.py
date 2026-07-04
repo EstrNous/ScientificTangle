@@ -86,7 +86,19 @@ async def write_semantic_relation(
     if query is queries.WRITE_SEMANTIC_RELATION_SIMPLE:
         await tx.run(query, claim_id=claim_id, target_id=target_id, rel_type=rel_type)
     else:
-        await tx.run(query, claim_id=claim_id, target_id=target_id)
+        await tx.run(query, claim_id=claim_id, target_id=target_id    )
+
+
+def source_span_write_params(span: SourceSpanDTO) -> dict[str, object]:
+    table_row_id = span.table_row_id
+    if table_row_id is None and span.table_block_id and ":row:" in span.table_block_id:
+        table_row_id = span.table_block_id
+    return {
+        **span.model_dump(),
+        "table_row_id": table_row_id,
+        "highlight_start": span.highlight_start if span.highlight_start is not None else span.char_start,
+        "highlight_end": span.highlight_end if span.highlight_end is not None else span.char_end,
+    }
 
 
 async def write_bundle_tx(tx: AsyncTransaction, bundle: ClaimsBundleDTO) -> int:
@@ -95,7 +107,7 @@ async def write_bundle_tx(tx: AsyncTransaction, bundle: ClaimsBundleDTO) -> int:
         await tx.run(queries.WRITE_DOCUMENT, **document.model_dump())
         written += 1
     for span in bundle.spans:
-        await tx.run(queries.WRITE_SOURCE_SPAN, **span.model_dump())
+        await tx.run(queries.WRITE_SOURCE_SPAN, **source_span_write_params(span))
         written += 1
     for entity in bundle.entities:
         await tx.run(queries.WRITE_ENTITY, **entity.model_dump())
@@ -331,6 +343,9 @@ def claim_record_to_evidence(record: Any) -> EvidenceRecordDTO:
             char_end=int(span_props.get("char_end") or 0),
             source_type=str(span_props.get("source_type") or "text"),
             table_block_id=span_props.get("table_block_id"),
+            table_row_id=span_props.get("table_row_id"),
+            highlight_start=span_props.get("highlight_start"),
+            highlight_end=span_props.get("highlight_end"),
         )
     return EvidenceRecordDTO(
         claim_id=str(claim_props.get("claim_id", "")),

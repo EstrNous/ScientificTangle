@@ -26,6 +26,16 @@ class SourceSpanDTO(BaseModel):
     char_end: int
     source_type: str = "text"
     table_block_id: str | None = None
+    table_row_id: str | None = None
+    highlight_start: int | None = None
+    highlight_end: int | None = None
+
+
+class ReviewCandidateDTO(BaseModel):
+    candidate_id: str
+    candidate_type: str
+    raw_data: dict[str, Any] = Field(default_factory=dict)
+    extracted_at: str | None = None
 
 
 class ClaimDTO(BaseModel):

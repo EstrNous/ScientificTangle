@@ -24,6 +24,7 @@ from .dto import (
     MeasurementAggregateDTO,
     NeighborhoodFallbackResultDTO,
     RankedClaimDTO,
+    ReviewCandidateDTO,
     SourceSpanDTO,
 )
 from .graph_exact_search import build_graph_query_spec, graph_exact_search_with_fallback
@@ -47,6 +48,27 @@ class Neo4jKnowledgeAdapter:
             result = await session.run(queries.PING)
             record = await result.single()
             return bool(record and record.get("ok") == 1)
+
+    async def list_review_candidates(
+        self,
+        limit: int = 100,
+        request_id: str | None = None,
+    ) -> list[ReviewCandidateDTO]:
+        async with self._driver.session() as session:
+            result = await session.run(queries.LIST_REVIEW_CANDIDATES, limit=limit)
+            records = [record async for record in result]
+        candidates: list[ReviewCandidateDTO] = []
+        for record in records:
+            raw_data = record.get("raw_data")
+            candidates.append(
+                ReviewCandidateDTO(
+                    candidate_id=str(record.get("candidate_id", "")),
+                    candidate_type=str(record.get("candidate_type", "")),
+                    raw_data=dict(raw_data) if isinstance(raw_data, dict) else {},
+                    extracted_at=str(record.get("extracted_at")) if record.get("extracted_at") else None,
+                )
+            )
+        return candidates
 
     async def write_claims_bundle(
         self,

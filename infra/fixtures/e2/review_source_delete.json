@@ -1,0 +1,97 @@
+{
+  "indexed_documents": [
+    {
+      "document_id": "e2-demo-desalination",
+      "title": "Методы обессоливания шахтных вод",
+      "source_type": "article",
+      "source_spans_count": 2,
+      "indexed_points_count": 2,
+      "access_level": "internal",
+      "metadata": {"year": 2024, "topic": "desalination"},
+      "deletion_status": "none"
+    }
+  ],
+  "source_span_lookup": [
+    {
+      "source_span_id": "e2span-salts-001",
+      "document_id": "e2-demo-desalination",
+      "page": 2,
+      "highlight_start": 120,
+      "highlight_end": 210,
+      "table_row_id": null,
+      "table_block_id": null,
+      "source_type": "text",
+      "text_snippet": "содержание Ca/Mg/Na 200-300 мг/л, сухой остаток не более 1000 мг/дм3"
+    },
+    {
+      "source_span_id": "e2span-flow-table-001",
+      "document_id": "e2-demo-desalination",
+      "page": 5,
+      "highlight_start": 0,
+      "highlight_end": 42,
+      "table_row_id": "tbl-catholyte:row:1",
+      "table_block_id": "tbl-catholyte:row:1",
+      "source_type": "table",
+      "text_snippet": "скорость потока католита: 0,4 м/с"
+    }
+  ],
+  "review_decisions": [
+    {
+      "candidate_id": "cand-entity-ni-flow",
+      "candidate_type": "entity",
+      "status": "pending",
+      "document_id": "e2-demo-desalination",
+      "source_span_id": "e2span-flow-table-001",
+      "claim_id": null
+    },
+    {
+      "candidate_id": "cand-rel-circulation",
+      "candidate_type": "relation",
+      "status": "deferred",
+      "document_id": "e2-demo-desalination",
+      "source_span_id": "e2span-flow-table-001",
+      "claim_id": "claim-circulation-001"
+    }
+  ],
+  "document_cascade_refs": [
+    {
+      "document_id": "e2-demo-desalination",
+      "source_span_ids": ["e2span-salts-001", "e2span-flow-table-001"],
+      "claim_ids": ["claim-circulation-001", "claim-salts-001"],
+      "vector_point_ids": ["pt-e2span-salts-001", "pt-e2span-flow-table-001"],
+      "graph_node_refs": [
+        {"label": "Document", "node_id": "e2-demo-desalination"},
+        {"label": "SourceSpan", "node_id": "e2span-salts-001"},
+        {"label": "Claim", "node_id": "claim-salts-001"}
+      ],
+      "minio_object_refs": [
+        {"bucket": "source-files", "object_key": "e2-demo-desalination/original.pdf"},
+        {"bucket": "normalized-artifacts", "object_key": "e2-demo-desalination/normalized.json"}
+      ]
+    }
+  ],
+  "neo4j_candidates": [
+    {
+      "candidate_id": "cand-entity-ni-flow",
+      "candidate_type": "entity",
+      "raw_data": {
+        "kind": "entity",
+        "value": "оптимальная скорость потока католита",
+        "confidence": 0.62,
+        "source_span_id": "e2span-flow-table-001"
+      },
+      "extracted_at": "2024-06-01T10:00:00+00:00"
+    },
+    {
+      "candidate_id": "cand-rel-circulation",
+      "candidate_type": "relation",
+      "raw_data": {
+        "kind": "relation",
+        "relation_type": "uses_process",
+        "value": "циркуляция католита",
+        "source_span_id": "e2span-flow-table-001"
+      },
+      "extracted_at": "2024-06-01T10:05:00+00:00"
+    }
+  ]
+}
