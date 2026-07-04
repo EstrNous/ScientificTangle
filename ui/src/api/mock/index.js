@@ -46,8 +46,26 @@ export async function mockFetch(resource, options = {}) {
   if (resource === 'ingestion/tasks') {
     return ingestion.tasks;
   }
-  if (resource === 'audit/events') {
-    return audit.events;
+  if (resource === 'audit/events' || resource.startsWith('audit/events?')) {
+    const query = resource.includes('?') ? resource.split('?')[1] : '';
+    const params = Object.fromEntries(new URLSearchParams(query));
+    let events = audit.events;
+    if (params.action) {
+      events = events.filter((event) => event.action === params.action);
+    }
+    const offset = Number(params.offset ?? 0);
+    const limit = Number(params.limit ?? events.length);
+    return events.slice(offset, offset + limit);
+  }
+  if (resource === 'eval/report/summary') {
+    return {
+      report_id: 'mock-eval-report',
+      status: 'warn',
+      warnings: ['offline_eval_report_mock'],
+      blocked_checks: ['live_eval_report'],
+      suites: {},
+      metrics: {},
+    };
   }
   if (resource === 'admin') {
     return adminSnapshot;

@@ -138,4 +138,19 @@ describe('product api clients (mock mode)', () => {
     const filtered = await fetchNotifications({ since: '2026-07-04T00:00:00Z' });
     expect(filtered.length).toBeLessThanOrEqual(all.length);
   });
+
+  it('loads audit events with pagination in mock mode', async () => {
+    vi.stubEnv('VITE_USE_MOCK', 'true');
+    const { fetchAuditEvents } = await import('./audit.js');
+    const page = await fetchAuditEvents({ limit: 2, offset: 0 });
+    expect(page.length).toBeLessThanOrEqual(2);
+  });
+
+  it('loads eval report summary in mock mode', async () => {
+    vi.stubEnv('VITE_USE_MOCK', 'true');
+    const { fetchEvalReportSummary } = await import('./eval.js');
+    const summary = await fetchEvalReportSummary();
+    expect(summary.reportId).toBe('mock-eval-report');
+    expect(summary.blockedChecks).toContain('live_eval_report');
+  });
 });

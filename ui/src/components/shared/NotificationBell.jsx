@@ -60,6 +60,8 @@ export default function NotificationBell() {
   const lastPolledRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [toast, setToast] = useState(null);
+  const [loadError, setLoadError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
   const items = useNotificationStore((s) => s.items);
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   const loading = useNotificationStore((s) => s.loading);
@@ -71,17 +73,28 @@ export default function NotificationBell() {
 
   const pollingEnabled = !useMock || isLiveNotificationsEnabled();
 
+  const loadNotifications = async ({ since, resetError = true } = {}) => {
+    if (resetError) setLoadError(null);
+    const data = await fetchNotifications(since ? { since } : {});
+    const list = Array.isArray(data) ? data : data?.items ?? [];
+    if (since) {
+      mergeItems(list);
+    } else {
+      setItems(list);
+    }
+    lastPolledRef.current = new Date().toISOString();
+    return list;
+  };
+
   useEffect(() => {
     let active = true;
     setLoading(true);
-    fetchNotifications()
-      .then((data) => {
-        if (!active) return;
-        setItems(Array.isArray(data) ? data : data?.items ?? []);
-        lastPolledRef.current = new Date().toISOString();
-      })
+    loadNotifications()
       .catch(() => {
-        if (active) setItems([]);
+        if (active) {
+          setItems([]);
+          setLoadError('notifications_load_failed');
+        }
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -134,6 +147,18 @@ export default function NotificationBell() {
   }, [open]);
 
   const handleToggle = () => setOpen((value) => !value);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    setLoadError(null);
+    try {
+      await loadNotifications();
+    } catch {
+      setLoadError('notifications_load_failed');
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const handleMarkAll = async () => {
     markAllRead();
@@ -196,18 +221,32 @@ export default function NotificationBell() {
             <span className="text-sm font-semibold text-gray-900 dark:text-slate-100">
               {t('notifications.title')}
             </span>
-            {unreadCount > 0 && (
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={handleMarkAll}
-                className="text-xs font-medium text-nn-blue hover:underline"
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="text-xs font-medium text-nn-blue hover:underline disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {t('notifications.markAllRead')}
+                {refreshing ? t('notifications.refreshing') : t('notifications.refresh')}
               </button>
-            )}
+              {unreadCount > 0 && (
+                <button
+                  type="button"
+                  onClick={handleMarkAll}
+                  className="text-xs font-medium text-nn-blue hover:underline"
+                >
+                  {t('notifications.markAllRead')}
+                </button>
+              )}
+            </div>
           </div>
           <div className="max-h-80 overflow-auto">
-            {loading && items.length === 0 ? (
+            {loadError ? (
+              <p className="p-4 text-sm text-red-600 dark:text-red-400">
+                {t(`notifications.errors.${loadError}`, { defaultValue: loadError })}
+              </p>
+            ) : loading && items.length === 0 ? (
               <p className="p-4 text-sm text-nn-gray dark:text-slate-400">
                 {t('notifications.loading')}
               </p>
