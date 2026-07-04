@@ -25,7 +25,7 @@ Smoke с хоста:
 ```bash
 curl -k https://localhost/api/health
 curl -k https://localhost/api/auth/login -H 'Content-Type: application/json' \
-  -d '{"identifier":"admin","password":"admin12345"}'
+  -d '{"identifier":"admin","password":"admin"}'
 ```
 
 UI: `https://localhost/`

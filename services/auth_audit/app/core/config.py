@@ -17,7 +17,7 @@ class Settings(ServiceSettings):
 
     port: int = 8001
 
-    database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/scientific_tangle"
+    database_url: str = "postgresql+asyncpg://st_user:st_pass@postgres:5432/scientific_tangle"
 
     jwt_issuer: str = "scientific-tangle-auth"
     jwt_audience: str = "scientific-tangle-api"

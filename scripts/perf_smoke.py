@@ -88,7 +88,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--gold", default=DEFAULT_GOLD_PATH)
     parser.add_argument("--output", default=DEFAULT_OUTPUT)
     parser.add_argument("--username", default="researcher")
-    parser.add_argument("--password", default="researcher123")
+    parser.add_argument("--password", default="researcher")
     parser.add_argument("--repeat", type=int, default=2)
     return parser.parse_args()
 

@@ -1,4 +1,4 @@
-.PHONY: bootstrap bootstrap-prod ensure-env up up-prod prod down down-prod build build-prod logs logs-prod seed seed-prod prod-demo ingest-demo e2e eval eval-offline-quality eval-yandex-live perf-smoke reset-demo lint test test-model test-neo4j-integration test-yandex-live export-demo deploy-cloud cloud-ps cloud-logs cloud-down
+.PHONY: bootstrap bootstrap-prod ensure-env up up-prod prod down down-prod build build-prod logs logs-prod seed seed-prod prod-demo ingest-demo e2e eval eval-offline-quality eval-yandex-live perf-smoke reset-demo lint test test-model test-neo4j-integration test-yandex-live export-demo deploy-cloud cloud-up cloud-ps cloud-logs cloud-down
 
 COMPOSE_DEV = docker compose -f docker-compose.yml -f docker-compose.dev.yml
 COMPOSE_PROD = docker compose -f docker-compose.yml -f docker-compose.prod.yml
@@ -110,6 +110,9 @@ export-demo:
 deploy-cloud:
 	@test -n "$(HOST)" || (echo "Usage: make deploy-cloud HOST=203.0.113.10 [DEPLOY_ARGS='--install-docker']" && exit 1)
 	bash scripts/cloud_deploy.sh $(HOST) $(DEPLOY_ARGS)
+
+cloud-up:
+	$(COMPOSE_CLOUD) up -d --build --wait
 
 cloud-ps:
 	$(COMPOSE_CLOUD) ps

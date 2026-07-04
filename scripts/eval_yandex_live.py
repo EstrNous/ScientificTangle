@@ -76,7 +76,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--auth-url", default=DEFAULT_AUTH_URL)
     parser.add_argument("--gold", default=DEFAULT_GOLD_PATH)
     parser.add_argument("--username", default="researcher")
-    parser.add_argument("--password", default="researcher123")
+    parser.add_argument("--password", default="researcher")
     return parser.parse_args()
 
 

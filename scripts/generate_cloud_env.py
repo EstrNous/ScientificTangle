@@ -1,16 +1,10 @@
 import argparse
 import os
-import secrets
 from pathlib import Path
-from urllib.parse import quote
 
 ROOT = Path(__file__).resolve().parents[1]
 ENV_EXAMPLE = ROOT / ".env.example"
 DEFAULT_CREDENTIALS = ROOT / "infra" / "deploy" / "credentials.txt"
-
-
-def _token(length: int = 24) -> str:
-    return secrets.token_urlsafe(length)
 
 
 def _read_env_file(path: Path) -> dict[str, str]:
@@ -77,10 +71,6 @@ def build_auth_origins(
     return ",".join(unique)
 
 
-def postgres_async_url(password: str) -> str:
-    return f"postgresql+asyncpg://st_user:{quote(password, safe='')}@postgres:5432/scientific_tangle"
-
-
 def build_env(
     host: str,
     *,
@@ -93,6 +83,7 @@ def build_env(
     existing_env: dict[str, str] | None = None,
 ) -> tuple[str, dict[str, str]]:
     existing = existing_env or {}
+    base = _read_env_file(ENV_EXAMPLE)
     yandex_api_key = _first_nonempty(
         yandex_api_key,
         os.getenv("YANDEX_API_KEY"),
@@ -105,24 +96,8 @@ def build_env(
     )
 
     public_url = public_base_url(host, https=https, http_port=http_port, https_port=https_port)
-    postgres_password = existing.get("POSTGRES_PASSWORD") or _token(18)
-    neo4j_password = existing.get("NEO4J_PASSWORD") or _token(18)
-    minio_password = existing.get("MINIO_ROOT_PASSWORD") or existing.get("MINIO_SECRET_KEY") or _token(18)
-    internal_token = existing.get("INTERNAL_SERVICE_TOKEN") or _token(32)
-    grafana_admin_password = existing.get("GRAFANA_ADMIN_PASSWORD") or _token(16)
-    grafana_basic_password = existing.get("GRAFANA_NGINX_BASIC_PASSWORD") or _token(16)
 
     lines = ENV_EXAMPLE.read_text(encoding="utf-8").splitlines()
-    _replace_line(lines, "POSTGRES_PASSWORD", postgres_password)
-    postgres_url = postgres_async_url(postgres_password)
-    _replace_line(lines, "POSTGRES_URL", postgres_url)
-    _replace_line(lines, "AUTH_DATABASE_URL", postgres_url)
-    _upsert(lines, "GATEWAY_DATABASE_URL", postgres_url)
-    _replace_line(lines, "NEO4J_PASSWORD", neo4j_password)
-    _replace_line(lines, "NEO4J_AUTH", f"neo4j/{neo4j_password}")
-    _replace_line(lines, "MINIO_ROOT_PASSWORD", minio_password)
-    _replace_line(lines, "MINIO_SECRET_KEY", minio_password)
-    _replace_line(lines, "INTERNAL_SERVICE_TOKEN", internal_token)
     if yandex_api_key:
         _replace_line(lines, "YANDEX_API_KEY", yandex_api_key)
     elif "YANDEX_API_KEY" in existing:
@@ -139,8 +114,6 @@ def build_env(
         expose_ports=expose_ports,
     ))
     _replace_line(lines, "AUTH_REFRESH_COOKIE_SECURE", "true" if https else "false")
-    _replace_line(lines, "GRAFANA_ADMIN_PASSWORD", grafana_admin_password)
-    _replace_line(lines, "GRAFANA_NGINX_BASIC_PASSWORD", grafana_basic_password)
     _upsert(lines, "PUBLIC_HOST", host)
     _upsert(lines, "PUBLIC_URL", public_url)
     _upsert(lines, "NGINX_SERVER_NAME", host)
@@ -151,22 +124,22 @@ def build_env(
     credentials = {
         "public_url": public_url,
         "public_host": host,
-        "admin_username": "admin",
-        "admin_password": "admin12345",
-        "researcher_username": "researcher",
-        "researcher_password": "researcher123",
+        "admin_username": base.get("AUTH_SEED_ADMIN_USERNAME", "admin"),
+        "admin_password": base.get("AUTH_SEED_ADMIN_PASSWORD", "admin"),
+        "researcher_username": base.get("AUTH_SEED_RESEARCHER_USERNAME", "researcher"),
+        "researcher_password": base.get("AUTH_SEED_RESEARCHER_PASSWORD", "researcher"),
         "grafana_url": f"{public_url}/grafana/",
-        "grafana_admin_user": "admin",
-        "grafana_admin_password": grafana_admin_password,
-        "grafana_nginx_basic_user": "grafana",
-        "grafana_nginx_basic_password": grafana_basic_password,
-        "postgres_user": "st_user",
-        "postgres_password": postgres_password,
-        "neo4j_user": "neo4j",
-        "neo4j_password": neo4j_password,
-        "minio_root_user": "minioadmin",
-        "minio_root_password": minio_password,
-        "internal_service_token": internal_token,
+        "grafana_admin_user": base.get("GRAFANA_ADMIN_USER", "admin"),
+        "grafana_admin_password": base.get("GRAFANA_ADMIN_PASSWORD", "admin"),
+        "grafana_nginx_basic_user": base.get("GRAFANA_NGINX_BASIC_USER", "grafana"),
+        "grafana_nginx_basic_password": base.get("GRAFANA_NGINX_BASIC_PASSWORD", "grafana"),
+        "postgres_user": base.get("POSTGRES_USER", "st_user"),
+        "postgres_password": base.get("POSTGRES_PASSWORD", "st_pass"),
+        "neo4j_user": base.get("NEO4J_USER", "neo4j"),
+        "neo4j_password": base.get("NEO4J_PASSWORD", "neo4j_pass"),
+        "minio_root_user": base.get("MINIO_ROOT_USER", "minioadmin"),
+        "minio_root_password": base.get("MINIO_ROOT_PASSWORD", "minioadmin123"),
+        "internal_service_token": base.get("INTERNAL_SERVICE_TOKEN", "change-me-internal-service-token"),
         "yandex_configured": bool(yandex_api_key and yandex_folder_id),
     }
     return "\n".join(lines) + "\n", credentials

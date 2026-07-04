@@ -335,10 +335,10 @@ async def seed_gate_auth_users(database_url: str) -> dict[str, int]:
 
     password_hash = PasswordHash.recommended()
     seed_users = (
-        ("admin", "admin12345", Role.ADMIN, "admin@example.com"),
-        ("researcher", "researcher123", Role.RESEARCHER, "researcher@example.com"),
-        ("analyst", "analyst123", Role.ANALYST, "analyst@example.com"),
-        ("manager", "manager123", Role.MANAGER, "manager@example.com"),
+        ("admin", "admin", Role.ADMIN, "admin@example.com"),
+        ("researcher", "researcher", Role.RESEARCHER, "researcher@example.com"),
+        ("analyst", "analyst", Role.ANALYST, "analyst@example.com"),
+        ("manager", "manager", Role.MANAGER, "manager@example.com"),
         ("external_partner", "partner123", Role.EXTERNAL_PARTNER, "partner@example.com"),
     )
     engine = create_async_engine(database_url)

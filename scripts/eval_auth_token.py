@@ -21,7 +21,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--auth-url", default=os.getenv("AUTH_URL", "http://localhost:8001"))
     parser.add_argument("--username", default=os.getenv("AUTH_SEED_RESEARCHER_USERNAME", "researcher"))
-    parser.add_argument("--password", default=os.getenv("AUTH_SEED_RESEARCHER_PASSWORD", "researcher123"))
+    parser.add_argument("--password", default=os.getenv("AUTH_SEED_RESEARCHER_PASSWORD", "researcher"))
     args = parser.parse_args()
     token = fetch_token(args.auth_url, args.username, args.password)
     print(token)
