@@ -214,6 +214,7 @@ def settings(rsa_pems: tuple[str, str]) -> Settings:
         jwt_public_key=public_pem,
         refresh_cookie_secure=True,
         allowed_origins="https://ui.example.test",
+        rate_limit_enabled=False,
     )
 
 

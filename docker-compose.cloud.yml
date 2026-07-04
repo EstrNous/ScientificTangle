@@ -1,0 +1,53 @@
+services:
+  postgres:
+    ports: !reset []
+
+  neo4j:
+    ports: !reset []
+
+  qdrant:
+    ports: !reset []
+
+  minio:
+    ports: !reset []
+
+  redis:
+    ports: !reset []
+
+  ui:
+    ports: !reset []
+
+  gateway:
+    ports: !reset []
+
+  auth_audit:
+    ports: !reset []
+
+  orchestrator:
+    ports: !reset []
+
+  ingestion:
+    ports: !reset []
+
+  knowledge:
+    ports: !reset []
+
+  retrieval:
+    ports: !reset []
+
+  model:
+    ports: !reset []
+
+  export:
+    ports: !reset []
+
+  notification:
+    ports: !reset []
+
+  prometheus:
+    ports: !reset []
+
+  grafana:
+    ports: !reset []
+    environment:
+      GF_SERVER_ROOT_URL: ${PUBLIC_URL:-http://localhost}/grafana/

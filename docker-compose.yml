@@ -5,9 +5,7 @@ services:
     environment:
       POSTGRES_DB: scientific_tangle
       POSTGRES_USER: st_user
-      POSTGRES_PASSWORD: st_pass
-    ports:
-      - "5432:5432"
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-st_pass}
     volumes:
       - pg_data:/var/lib/postgresql/data
     healthcheck:
@@ -23,15 +21,12 @@ services:
     image: neo4j:5-community
     container_name: st-neo4j
     environment:
-      NEO4J_AUTH: neo4j/neo4j_pass
-    ports:
-      - "7474:7474"
-      - "7687:7687"
+      NEO4J_AUTH: ${NEO4J_AUTH:-neo4j/neo4j_pass}
     volumes:
       - neo4j_data:/data
       - neo4j_logs:/logs
     healthcheck:
-      test: ["CMD-SHELL", "cypher-shell -u neo4j -p neo4j_pass 'RETURN 1'"]
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p \"${NEO4J_PASSWORD:-neo4j_pass}\" 'RETURN 1'"]
       interval: 15s
       timeout: 10s
       retries: 5
@@ -42,9 +37,6 @@ services:
   qdrant:
     image: qdrant/qdrant:latest
     container_name: st-qdrant
-    ports:
-      - "6333:6333"
-      - "6334:6334"
     volumes:
       - qdrant_storage:/qdrant/storage
     healthcheck:
@@ -60,11 +52,8 @@ services:
     image: minio/minio:latest
     container_name: st-minio
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin123
-    ports:
-      - "9000:9000"
-      - "9001:9001"
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"
@@ -80,8 +69,6 @@ services:
   redis:
     image: redis:7-alpine
     container_name: st-redis
-    ports:
-      - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -99,8 +86,6 @@ services:
       args:
         VITE_USE_MOCK: "false"
     container_name: st-ui
-    ports:
-      - "3000:3000"
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3000/ || exit 1"]
       interval: 15s
@@ -115,12 +100,7 @@ services:
       context: .
       dockerfile: services/gateway/Dockerfile
     container_name: st-gateway
-    ports:
-      - "8000:8000"
     env_file: .env
-    environment:
-      GATEWAY_DATABASE_URL: postgresql+asyncpg://st_user:st_pass@postgres:5432/scientific_tangle
-      POSTGRES_URL: postgresql+asyncpg://st_user:st_pass@postgres:5432/scientific_tangle
     healthcheck:
       test: ["CMD", "python", "-c", "import httpx; r=httpx.get('http://localhost:8000/health'); assert r.status_code == 200"]
       interval: 30s
@@ -149,8 +129,6 @@ services:
       context: .
       dockerfile: services/auth_audit/Dockerfile
     container_name: st-auth-audit
-    ports:
-      - "8001:8001"
     env_file: .env
     environment:
       AUTH_JWT_PRIVATE_KEY_PATH: /run/secrets/auth_private.pem
@@ -164,6 +142,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - st-net
@@ -173,8 +153,6 @@ services:
       context: .
       dockerfile: services/orchestrator/Dockerfile
     container_name: st-orchestrator
-    ports:
-      - "8002:8002"
     env_file: .env
     command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8002"]
     depends_on:
@@ -205,8 +183,6 @@ services:
         SERVICE_PORT: 8003
         RUNTIME_APT_PACKAGES: libreoffice-writer fonts-dejavu-core
     container_name: st-ingestion
-    ports:
-      - "8003:8003"
     env_file: .env
     depends_on:
       auth_audit:
@@ -227,8 +203,6 @@ services:
         SERVICE_DIR: services/knowledge
         SERVICE_PORT: 8004
     container_name: st-knowledge
-    ports:
-      - "8004:8004"
     env_file: .env
     depends_on:
       model:
@@ -249,8 +223,6 @@ services:
         SERVICE_DIR: services/retrieval
         SERVICE_PORT: 8005
     container_name: st-retrieval
-    ports:
-      - "8005:8005"
     env_file: .env
     depends_on:
       knowledge:
@@ -273,8 +245,6 @@ services:
         SERVICE_DIR: services/model
         SERVICE_PORT: 8006
     container_name: st-model
-    ports:
-      - "8006:8006"
     env_file: .env
     depends_on:
       redis:
@@ -333,8 +303,6 @@ services:
   prometheus:
     image: prom/prometheus:v2.55.1
     container_name: st-prometheus
-    ports:
-      - "9090:9090"
     volumes:
       - ./infra/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
@@ -348,8 +316,6 @@ services:
   grafana:
     image: grafana/grafana:11.4.0
     container_name: st-grafana
-    ports:
-      - "3001:3000"
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
@@ -370,13 +336,10 @@ services:
   nginx:
     build: ./infra/nginx
     container_name: st-nginx
-    ports:
-      - "80:80"
     environment:
+      NGINX_CONFIG: dev
       GRAFANA_NGINX_BASIC_USER: ${GRAFANA_NGINX_BASIC_USER:-grafana}
       GRAFANA_NGINX_BASIC_PASSWORD: ${GRAFANA_NGINX_BASIC_PASSWORD:-grafana123}
-    volumes:
-      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       gateway:
         condition: service_healthy
@@ -386,12 +349,6 @@ services:
         condition: service_healthy
       grafana:
         condition: service_started
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/api/health || exit 1"]
-      interval: 15s
-      timeout: 5s
-      retries: 5
-      start_period: 20s
     restart: unless-stopped
     networks:
       - st-net

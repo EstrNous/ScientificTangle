@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import fnmatch
 import re
 import subprocess
 import sys
@@ -9,36 +10,40 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def iter_scan_paths(base: Path, glob_pattern: str | None = None) -> list[Path]:
-    if not base.exists():
-        return []
-    if base.is_file():
-        return [base]
-    paths: list[Path] = []
-    for candidate in base.rglob("*"):
+def _matches_glob(relative_path: str, glob_pattern: str) -> bool:
+    return fnmatch.fnmatch(relative_path, glob_pattern)
+
+
+def _iter_files(path: Path, glob: str | None = None) -> list[Path]:
+    if path.is_file():
+        return [path]
+    files: list[Path] = []
+    for candidate in path.rglob("*"):
         if not candidate.is_file():
             continue
-        if glob_pattern:
-            rel = candidate.relative_to(base).as_posix()
-            if not fnmatch(rel, glob_pattern):
+        if glob is not None:
+            relative = candidate.relative_to(path).as_posix()
+            if not _matches_glob(relative, glob):
                 continue
-        paths.append(candidate)
-    return paths
+        files.append(candidate)
+    return sorted(files)
 
 
-def run_search(pattern: str, path: str, glob: str | None = None) -> list[str]:
+def run_rg(pattern: str, path: str, glob: str | None = None) -> list[str]:
     regex = re.compile(pattern)
-    base = ROOT / path
+    target = ROOT / path
+    if not target.exists():
+        return []
     matches: list[str] = []
-    for file_path in iter_scan_paths(base, glob):
+    for file_path in _iter_files(target, glob):
         try:
             lines = file_path.read_text(encoding="utf-8").splitlines()
         except (OSError, UnicodeDecodeError):
             continue
-        rel = file_path.relative_to(ROOT).as_posix()
-        for line_no, line in enumerate(lines, start=1):
+        relative = file_path.relative_to(ROOT).as_posix()
+        for line_number, line in enumerate(lines, start=1):
             if regex.search(line):
-                matches.append(f"{rel}:{line_no}:{line}")
+                matches.append(f"{relative}:{line_number}:{line}")
     return matches
 
 
@@ -73,6 +78,55 @@ def check_makefile_todos() -> list[str]:
     return []
 
 
+def check_base_compose_no_host_ports() -> list[str]:
+    compose = ROOT / "docker-compose.yml"
+    text = compose.read_text(encoding="utf-8")
+    if "ports:" in text:
+        return ["prod_perimeter: docker-compose.yml must not publish host ports"]
+    return []
+
+
+def check_prod_compose_nginx_only_ports() -> list[str]:
+    compose = ROOT / "docker-compose.prod.yml"
+    text = compose.read_text(encoding="utf-8")
+    lines = text.splitlines()
+    issues: list[str] = []
+    current_service: str | None = None
+    in_ports = False
+    for line in lines:
+        stripped = line.strip()
+        if stripped.endswith(":") and not stripped.startswith("-") and line.startswith("  ") and not line.startswith("    "):
+            current_service = stripped[:-1]
+            in_ports = False
+            continue
+        if current_service and stripped == "ports:":
+            in_ports = True
+            continue
+        if in_ports and stripped.startswith("- "):
+            if current_service != "nginx":
+                issues.append(
+                    f"prod_perimeter: docker-compose.prod.yml publishes ports for {current_service}"
+                )
+            in_ports = False
+    if "nginx:" not in text or 'ports:' not in text.split("nginx:")[1]:
+        issues.append("prod_perimeter: docker-compose.prod.yml must publish nginx ports")
+    return issues
+
+
+def check_dev_compose_has_ports() -> list[str]:
+    compose = ROOT / "docker-compose.dev.yml"
+    if not compose.exists():
+        return ["prod_perimeter: missing docker-compose.dev.yml"]
+    text = compose.read_text(encoding="utf-8")
+    required = ("gateway:", "postgres:", "nginx:")
+    missing = [name for name in required if name not in text]
+    if missing:
+        return [f"prod_perimeter: docker-compose.dev.yml missing services: {', '.join(missing)}"]
+    if text.count("ports:") < 3:
+        return ["prod_perimeter: docker-compose.dev.yml should publish dev host ports"]
+    return []
+
+
 def main() -> int:
     errors: list[str] = []
     errors.extend(check_no_app_imports())
@@ -80,6 +134,9 @@ def main() -> int:
     errors.extend(check_no_init_sql_mount())
     errors.extend(check_no_page_mock_imports())
     errors.extend(check_makefile_todos())
+    errors.extend(check_base_compose_no_host_ports())
+    errors.extend(check_prod_compose_nginx_only_ports())
+    errors.extend(check_dev_compose_has_ports())
 
     validate = subprocess.run(
         [sys.executable, str(ROOT / "scripts" / "validate_ontology.py")],
