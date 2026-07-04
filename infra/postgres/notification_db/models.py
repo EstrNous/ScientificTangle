@@ -39,6 +39,8 @@ class Notification(Base):
         Index("ix_notifications_user_created_id", "user_id", "created_at", "id"),
         Index("ix_notifications_user_unread", "user_id", "is_read"),
         Index("ix_notifications_type", "type"),
+        Index("ix_notifications_user_type_created_id", "user_id", "type", "created_at", "id"),
+        Index("ix_notifications_user_unread_created", "user_id", "is_read", "created_at"),
     )
 
     id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4)

@@ -19,6 +19,11 @@ from .models import (
 )
 from .repository import IngestionTaskRepository, QueryRunRepository
 from .review_storage import ReviewStorageRepository, table_row_id_from_block
+from .product_events_storage import (
+    PRODUCT_AUDIT_ACTIONS,
+    ExportArtifactInput,
+    ProductEventsStorageRepository,
+)
 from .workflow_storage import WorkflowStorageRepository
 
 __all__ = [
@@ -34,6 +39,9 @@ __all__ = [
     "ReviewDecision",
     "ReviewStorageRepository",
     "SourceSpanLookup",
+    "PRODUCT_AUDIT_ACTIONS",
+    "ExportArtifactInput",
+    "ProductEventsStorageRepository",
     "WorkflowStorageRepository",
     "build_access_denied_details",
     "build_export_audit_details",
