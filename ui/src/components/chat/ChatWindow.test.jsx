@@ -20,6 +20,20 @@ describe('ChatWindow', () => {
     expect(getByText('Не удалось завершить подготовку ответа')).toBeTruthy();
   });
 
+  it('renders mapped pipeline error code', () => {
+    const { getByText } = renderWithProviders(
+      <ChatWindow
+        messages={[]}
+        answerPhase={CHAT_ANSWER_PHASES.ERROR}
+        answerMode="session"
+        answerFailReason={{ code: 'active_dictionary_required' }}
+      />,
+    );
+    expect(
+      getByText('Нет активного справочника. Запустите seed демо-данных (make seed).'),
+    ).toBeTruthy();
+  });
+
   it('renders degraded lifecycle panel', () => {
     const { getByText } = renderWithProviders(
       <ChatWindow

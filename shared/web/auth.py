@@ -1,4 +1,6 @@
 import secrets
+from contextvars import ContextVar
+from dataclasses import dataclass
 
 from fastapi import Header, Request
 
@@ -10,6 +12,15 @@ from shared.security import (
 from shared.web.errors import ServiceError
 
 INTERNAL_SERVICE_TOKEN_HEADER = "X-Internal-Service-Token"
+
+_forwarded_auth: ContextVar[tuple[str, str] | None] = ContextVar("_forwarded_auth", default=None)
+
+
+@dataclass(frozen=True, slots=True)
+class AuthorizedContext:
+    principal: AuthenticatedPrincipal
+    authorization: str
+    request_id: str
 
 
 async def require_internal_service(
@@ -25,12 +36,56 @@ async def require_internal_service(
         raise ServiceError(401, "authentication_required", "Valid internal service token required")
 
 
-async def require_principal(
-    request: Request,
-    authorization: str | None = Header(default=None),
-) -> AuthenticatedPrincipal:
+async def require_principal(request: Request) -> AuthenticatedPrincipal:
     try:
+        authorization = request.headers.get("Authorization")
         token = get_bearer_token(authorization)
+        resolved_authorization = authorization or ""
+        request.state.authorization_header = resolved_authorization
+        _forwarded_auth.set((resolved_authorization, request.state.request_id))
         return await request.app.state.jwt_validator.validate(token)
     except AuthenticationError as error:
         raise ServiceError(401, "authentication_required", "Valid access token required") from error
+
+
+def authorization_header_from_request(request: Request) -> str:
+    authorization = request.headers.get("Authorization")
+    if not authorization:
+        raise ServiceError(401, "authentication_required", "Valid access token required")
+    return authorization
+
+
+async def require_authorization_header(request: Request) -> str:
+    return authorization_header_from_request(request)
+
+
+async def get_http_request(request: Request) -> Request:
+    return request
+
+
+def forwarded_auth() -> tuple[str, str]:
+    value = _forwarded_auth.get()
+    if value is None or not value[0]:
+        raise ServiceError(401, "authentication_required", "Valid access token required")
+    return value
+
+
+async def require_forwarded_auth(request: Request) -> AuthorizedContext:
+    try:
+        authorization = request.headers.get("Authorization")
+        token = get_bearer_token(authorization)
+        principal = await request.app.state.jwt_validator.validate(token)
+        resolved_authorization = authorization or ""
+        request.state.authorization_header = resolved_authorization
+        _forwarded_auth.set((resolved_authorization, request.state.request_id))
+        return AuthorizedContext(
+            principal=principal,
+            authorization=resolved_authorization,
+            request_id=request.state.request_id,
+        )
+    except AuthenticationError as error:
+        raise ServiceError(401, "authentication_required", "Valid access token required") from error
+
+
+def get_request_id(request: Request) -> str:
+    return request.state.request_id

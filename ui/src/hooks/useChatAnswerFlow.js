@@ -19,6 +19,19 @@ import { isLiveProductionMode } from '../utils/uiFeatureFlags.js';
 import { runSimulatedAnswerLifecycle } from '../utils/runSimulatedAnswerLifecycle.js';
 import { runStreamingAnswerLifecycle } from '../utils/runStreamingAnswerLifecycle.js';
 
+function resolveQueryFailureReason(error) {
+  const data = error?.response?.data;
+  return {
+    code: data?.code ?? null,
+    message: data?.message ?? error?.message ?? null,
+    status: error?.response?.status ?? null,
+  };
+}
+
+function reportQueryFailure(error, failQuery) {
+  failQuery(resolveQueryFailureReason(error));
+}
+
 function createQueryEventHandlers({ setPhase, setRetrievalTrace, setStreamingDraft }) {
   return {
     onEvent: (event) => {
@@ -48,6 +61,7 @@ export function useChatAnswerFlow() {
   const setStreamingDraft = useChatAnswerStore((state) => state.setStreamingDraft);
   const completeQuery = useChatAnswerStore((state) => state.completeQuery);
   const failQuery = useChatAnswerStore((state) => state.failQuery);
+  const failReason = useChatAnswerStore((state) => state.failReason);
   const reset = useChatAnswerStore((state) => state.reset);
 
   const simulationEnabled = isSimulatedLifecycleEnabled();
@@ -77,7 +91,7 @@ export function useChatAnswerFlow() {
           completeQuery(reply.lifecycle ?? CHAT_ANSWER_PHASES.DONE);
           return reply;
         } catch (error) {
-          failQuery();
+          reportQueryFailure(error, failQuery);
           throw error;
         }
       }
@@ -107,7 +121,7 @@ export function useChatAnswerFlow() {
           completeQuery(terminalPhase);
           return { ...reply, lifecycle: terminalPhase };
         } catch (error) {
-          failQuery();
+          reportQueryFailure(error, failQuery);
           throw error;
         }
       }
@@ -131,7 +145,7 @@ export function useChatAnswerFlow() {
         completeQuery(terminalPhase);
         return { ...reply, lifecycle: terminalPhase };
       } catch (error) {
-        failQuery();
+        reportQueryFailure(error, failQuery);
         throw error;
       }
     },
@@ -156,6 +170,7 @@ export function useChatAnswerFlow() {
     streamingComplete,
     mode,
     isActive,
+    failReason,
     simulationEnabled,
     streamingUxEnabled,
     liveProduction,

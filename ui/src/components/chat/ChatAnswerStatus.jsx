@@ -35,7 +35,7 @@ function phaseStatus(phase, currentPhase) {
   return 'pending';
 }
 
-export default function ChatAnswerStatus({ phase, mode, streamingUxEnabled = false }) {
+export default function ChatAnswerStatus({ phase, mode, streamingUxEnabled = false, failReason = null }) {
   const { t } = useTranslation();
 
   if (phase === CHAT_ANSWER_PHASES.IDLE) return null;
@@ -54,9 +54,13 @@ export default function ChatAnswerStatus({ phase, mode, streamingUxEnabled = fal
   }
 
   if (phase === CHAT_ANSWER_PHASES.ERROR) {
+    const errorKey = failReason?.code ? `chat.lifecycle.errors.${failReason.code}` : null;
+    const detail = errorKey
+      ? t(errorKey, { defaultValue: failReason?.message || t('chat.lifecycle.error') })
+      : failReason?.message || t('chat.lifecycle.error');
     return (
       <div className="chat-bubble-assistant rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-800 sm:px-4 sm:py-3 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
-        {t('chat.lifecycle.error')}
+        {detail}
       </div>
     );
   }

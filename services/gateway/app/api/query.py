@@ -13,7 +13,7 @@ from shared.contracts import (
     SourcePayload,
 )
 from shared.security import AuthenticatedPrincipal
-from shared.web import ServiceError, require_principal
+from shared.web import ServiceError, forwarded_auth, require_principal
 
 from ..core.config import settings
 from ..core.dependencies import get_gateway_service
@@ -44,17 +44,16 @@ def raise_service_error(error: GatewayServiceError) -> None:
 
 @router.post("/query", response_model=QueryRunPayload)
 async def query(
-    request: Request,
     payload: QueryRequest,
-    authorization: Annotated[str, Header()],
     principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],
     service: Annotated[GatewayService, Depends(get_gateway_service)],
 ) -> QueryRunPayload:
+    authorization, request_id = forwarded_auth()
     try:
         response = await service.run_query(
             payload.model_dump(mode="json"),
             authorization,
-            request.state.request_id,
+            request_id,
         )
         return QueryRunPayload.model_validate(response)
     except GatewayServiceError as error:
@@ -63,12 +62,11 @@ async def query(
 
 @router.post("/query/stream")
 async def query_stream(
-    request: Request,
     payload: QueryRequest,
-    authorization: Annotated[str, Header()],
     principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],
     service: Annotated[GatewayService, Depends(get_gateway_service)],
 ) -> StreamingResponse:
+    authorization, request_id = forwarded_auth()
     if not settings.top1_live_stream_enabled:
         raise ServiceError(
             status.HTTP_404_NOT_FOUND,
@@ -80,7 +78,7 @@ async def query_stream(
             service.stream_query(
                 payload.model_dump(mode="json"),
                 authorization,
-                request.state.request_id,
+                request_id,
             ),
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
@@ -107,18 +105,17 @@ async def get_run(
 
 @router.post("/export", response_model=ExportPayload)
 async def export_run(
-    request: Request,
     payload: ExportRequest,
-    authorization: Annotated[str, Header()],
     principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],
     service: Annotated[GatewayService, Depends(get_gateway_service)],
 ) -> ExportPayload:
+    authorization, request_id = forwarded_auth()
     try:
         return ExportPayload.model_validate(
             await service.export_query_run(
                 payload.model_dump(mode="json"),
                 authorization,
-                request.state.request_id,
+                request_id,
             )
         )
     except GatewayServiceError as error:

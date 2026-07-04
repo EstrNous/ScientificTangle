@@ -9,7 +9,7 @@ from shared.contracts import (
     ReviewQueuePayload,
 )
 from shared.security import AuthenticatedPrincipal
-from shared.web import ServiceError, require_principal
+from shared.web import ServiceError, forwarded_auth, require_principal
 
 from ..core.dependencies import get_gateway_service
 from ..service.service import GatewayService, GatewayServiceError
@@ -47,16 +47,15 @@ async def review_queue(
 @router.post("/queue", response_model=ReviewQueuePayload)
 async def post_review_queue(
     request_payload: ReviewQueueRequest,
-    request: Request,
-    authorization: Annotated[str, Header()],
     principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],
     service: Annotated[GatewayService, Depends(get_gateway_service)],
 ) -> ReviewQueuePayload:
+    authorization, request_id = forwarded_auth()
     try:
         return ReviewQueuePayload.model_validate(
             await service.post_review_queue(
                 authorization,
-                request.state.request_id,
+                request_id,
                 request_payload.status,
                 request_payload.limit,
             )
@@ -68,17 +67,16 @@ async def post_review_queue(
 @router.post("/decisions", response_model=ReviewDecisionResult)
 async def review_decision(
     payload: ReviewDecisionPayload,
-    request: Request,
-    authorization: Annotated[str, Header()],
     principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],
     service: Annotated[GatewayService, Depends(get_gateway_service)],
 ) -> ReviewDecisionResult:
+    authorization, request_id = forwarded_auth()
     try:
         return ReviewDecisionResult.model_validate(
             await service.review_decision(
                 payload.model_dump(mode="json"),
                 authorization,
-                request.state.request_id,
+                request_id,
             )
         )
     except GatewayServiceError as error:

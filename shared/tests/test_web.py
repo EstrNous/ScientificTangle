@@ -1,13 +1,20 @@
+from unittest.mock import AsyncMock
+from uuid import uuid4
+
 from fastapi import Depends, FastAPI
 from fastapi.testclient import TestClient
 
+from shared.contracts import UserRole
 from shared.security import AuthenticatedPrincipal
 from shared.web import (
+    AuthorizedContext,
     RateLimitRule,
     ServiceError,
+    forwarded_auth,
     install_error_handlers,
     install_rate_limit_middleware,
     request_id_middleware,
+    require_forwarded_auth,
     require_internal_service,
     require_principal,
 )
@@ -134,3 +141,68 @@ def test_rate_limit_excludes_operational_paths() -> None:
         responses = [client.get("/health") for _ in range(3)]
 
     assert [response.status_code for response in responses] == [200, 200, 200]
+
+
+def test_forwarded_auth_exposes_authorization_after_require_principal() -> None:
+    principal = AuthenticatedPrincipal(
+        user_id=uuid4(),
+        role=UserRole.ADMIN,
+        token_id=uuid4(),
+    )
+    app = FastAPI()
+    app.middleware("http")(request_id_middleware)
+    install_error_handlers(app)
+    app.state.jwt_validator = AsyncMock()
+    app.state.jwt_validator.validate = AsyncMock(return_value=principal)
+
+    @app.post("/echo-auth")
+    async def echo_auth(
+        _: AuthenticatedPrincipal = Depends(require_principal),
+    ) -> dict[str, str]:
+        authorization, request_id = forwarded_auth()
+        return {"authorization": authorization, "request_id": request_id}
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/echo-auth",
+            headers={"Authorization": "Bearer test-token", "X-Request-ID": "req-auth"},
+            json={"content": "nickel"},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["authorization"] == "Bearer test-token"
+    assert response.json()["request_id"] == "req-auth"
+
+
+def test_require_forwarded_auth_returns_authorized_context() -> None:
+    principal = AuthenticatedPrincipal(
+        user_id=uuid4(),
+        role=UserRole.ADMIN,
+        token_id=uuid4(),
+    )
+    app = FastAPI()
+    app.middleware("http")(request_id_middleware)
+    install_error_handlers(app)
+    app.state.jwt_validator = AsyncMock()
+    app.state.jwt_validator.validate = AsyncMock(return_value=principal)
+
+    @app.post("/auth-context")
+    async def auth_context(
+        auth: AuthorizedContext = Depends(require_forwarded_auth),
+    ) -> dict[str, str]:
+        return {
+            "user_id": str(auth.principal.user_id),
+            "authorization": auth.authorization,
+            "request_id": auth.request_id,
+        }
+
+    with TestClient(app) as client:
+        response = client.post(
+            "/auth-context",
+            headers={"Authorization": "Bearer ctx-token", "X-Request-ID": "req-ctx"},
+            json={"question": "nickel"},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["authorization"] == "Bearer ctx-token"
+    assert response.json()["request_id"] == "req-ctx"

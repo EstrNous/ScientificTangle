@@ -1,11 +1,11 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Request, status
+from fastapi import APIRouter, Depends, status
 
 from infra.postgres.chat_ui_db.schemas import ChatMessageCreate, ChatSessionCreate
 from shared.security import AuthenticatedPrincipal
-from shared.web import ServiceError, require_principal
+from shared.web import ServiceError, forwarded_auth, require_principal
 
 from ..core.dependencies import get_chat_service
 from ..service.chat_service import ChatService, ChatServiceError
@@ -63,19 +63,18 @@ async def list_messages(
 @router.post("/sessions/{session_id}/messages")
 async def send_message(
     session_id: UUID,
-    request: Request,
     payload: ChatMessageCreate,
-    authorization: Annotated[str, Header()],
     principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],
     service: Annotated[ChatService, Depends(get_chat_service)],
 ) -> dict:
+    authorization, request_id = forwarded_auth()
     try:
         return await service.send_message(
             principal,
             session_id,
             payload.content,
             authorization,
-            request.state.request_id,
+            request_id,
         )
     except ChatServiceError as error:
         raise ServiceError(error.status_code, error.code, error.message) from error

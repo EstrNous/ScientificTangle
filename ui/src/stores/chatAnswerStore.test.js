@@ -42,6 +42,17 @@ describe('chatAnswerStore', () => {
     expect(state.isActive).toBe(false);
   });
 
+  it('stores fail reason code for error mapping', () => {
+    const { beginQuery, failQuery } = useChatAnswerStore.getState();
+    beginQuery('session');
+    failQuery({ code: 'active_dictionary_required', message: 'seed required' });
+    const state = useChatAnswerStore.getState();
+    expect(state.failReason).toEqual({
+      code: 'active_dictionary_required',
+      message: 'seed required',
+    });
+  });
+
   it('tracks streaming draft during synthesis', () => {
     const { beginQuery, setStreamingDraft } = useChatAnswerStore.getState();
     beginQuery('streaming');

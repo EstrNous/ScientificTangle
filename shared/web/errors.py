@@ -67,6 +67,13 @@ async def _service_error(request: Request, error: ServiceError) -> JSONResponse:
 
 
 async def _validation_error(request: Request, error: RequestValidationError) -> JSONResponse:
+    structlog.get_logger().warning(
+        "request_validation_failed",
+        request_id=_request_id(request),
+        path=request.url.path,
+        method=request.method,
+        errors=error.errors(),
+    )
     return _response(request, 422, "validation_error", "Request validation failed")
 
 

@@ -13,7 +13,7 @@ from shared.contracts import (
     SourcePayload,
 )
 from shared.security import AuthenticatedPrincipal
-from shared.web import ServiceError, require_principal
+from shared.web import ServiceError, get_request_id, require_principal
 
 from ..core.config import settings
 from ..core.dependencies import get_orchestrator_service
@@ -44,17 +44,17 @@ def raise_service_error(error: OrchestratorServiceError) -> None:
 
 @router.post("/query/run", response_model=QueryRunPayload)
 async def run_query(
-    request: Request,
     payload: QueryRunRequest,
     principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],
     service: Annotated[OrchestratorService, Depends(get_orchestrator_service)],
+    request_id: Annotated[str, Depends(get_request_id)],
 ) -> QueryRunPayload:
     try:
         return await service.run_query(
             principal=principal,
             question=payload.question,
             filters=payload.filters,
-            request_id=request.state.request_id,
+            request_id=request_id,
             limit=payload.limit,
         )
     except OrchestratorServiceError as error:
@@ -63,10 +63,10 @@ async def run_query(
 
 @router.post("/query/stream")
 async def stream_query(
-    request: Request,
     payload: QueryRunRequest,
     principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],
     service: Annotated[OrchestratorService, Depends(get_orchestrator_service)],
+    request_id: Annotated[str, Depends(get_request_id)],
 ) -> StreamingResponse:
     if not settings.top1_live_stream_enabled:
         raise ServiceError(
@@ -80,7 +80,7 @@ async def stream_query(
                 principal=principal,
                 question=payload.question,
                 filters=payload.filters,
-                request_id=request.state.request_id,
+                request_id=request_id,
                 limit=payload.limit,
             ),
             media_type="text/event-stream",
@@ -104,17 +104,17 @@ async def get_run(
 
 @router.post("/export", response_model=ExportPayload)
 async def export_run(
-    request: Request,
     payload: ExportRunRequest,
     principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],
     service: Annotated[OrchestratorService, Depends(get_orchestrator_service)],
+    request_id: Annotated[str, Depends(get_request_id)],
 ) -> ExportPayload:
     try:
         return await service.export_query_run(
             principal=principal,
             run_id=payload.query_run_id,
             export_format=payload.format,
-            request_id=request.state.request_id,
+            request_id=request_id,
         )
     except OrchestratorServiceError as error:
         raise_service_error(error)
