@@ -45,6 +45,7 @@
 - `docs/agent_context/implementation_quality_report.md` — оценка реализации vs ТЗ по сервисам, стеку и gaps.
 - `docs/agent_context/query_pipeline.md` — сквозной пайплайн запроса user → answer.
 - `docs/agent_context/top1_parallel_execution_plan.md` — поэтапный план параллельной работы двух Backend/ML-специалистов и одного Frontend-специалиста.
+- `docs/agent_context/top1_e0_contract_audit.md` — аудит контрактов query path и freeze points для этапов E1–E4.
 - `docs/agent_context/audit_report.md` — P0/P1 аудит репозитория и статусы инфраструктуры.
 
 ### Общий код (`shared/`)
