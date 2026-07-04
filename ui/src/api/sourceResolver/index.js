@@ -1,9 +1,18 @@
 import { isSourceLiveModeEnabled } from '../../utils/uiFeatureFlags.js';
 import * as liveAdapter from './liveAdapter.js';
-import * as mockAdapter from './mockAdapter.js';
+
+const mockSourcesEnabled = import.meta.env.VITE_USE_MOCK === 'true';
+
+const mockAdapter = mockSourcesEnabled ? await import('./mockAdapter.js') : null;
 
 function getAdapter() {
-  return isSourceLiveModeEnabled() ? liveAdapter : mockAdapter;
+  if (isSourceLiveModeEnabled()) {
+    return liveAdapter;
+  }
+  if (!mockSourcesEnabled || !mockAdapter) {
+    throw new Error('source_mock_unavailable');
+  }
+  return mockAdapter;
 }
 
 export function getSourceMode() {

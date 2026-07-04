@@ -8,7 +8,7 @@ import {
   isSourceLiveModeEnabled,
 } from '../utils/uiFeatureFlags.js';
 
-vi.mock('../api/client.js', () => ({
+vi.mock('./runtimeMode.js', () => ({
   useMock: false,
 }));
 
@@ -48,7 +48,7 @@ describe('uiFeatureFlags', () => {
   });
 
   it('enables review actions only in mock mode without review console flag', async () => {
-    vi.doMock('../api/client.js', () => ({ useMock: true }));
+    vi.doMock('./runtimeMode.js', () => ({ useMock: true }));
     vi.resetModules();
     const flags = await import('../utils/uiFeatureFlags.js');
     expect(flags.isReviewActionsEnabled()).toBe(true);
