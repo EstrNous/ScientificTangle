@@ -9,14 +9,22 @@ export function isEmptyDraftSession(session, messages, defaultTitle) {
   return session.title === defaultTitle;
 }
 
-export function findReusableEmptyDraftSession(sessions, activeId, activeMessages, defaultTitle) {
+export function findReusableEmptyDraftSession(
+  sessions,
+  activeId,
+  activeMessages,
+  defaultTitle,
+  messagesBySessionId = {},
+) {
   const activeSession = sessions.find((session) => session.id === activeId);
   if (isEmptyDraftSession(activeSession, activeMessages, defaultTitle)) {
     return activeSession;
   }
   return (
-    sessions.find(
-      (session) => session.id !== activeId && session.title === defaultTitle,
-    ) ?? null
+    sessions.find((session) => {
+      if (session.id === activeId || session.title !== defaultTitle) return false;
+      const sessionMessages = session.id === activeId ? activeMessages : messagesBySessionId[session.id];
+      return !sessionMessages || sessionMessages.length === 0;
+    }) ?? null
   );
 }
