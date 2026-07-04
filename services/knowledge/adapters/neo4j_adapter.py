@@ -31,7 +31,6 @@ from .operations import (
     path_records_to_neighborhood,
     rank_claim_records,
     records_to_subgraph,
-    subgraph_dto_to_contract,
     write_bundle_tx,
 )
 from .query_compiler import compile_query_ir

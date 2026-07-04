@@ -8,6 +8,21 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
+COVERAGE_PACKAGES: dict[str, list[str]] = {
+    "shared": ["shared"],
+    "auth_audit": ["services/auth_audit/app"],
+    "gateway": ["services/gateway/app"],
+    "orchestrator": ["services/orchestrator/app", "infra/postgres/orchestrator_db"],
+    "ingestion": ["services/ingestion/app"],
+    "knowledge": ["services/knowledge/app", "services/knowledge/adapters"],
+    "retrieval": ["services/retrieval/app"],
+    "model": ["services/model/app"],
+    "export": ["services/export/app"],
+    "notification": ["services/notification/app"],
+    "integration": ["eval"],
+    "performance": ["scripts"],
+}
+
 SUITES: list[tuple[str, list[str], list[str]]] = [
     ("shared", ["shared/tests"], ["."]),
     ("auth_audit", ["services/auth_audit/tests"], ["services/auth_audit", "."]),
@@ -20,19 +35,45 @@ SUITES: list[tuple[str, list[str], list[str]]] = [
     ("export", ["services/export/tests"], ["services/export", "."]),
     ("notification", ["services/notification/tests"], ["services/notification", "."]),
     ("integration", ["tests/integration"], ["services/orchestrator", "services/retrieval", "services/knowledge", "."]),
+    ("performance", ["tests/performance"], ["services/orchestrator", "services/retrieval", "services/knowledge", "."]),
     ("e2e", ["tests/e2e"], ["."]),
 ]
 
 
-def run_suite(name: str, testpaths: list[str], pythonpath_parts: list[str]) -> int:
+def run_suite(name: str, testpaths: list[str], pythonpath_parts: list[str], *, coverage: bool) -> int:
     env = os.environ.copy()
     env["PYTHONPATH"] = os.pathsep.join(str(ROOT / part) for part in pythonpath_parts)
     cmd = [sys.executable, "-m", "pytest", "-q", *testpaths]
+    if coverage:
+        for package in COVERAGE_PACKAGES.get(name, []):
+            cmd.extend(["--cov", package, "--cov-append"])
     print(f"\n=== {name} ===", flush=True)
     return subprocess.run(cmd, cwd=ROOT, env=env, check=False).returncode
 
 
+def report_coverage(fail_under: int) -> int:
+    cmd = [
+        sys.executable,
+        "-m",
+        "coverage",
+        "report",
+        "--fail-under",
+        str(fail_under),
+        "--omit",
+        "*/tests/*,*/__pycache__/*",
+    ]
+    print("\n=== coverage ===", flush=True)
+    return subprocess.run(cmd, cwd=ROOT, check=False).returncode
+
+
 def main() -> int:
+    coverage = os.getenv("COVERAGE") == "1"
+    coverage_threshold = int(os.getenv("COVERAGE_FAIL_UNDER", "60"))
+    if coverage:
+        coverage_data = ROOT / ".coverage"
+        if coverage_data.exists():
+            coverage_data.unlink()
+
     failures = 0
     for name, paths, pypath in SUITES:
         if name == "e2e" and os.getenv("RUN_E2E") != "1":
@@ -58,16 +99,21 @@ def main() -> int:
                 ),
             ]
             for testpaths, pythonpath_parts in suites:
-                code = run_suite(f"{name}", testpaths, pythonpath_parts)
+                code = run_suite(f"{name}", testpaths, pythonpath_parts, coverage=coverage)
                 if code != 0:
                     failures += 1
             continue
-        code = run_suite(name, rel_paths, pypath)
+        code = run_suite(name, rel_paths, pypath, coverage=coverage)
         if code != 0:
             failures += 1
     if failures:
         print(f"\n{failures} test suite(s) failed", file=sys.stderr)
         return 1
+    if coverage:
+        coverage_code = report_coverage(coverage_threshold)
+        if coverage_code != 0:
+            print("\ncoverage threshold failed", file=sys.stderr)
+            return coverage_code
     print("\nall backend test suites passed")
     return 0
 
