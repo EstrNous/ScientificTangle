@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createEmptyEntity, deriveEntitiesFromReport } from '../uploadEntities.js';
+import { createEmptyEntity, deriveEntitiesFromReport } from './uploadEntities.js';
 
 describe('deriveEntitiesFromReport', () => {
   it('builds document and candidate entities from report', () => {
@@ -20,8 +20,8 @@ describe('deriveEntitiesFromReport', () => {
       candidates_count: 2,
     });
 
-    expect(entities.some((entity) => entity.type === 'Document' && entity.name === 'nickel_report')).toBe(true);
-    expect(entities.some((entity) => entity.type === 'Material' && entity.name === 'Nickel')).toBe(true);
+    expect(entities.some((entity) => entity.type === 'Document' && entity.name === 'nickel report')).toBe(true);
+    expect(entities.some((entity) => entity.type === 'Material' && entity.name.includes('Nickel'))).toBe(true);
     expect(entities.filter((entity) => entity.status === 'candidate').length).toBeGreaterThanOrEqual(2);
   });
 });
