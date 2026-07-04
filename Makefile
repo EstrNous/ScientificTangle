@@ -1,4 +1,4 @@
-.PHONY: bootstrap up down build logs seed ingest-demo e2e eval eval-yandex-live perf-smoke reset-demo lint test test-model test-neo4j-integration test-yandex-live export-demo
+.PHONY: bootstrap up down build logs seed ingest-demo e2e eval eval-yandex-live perf-smoke reset-demo seed-counts reset-reseed-offline reset-reseed lint test test-model test-neo4j-integration test-yandex-live export-demo
 
 bootstrap:
 	python scripts/generate_auth_keys.py
@@ -43,6 +43,15 @@ reset-demo:
 	docker compose up -d
 	docker compose exec auth_audit auth-seed-users
 	python scripts/seed_demo.py
+
+seed-counts:
+	python scripts/seed_inventory.py --mode report --include-remote
+
+reset-reseed-offline:
+	python scripts/seed_inventory.py --mode offline --output tmp/seed_offline_report.json
+
+reset-reseed:
+	python scripts/seed_inventory.py --mode full --output tmp/seed_full_report.json
 
 lint:
 	ruff check shared services scripts tests
