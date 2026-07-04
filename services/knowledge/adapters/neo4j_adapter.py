@@ -17,6 +17,7 @@ from .dto import (
     FactVersionDTO,
     FactVersionHistoryDTO,
     GapDTO,
+    GraphExactSearchResultDTO,
     GraphNeighborhood,
     GraphSubgraphDTO,
     GroupComparisonDTO,
@@ -25,6 +26,7 @@ from .dto import (
     RankedClaimDTO,
     SourceSpanDTO,
 )
+from .graph_exact_search import build_graph_query_spec, graph_exact_search_with_fallback
 from .operations import (
     claim_record_to_evidence,
     neighbor_query_for_depth,
@@ -379,3 +381,16 @@ class Neo4jKnowledgeAdapter:
             records = [record async for record in result]
         effective_limit = query_ir.limit if query_ir else limit
         return rank_claim_records(records, effective_limit)
+
+    async def graph_exact_search(
+        self,
+        query_ir: QueryIR,
+        access_levels: list[str] | None = None,
+        request_id: str | None = None,
+    ) -> GraphExactSearchResultDTO:
+        spec = build_graph_query_spec(query_ir, access_levels=access_levels)
+        return await graph_exact_search_with_fallback(
+            self._driver,
+            spec,
+            resolve_aliases=self.resolve_aliases,
+        )

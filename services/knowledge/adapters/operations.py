@@ -216,6 +216,45 @@ def records_to_subgraph(records: list[Any]) -> GraphSubgraphDTO:
     )
 
 
+def records_to_exact_bundle(records: list[Any]) -> tuple[list[str], list[str], list[str], list[EvidenceRecordDTO], list[str]]:
+    claim_ids: list[str] = []
+    source_span_ids: list[str] = []
+    measurement_ids: list[str] = []
+    conflicts: list[str] = []
+    evidence: list[EvidenceRecordDTO] = []
+    seen_claims: set[str] = set()
+    for record in records:
+        claim = record.get("c")
+        measurement = record.get("m")
+        conflicting_claim_id = record.get("conflicting_claim_id")
+        claim_id = ""
+        if claim is not None:
+            claim_props = dict(claim)
+            claim_id = str(claim_props.get("claim_id", ""))
+            if claim_id and claim_id not in seen_claims:
+                seen_claims.add(claim_id)
+                claim_ids.append(claim_id)
+                evidence.append(claim_record_to_evidence(record))
+        if record.get("s") is not None:
+            span_id = str(dict(record["s"]).get("source_span_id", ""))
+            if span_id:
+                source_span_ids.append(span_id)
+        if measurement is not None:
+            measurement_id = str(dict(measurement).get("measurement_id", ""))
+            if measurement_id:
+                measurement_ids.append(measurement_id)
+        if conflicting_claim_id:
+            pair = f"{claim_id}:{conflicting_claim_id}" if claim is not None else str(conflicting_claim_id)
+            conflicts.append(pair)
+    return (
+        list(dict.fromkeys(source_span_ids)),
+        list(dict.fromkeys(claim_ids)),
+        list(dict.fromkeys(measurement_ids)),
+        evidence,
+        list(dict.fromkeys(conflicts)),
+    )
+
+
 def path_records_to_neighborhood(entity_id: str, depth: int, records: list[Any]) -> GraphNeighborhood:
     nodes: dict[str, GraphNodeDTO] = {}
     edges: list[GraphEdgeDTO] = []

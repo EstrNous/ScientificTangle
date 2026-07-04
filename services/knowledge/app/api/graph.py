@@ -2,6 +2,7 @@ from adapters.dto import (
     BootstrapResultDTO,
     EvidenceRecordDTO,
     FactVersionHistoryDTO,
+    GraphExactSearchResultDTO,
     GraphNeighborhood,
     GraphSubgraphDTO,
     GroupComparisonDTO,
@@ -83,6 +84,11 @@ class FactVersionsRequest(BaseModel):
 
 
 class NeighborhoodFallbackRequest(BaseModel):
+    query_ir: QueryIR
+    access_levels: list[str] = Field(default_factory=lambda: ["public", "internal"])
+
+
+class GraphExactSearchRequest(BaseModel):
     query_ir: QueryIR
     access_levels: list[str] = Field(default_factory=lambda: ["public", "internal"])
 
@@ -220,6 +226,20 @@ async def neighborhood_fallback(
     request_id = getattr(app_request.state, "request_id", None) or generate_request_id()
     adapter: Neo4jKnowledgeAdapter = app_request.app.state.neo4j_adapter
     return await adapter.neighborhood_fallback(
+        request.query_ir,
+        request.access_levels,
+        request_id=request_id,
+    )
+
+
+@router.post("/exact-search", response_model=GraphExactSearchResultDTO)
+async def graph_exact_search(
+    request: GraphExactSearchRequest,
+    app_request: Request,
+) -> GraphExactSearchResultDTO:
+    request_id = getattr(app_request.state, "request_id", None) or generate_request_id()
+    adapter: Neo4jKnowledgeAdapter = app_request.app.state.neo4j_adapter
+    return await adapter.graph_exact_search(
         request.query_ir,
         request.access_levels,
         request_id=request_id,
