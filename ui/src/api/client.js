@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { useMock } from '../utils/runtimeMode.js';
+import { resolveUseMock } from '../utils/runtimeMode.js';
 import { ensureAuth, authHeaders } from './auth.js';
 import { mockFetch } from './mock/index.js';
 
@@ -8,11 +8,11 @@ const baseURL = import.meta.env.VITE_API_URL || '/api';
 const http = axios.create({ baseURL, timeout: 120000 });
 
 function usesLiveHttp(options = {}) {
-  return !useMock || Boolean(options.real);
+  return !resolveUseMock() || Boolean(options.real);
 }
 
 function usesMockFetch(options = {}) {
-  return useMock && !options.real;
+  return resolveUseMock() && !options.real;
 }
 
 async function authorizedConfig(options = {}) {
@@ -72,8 +72,11 @@ export async function apiDelete(path, options = {}) {
   if (usesMockFetch(options)) {
     return mockFetch(path.replace(/^\//, ''), { ...options, method: 'DELETE' });
   }
-  const { data } = await http.delete(path, await authorizedConfig(options));
-  return data;
+  const response = await http.delete(path, await authorizedConfig(options));
+  if (response.status === 204) {
+    return null;
+  }
+  return response.data;
 }
 
 function mapQueryResponseToMessage(payload) {
@@ -98,7 +101,7 @@ function mapQueryResponseToMessage(payload) {
 }
 
 export async function submitChatQuery({ text, files }, { onStep, onEvent, t } = {}) {
-  if (useMock) {
+  if (resolveUseMock()) {
     const { runMockChatQuery } = await import('./mock/chatQuery.js');
     return runMockChatQuery({ text, files }, { onStep, t, stepDelayMs: 650 });
   }
@@ -129,8 +132,8 @@ export async function submitChatQuery({ text, files }, { onStep, onEvent, t } = 
   );
 }
 
-export { useMock };
+export { useMock } from '../utils/runtimeMode.js';
 
 export function apiOptions() {
-  return useMock ? {} : { real: true };
+  return resolveUseMock() ? {} : { real: true };
 }
