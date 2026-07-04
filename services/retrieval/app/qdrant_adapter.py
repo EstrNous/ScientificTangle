@@ -43,10 +43,8 @@ def payload_to_span(payload: dict) -> SourceSpan:
     return SourceSpan(
         document_id=str(payload["document_id"]),
         page=int(payload.get("page") or 1),
-        start_offset=int(payload.get("highlight_start", payload.get("start_offset")) or 0),
-        end_offset=int(
-            payload.get("highlight_end", payload.get("end_offset")) or len(str(payload.get("text", "")))
-        ),
+        start_offset=int(payload.get("start_offset") or 0),
+        end_offset=int(payload.get("end_offset") or len(str(payload.get("text", "")))),
         text=str(payload.get("text", "")),
         table_block_id=table_block_id,
         source_type=(
@@ -59,6 +57,11 @@ def payload_to_span(payload: dict) -> SourceSpan:
 
 def payload_to_source(payload: dict) -> SourcePayload:
     span = payload_to_span(payload)
+    highlight_start = int(payload.get("highlight_start", span.start_offset) or 0)
+    highlight_end = int(payload.get("highlight_end", span.end_offset) or len(span.text))
+    relative_start = max(0, highlight_start - span.start_offset)
+    relative_end = max(relative_start, highlight_end - span.start_offset)
+    highlight_text = span.text[relative_start:relative_end] if span.text else ""
     return SourcePayload(
         source_span=span.model_copy(update={"id": str(payload.get("source_span_id", span.id))}),
         document_title=str(payload.get("document_title", "")),
@@ -68,6 +71,10 @@ def payload_to_source(payload: dict) -> SourcePayload:
             level=payload.get("access_level", "internal"),
             allowed_roles=list(payload.get("allowed_roles") or []),
         ),
+        highlight_start=highlight_start,
+        highlight_end=highlight_end,
+        highlight_text=highlight_text,
+        highlight_fragments=[highlight_text] if highlight_text else [],
     )
 
 
@@ -206,20 +213,30 @@ def build_filter(filters: dict, access_roles: list[str]) -> dict:
         access_should = [{"key": "access_level", "match": {"value": "public"}}]
         if access_roles:
             if set(access_roles) & {"researcher", "analyst", "manager"}:
-                access_should.append(
-                    {
-                        "must": [{"key": "access_level", "match": {"value": "internal"}}],
-                        "should": [
-                            {"key": "allowed_roles", "match": {"any": access_roles}},
-                            {"is_empty": {"key": "allowed_roles"}},
-                        ],
-                    }
+                access_should.extend(
+                    [
+                        {
+                            "must": [
+                                {"key": "access_level", "match": {"value": "internal"}},
+                                {"is_empty": {"key": "allowed_roles"}},
+                            ],
+                        },
+                        {
+                            "must": [
+                                {"key": "access_level", "match": {"value": "internal"}},
+                                {"key": "allowed_roles", "match": {"any": access_roles}},
+                            ],
+                        },
+                    ]
                 )
             access_should.append({"key": "allowed_roles", "match": {"any": access_roles}})
         must.append({"should": access_should})
     source_types = list(filters.get("source_type_constraints") or filters.get("source_types") or [])
     if source_types:
         must.append({"key": "document_source_type", "match": {"any": source_types}})
+    dictionary_version_id = str(filters.get("dictionary_version_id") or "")
+    if dictionary_version_id:
+        must.append({"key": "dictionary_version_id", "match": {"value": dictionary_version_id}})
     geo = [str(value).lower() for value in filters.get("geo_constraints") or []]
     if geo:
         must.append({"should": [
