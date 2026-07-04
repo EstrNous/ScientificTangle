@@ -6,7 +6,8 @@ from uuid import uuid4
 
 import httpx
 from app.core.config import settings
-from app.service.service import OrchestratorService
+from app.service.query import QueryService
+from app.service.base import OrchestratorServiceError
 
 from infra.postgres.orchestrator_db import ExportJob, QueryRun
 from shared.contracts import UserRole
@@ -99,15 +100,7 @@ def principal() -> AuthenticatedPrincipal:
 
 
 def orchestrator_service(client, repository):
-    return OrchestratorService(
-        repository=None,
-        client=client,
-        ingestion_url="http://ingestion",
-        knowledge_url="http://knowledge",
-        retrieval_url="http://retrieval",
-        model_url="http://model",
-        query_repository=repository,
-    )
+    return QueryService(client=client, query_repository=repository)
 
 
 def test_legacy_query_keeps_pipeline_mode_when_flag_disabled(monkeypatch) -> None:

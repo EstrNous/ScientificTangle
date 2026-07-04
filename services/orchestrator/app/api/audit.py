@@ -8,7 +8,7 @@ from shared.security import AuthenticatedPrincipal
 from shared.web import ServiceError, require_principal
 
 from ..core.dependencies import get_orchestrator_service
-from ..service.service import OrchestratorService, OrchestratorServiceError
+from ..service.orchestrator import OrchestratorService, OrchestratorServiceError
 
 router = APIRouter(prefix="/audit", tags=["audit"])
 

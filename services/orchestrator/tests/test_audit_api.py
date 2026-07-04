@@ -21,7 +21,7 @@ def test_require_admin_allows_admin() -> None:
     assert require_admin(principal) is principal
 
 
-class FakeOrchestratorService:
+class FakeAuditService:
     def __init__(self) -> None:
         self.last_kwargs: dict | None = None
 
@@ -43,7 +43,7 @@ class FakeOrchestratorService:
 
 
 def test_list_audit_events_delegates_to_service() -> None:
-    service = FakeOrchestratorService()
+    service = FakeAuditService()
     admin_id = uuid4()
     principal = AuthenticatedPrincipal(user_id=admin_id, role=UserRole.ADMIN, token_id=uuid4())
 

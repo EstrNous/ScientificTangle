@@ -6,7 +6,8 @@ from uuid import uuid4
 import httpx
 import pytest
 from app.core.config import settings
-from app.service.service import OrchestratorService, OrchestratorServiceError
+from app.service.query import QueryService
+from app.service.base import OrchestratorServiceError
 
 from infra.postgres.orchestrator_db import QueryRun
 from shared.contracts import QueryRunStatus, UserRole
@@ -68,17 +69,8 @@ def _principal() -> AuthenticatedPrincipal:
     return AuthenticatedPrincipal(user_id=uuid4(), role=UserRole.RESEARCHER, token_id=uuid4())
 
 
-def _service(client: httpx.AsyncClient, repository: FakeQueryRepository) -> OrchestratorService:
-    return OrchestratorService(
-        repository=None,
-        client=client,
-        ingestion_url="http://ingestion",
-        knowledge_url="http://knowledge",
-        retrieval_url="http://retrieval",
-        model_url="http://model",
-        query_repository=repository,
-        enforce_active_dictionary=False,
-    )
+def _service(client: httpx.AsyncClient, repository: FakeQueryRepository) -> QueryService:
+    return QueryService(client=client, query_repository=repository)
 
 
 def _retrieval_payload(*, planner_profiles: list[dict] | None = None) -> dict:

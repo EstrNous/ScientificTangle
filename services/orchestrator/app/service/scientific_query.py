@@ -1,4 +1,4 @@
-import re
+﻿import re
 from typing import Any
 
 from shared.contracts import EvidenceBundle, EvidenceItem, QueryIR, SourceSpan, UserRole

@@ -15,7 +15,6 @@ from infra.postgres.orchestrator_db import (
 )
 from shared.contracts import (
     AnswerPayload,
-    ApiError,
     AuditEvent,
     DictionaryIngestionReport,
     DictionaryPackagePayload,
@@ -52,6 +51,7 @@ from .query_stream import (
     terminal_phase,
     wrap_stream_query,
 )
+from .base import BaseService, OrchestratorServiceError
 from .scientific_query import (
     access_levels_for_role,
     apply_conflict_signals,
@@ -68,22 +68,7 @@ from .scientific_query import (
 )
 
 
-class OrchestratorServiceError(Exception):
-    def __init__(
-        self,
-        status_code: int,
-        code: str,
-        message: str,
-        query_run_id: UUID | None = None,
-    ) -> None:
-        self.status_code = status_code
-        self.code = code
-        self.message = message
-        self.query_run_id = query_run_id
-        super().__init__(message)
-
-
-class OrchestratorService:
+class OrchestratorService(BaseService):
     def __init__(
         self,
         repository: IngestionTaskRepository,
@@ -95,8 +80,8 @@ class OrchestratorService:
         query_repository: QueryRunRepository | None = None,
         enforce_active_dictionary: bool = True,
     ) -> None:
+        super().__init__(client)
         self._repository = repository
-        self._client = client
         self._ingestion_url = ingestion_url.rstrip("/")
         self._knowledge_url = knowledge_url.rstrip("/")
         self._retrieval_url = retrieval_url.rstrip("/")
@@ -1251,36 +1236,6 @@ class OrchestratorService:
         extension = "md" if export_format == "markdown" else "json"
         return f"inline://export-jobs/{export_job_id}.{extension}"
 
-    async def _request_downstream(
-        self,
-        method: str,
-        base_url: str,
-        path: str,
-        payload: dict,
-        request_id: str,
-        service_name: str,
-        authorization: str | None = None,
-    ) -> dict | list:
-        headers = {"X-Request-ID": request_id}
-        if authorization is not None:
-            headers["Authorization"] = authorization
-        try:
-            response = await self._client.request(
-                method,
-                f"{base_url}{path}",
-                json=payload,
-                headers=headers,
-            )
-            if response.status_code >= 400:
-                raise self._downstream_error(response, service_name)
-            return response.json()
-        except httpx.TimeoutException as error:
-            raise OrchestratorServiceError(504, f"{service_name}_timeout", f"{service_name} request timed out") from error
-        except httpx.HTTPError as error:
-            raise OrchestratorServiceError(503, f"{service_name}_unavailable", f"{service_name} service is unavailable") from error
-        except ValueError as error:
-            raise OrchestratorServiceError(502, f"invalid_{service_name}_response", f"{service_name} returned invalid data") from error
-
     async def _active_dictionary(self, request_id: str) -> DictionaryVersionPayload:
         try:
             return await self._fetch_active_dictionary(request_id)
@@ -1334,19 +1289,3 @@ class OrchestratorService:
             created_at=task.created_at,
             updated_at=task.updated_at,
         )
-
-    @staticmethod
-    def _downstream_error(
-        response: httpx.Response,
-        service_name: str,
-    ) -> OrchestratorServiceError:
-        status_code = response.status_code if 400 <= response.status_code < 600 else 502
-        try:
-            payload = ApiError.model_validate(response.json())
-            return OrchestratorServiceError(status_code, payload.code, payload.message)
-        except (ValueError, TypeError):
-            return OrchestratorServiceError(
-                status_code,
-                f"{service_name}_error",
-                f"{service_name} service request failed",
-            )
