@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import httpx
 from app.core.config import settings
-from app.service.service import OrchestratorService
+from app.service.query import QueryService
 
 from infra.postgres.orchestrator_db import QueryRun
 from shared.contracts import QueryRunStatus, UserRole
@@ -94,6 +94,9 @@ def _retrieval_payload():
 
 def test_stream_query_emits_phase_and_done_events(monkeypatch) -> None:
     monkeypatch.setattr(settings, "top1_scientific_query_enabled", False)
+    # Отключаем падение из-за отсутствия словарей, если в QueryService встроена эта проверка
+    monkeypatch.setattr(settings, "enforce_active_dictionary", False)
+    
     repository = FakeQueryRepository()
     principal = AuthenticatedPrincipal(user_id=uuid4(), role=UserRole.RESEARCHER, token_id=uuid4())
 
@@ -124,15 +127,9 @@ def test_stream_query_emits_phase_and_done_events(monkeypatch) -> None:
 
     async def run() -> list[dict]:
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            service = OrchestratorService(
-                repository=repository,
+            service = QueryService(
                 client=client,
-                ingestion_url="http://ingestion",
-                knowledge_url="http://knowledge",
-                retrieval_url="http://retrieval",
-                model_url="http://model",
                 query_repository=repository,
-                enforce_active_dictionary=False,
             )
             events = []
             async for chunk in service.stream_query(

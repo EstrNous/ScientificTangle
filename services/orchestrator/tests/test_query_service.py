@@ -4,7 +4,10 @@ from uuid import UUID, uuid4
 
 import httpx
 import pytest
-from app.service.service import OrchestratorService, OrchestratorServiceError
+from app.service.query import QueryService
+from app.service.audit import AuditService
+from app.service.export import ExportService
+from app.service.base import OrchestratorServiceError
 
 from infra.postgres.orchestrator_db import ExportJob, QueryRun
 from shared.contracts import QueryRunStatus, UserRole
@@ -70,6 +73,7 @@ class FakeQueryRepository:
         run.latency_ms = latency_ms
         self.transitions.append("completed")
         return run
+
     async def create_query_run(self, user_id, raw_query: str) -> QueryRun:
         now = datetime.now(UTC)
         return QueryRun(
@@ -154,7 +158,6 @@ class FakeQueryRepository:
         }
         return self.audit_rows
 
-
     async def mark_failed(self, run, code, message, latency_ms):
         run.status = QueryRunStatus.FAILED.value
         run.error_code = code
@@ -169,19 +172,6 @@ def principal() -> AuthenticatedPrincipal:
         user_id=uuid4(),
         role=UserRole.RESEARCHER,
         token_id=uuid4(),
-    )
-
-
-def service(client, repository):
-    return OrchestratorService(
-        repository=None,
-        client=client,
-        ingestion_url="http://ingestion",
-        knowledge_url="http://knowledge",
-        retrieval_url="http://retrieval",
-        model_url="http://model",
-        query_repository=repository,
-        enforce_active_dictionary=False,
     )
 
 
@@ -247,7 +237,8 @@ def test_query_run_is_persisted_with_evidence_graph_and_answer() -> None:
 
     async def execute():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            return await service(client, repository).run_query(
+            service = QueryService(client=client, query_repository=repository)
+            return await service.run_query(
                 principal(), "никель", {}, "request-1", 20
             )
 
@@ -266,7 +257,8 @@ def test_query_failure_is_persisted_and_exposes_run_id() -> None:
             transport=httpx.MockTransport(lambda request: httpx.Response(503))
         ) as client:
             try:
-                await service(client, repository).run_query(
+                service = QueryService(client=client, query_repository=repository)
+                await service.run_query(
                     principal(), "никель", {}, "request-1", 20
                 )
             except OrchestratorServiceError as error:
@@ -295,17 +287,9 @@ def test_query_requires_active_dictionary_before_creating_run() -> None:
 
     async def execute():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            orchestrator = OrchestratorService(
-                repository=None,
-                client=client,
-                ingestion_url="http://ingestion",
-                knowledge_url="http://knowledge",
-                retrieval_url="http://retrieval",
-                model_url="http://model",
-                query_repository=repository,
-            )
+            service = QueryService(client=client, query_repository=repository)
             with pytest.raises(OrchestratorServiceError) as error:
-                await orchestrator.run_query(principal(), "никель", {}, "request-1", 20)
+                await service.run_query(principal(), "никель", {}, "request-1", 20)
             assert error.value.code == "active_dictionary_required"
 
     asyncio.run(execute())
@@ -333,7 +317,8 @@ def test_empty_evidence_skips_synthesis_and_completes_with_warning() -> None:
 
     async def execute():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            return await service(client, repository).run_query(
+            service = QueryService(client=client, query_repository=repository)
+            return await service.run_query(
                 principal(), "закрытый вопрос", {}, "request-1", 20
             )
 
@@ -365,22 +350,13 @@ def test_list_audit_events_maps_extended_fields_and_filters() -> None:
     ]
 
     async def execute():
-        async with httpx.AsyncClient() as client:
-            orchestrator = OrchestratorService(
-                repository=repository,
-                client=client,
-                ingestion_url="http://ingestion",
-                knowledge_url="http://knowledge",
-                retrieval_url="http://retrieval",
-                model_url="http://model",
-                query_repository=repository,
-            )
-            return await orchestrator.list_audit_events(
-                limit=25,
-                offset=10,
-                action="source_viewed",
-                user_id=user_id,
-            )
+        service = AuditService(query_repository=repository)
+        return await service.list_audit_events(
+            limit=25,
+            offset=10,
+            action="source_viewed",
+            user_id=user_id,
+        )
 
     events = asyncio.run(execute())
 
@@ -474,7 +450,8 @@ def test_export_query_run_returns_markdown_for_completed_run() -> None:
 
     async def execute():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            return await service(client, repository).export_query_run(
+            service = ExportService(client=client, query_repository=repository)
+            return await service.export_query_run(
                 owner,
                 repository.run.id,
                 "markdown",
@@ -541,7 +518,8 @@ def test_export_query_run_fails_when_source_access_changed() -> None:
     async def execute():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
             try:
-                await service(client, repository).export_query_run(
+                service = ExportService(client=client, query_repository=repository)
+                await service.export_query_run(
                     owner,
                     repository.run.id,
                     "json",

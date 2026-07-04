@@ -5,7 +5,8 @@ from uuid import UUID, uuid4
 
 import httpx
 import pytest
-from app.service.service import OrchestratorService, OrchestratorServiceError
+from app.service.ingestion import IngestionService
+from app.service.base import OrchestratorServiceError
 from fastapi import UploadFile
 
 from infra.postgres.orchestrator_db import IngestionTask
@@ -127,16 +128,8 @@ def document_payload() -> dict[str, object]:
     }
 
 
-def service(repository: FakeRepository, client: httpx.AsyncClient) -> OrchestratorService:
-    return OrchestratorService(
-        repository,
-        client,
-        "http://ingestion",
-        "http://knowledge",
-        "http://retrieval",
-        "http://model",
-        enforce_active_dictionary=False,
-    )
+def service(repository: FakeRepository, client: httpx.AsyncClient) -> IngestionService:
+    return IngestionService(client=client)
 
 
 def test_create_task_runs_complete_ingestion_pipeline() -> None:

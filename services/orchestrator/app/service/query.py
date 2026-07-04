@@ -1,10 +1,80 @@
+import httpx
 import re
-from typing import Any
+from typing import Any, AsyncGenerator
+from app.core.config import settings
+from app.models.query import QueryIR
+from app.models.auth import AuthenticatedPrincipal
+from app.service.base import BaseService, OrchestratorServiceError
+from shared.contracts import EvidenceBundle, EvidenceItem, SourceSpan, UserRole
 
-from shared.contracts import EvidenceBundle, EvidenceItem, QueryIR, SourceSpan, UserRole
-
+# Регулярное выражение для поиска чисел в тексте (используется для проверки ограничений)
 NUMBER_PATTERN = re.compile(r"[-+]?\d+(?:[,.]\d+)?")
 
+
+class QueryService(BaseService):
+    def __init__(self, client: httpx.AsyncClient):
+        super().__init__(client)
+        self._knowledge_url = f"{settings.KNOWLEDGE_SERVICE_URL}/v1/query"
+
+    async def stream_query(
+        self, 
+        query_ir: QueryIR, 
+        principal: AuthenticatedPrincipal, 
+        request_id: str
+    ) -> AsyncGenerator[dict[str, Any], None]:
+        """
+        Запуск RAG-пайплайна со стримингом ответа (SSE) наружу.
+        """
+        headers = self._build_headers(request_id, principal.token)
+        
+        async with self._client.stream(
+            "POST", 
+            self._knowledge_url, 
+            json=query_ir.model_dump(), 
+            headers=headers,
+            timeout=60.0
+        ) as response:
+            if response.status_code != 200:
+                raise OrchestratorServiceError(
+                    f"Knowledge service query failed: {response.status_code}"
+                )
+            
+            async for line in response.aiter_lines():
+                if line.startswith("data: "):
+                    import json
+                    try:
+                        data = json.loads(line[6:])
+                        yield data
+                    except json.JSONDecodeError:
+                        continue
+
+    async def run_query(
+        self, 
+        query_ir: QueryIR, 
+        principal: AuthenticatedPrincipal, 
+        request_id: str
+    ) -> dict[str, Any]:
+        """
+        Синхронный RAG-запрос. Агрегирует стрим-ответы от downstream-сервиса 
+        и собирает финальный payload, избегая дублирования логики пайплайна.
+        """
+        final_payload = {}
+        
+        async for event in self.stream_query(query_ir, principal, request_id):
+            if event.get("type") in ("done", "final"):
+                final_payload = event.get("payload", {})
+                break
+            elif "text" in event:
+                if "answer" not in final_payload:
+                    final_payload["answer"] = ""
+                final_payload["answer"] += event["text"]
+                
+        return final_payload
+
+
+# =====================================================================
+# Вспомогательные функции для научных/валидационных запросов (Scientific Query)
+# =====================================================================
 
 def scientific_query_enabled(settings_flag: bool, filters: dict[str, Any]) -> bool:
     if filters.get("top1_scientific_query") is True:
