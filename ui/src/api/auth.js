@@ -15,9 +15,28 @@ const ROLE_MAP = {
   external_partner: 'external_partner',
 };
 
+export function applyAuthResponse(data) {
+  const role = ROLE_MAP[data.user?.role] ?? useAuthStore.getState().role;
+  useAuthStore.getState().setAuth({
+    accessToken: data.access_token,
+    user: data.user,
+    role,
+  });
+  return data;
+}
+
+export function mapAuthError(error) {
+  return error?.response?.data?.code ?? 'unknown';
+}
+
 export async function login(identifier, password) {
   const { data } = await authHttp.post('/api/auth/login', { identifier, password });
-  return data;
+  return applyAuthResponse(data);
+}
+
+export async function register(username, email, password) {
+  const { data } = await authHttp.post('/api/auth/register', { username, email, password });
+  return applyAuthResponse(data);
 }
 
 export async function ensureAuth() {
@@ -31,12 +50,6 @@ export async function ensureAuth() {
   }
 
   const data = await login(identifier, password);
-  const role = ROLE_MAP[data.user?.role] ?? state.role;
-  useAuthStore.getState().setAuth({
-    accessToken: data.access_token,
-    user: data.user,
-    role,
-  });
   return data.access_token;
 }
 
