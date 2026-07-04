@@ -13,6 +13,7 @@ from infra.postgres.orchestrator_db import (
     QueryRun,
     QueryRunRepository,
 )
+from infra.postgres.orchestrator_db.document_catalog_repository import DocumentCatalogRepository
 from infra.postgres.orchestrator_db.product_events_storage import ExportArtifactInput
 from shared.contracts import (
     AnswerPayload,
@@ -71,6 +72,22 @@ from .scientific_query import (
 )
 
 
+def format_ingestion_failure_message(
+    code: str,
+    message: str,
+    warnings: list[str],
+    *,
+    max_warnings: int = 8,
+) -> str:
+    relevant = [warning for warning in warnings if warning.startswith("unsupported_source_format:")]
+    if not relevant:
+        relevant = warnings
+    selected = relevant[:max_warnings]
+    if selected:
+        return f"{code}: {message}; " + "; ".join(selected)
+    return f"{code}: {message}"
+
+
 class OrchestratorService(BaseService):
     def __init__(
         self,
@@ -99,6 +116,7 @@ class OrchestratorService(BaseService):
         self._notification_url = (notification_url or settings.notification_url).rstrip("/")
         self._query_repository = query_repository
         self._enforce_active_dictionary = enforce_active_dictionary
+        self._ingestion_timeout = settings.orchestrator_downstream_timeout_seconds
 
     async def start_ingestion_task(
         self,
@@ -155,7 +173,15 @@ class OrchestratorService(BaseService):
                     request_id,
                 )
             except OrchestratorServiceError as error:
-                await repository.mark_failed(task, error.message)
+                report = IngestionReport.model_validate(task.report or {})
+                message = error.message
+                if report.warnings and "unsupported_source_format:" not in message:
+                    message = format_ingestion_failure_message(
+                        error.code,
+                        error.message,
+                        report.warnings,
+                    )
+                await repository.mark_failed(task, message)
             except (KeyError, TypeError, ValueError):
                 await repository.mark_failed(task, "Ingestion pipeline returned invalid data")
 
@@ -213,6 +239,7 @@ class OrchestratorService(BaseService):
                 f"{self._ingestion_url}/ingestion/tasks/{task_id}/sources",
                 files=multipart,
                 headers={"Authorization": authorization, "X-Request-ID": request_id},
+                timeout=self._ingestion_timeout,
             )
         except httpx.TimeoutException as error:
             raise OrchestratorServiceError(
@@ -256,13 +283,19 @@ class OrchestratorService(BaseService):
                 request_id,
                 "ingestion",
                 authorization,
+                timeout=self._ingestion_timeout,
             )
         )
         if not normalized.documents:
+            warnings = [*report.warnings, *normalized.warnings]
             raise OrchestratorServiceError(
                 422,
                 "normalization_empty",
-                "No supported documents were normalized",
+                format_ingestion_failure_message(
+                    "normalization_empty",
+                    "No supported documents were normalized",
+                    warnings,
+                ),
             )
         if task.dictionary_version_id is not None:
             for document in normalized.documents:
@@ -281,6 +314,7 @@ class OrchestratorService(BaseService):
                         ).model_dump(mode="json"),
                         request_id,
                         "knowledge",
+                        timeout=self._ingestion_timeout,
                     )
                 )
             )
@@ -301,6 +335,7 @@ class OrchestratorService(BaseService):
                 ).model_dump(mode="json"),
                 request_id,
                 "retrieval",
+                timeout=self._ingestion_timeout,
             )
         )
         if retrieval_result.vector_write.mode != "live":
@@ -308,6 +343,16 @@ class OrchestratorService(BaseService):
                 503,
                 "storage_adapter_not_ready",
                 "Qdrant storage adapter is not ready",
+            )
+        catalog_session = getattr(repository, "_session", None)
+        if catalog_session is not None:
+            catalog_repository = DocumentCatalogRepository(catalog_session)
+            await catalog_repository.persist_ingestion_catalog(
+                task_id=task.id,
+                sources=report.sources,
+                documents=normalized.documents,
+                knowledge_results=knowledge_results,
+                retrieval_result=retrieval_result,
             )
         warnings = [*report.warnings, *normalized.warnings]
         for result in knowledge_results:

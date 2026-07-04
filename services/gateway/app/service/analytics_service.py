@@ -249,9 +249,28 @@ class AdminService:
             }
             for item in users_payload.get("items", [])
         ]
+        documents_response = await self._client.get(
+            f"{self._orchestrator_url}/documents",
+            headers={"Authorization": authorization},
+            params={"limit": 200},
+        )
+        access_policies = []
+        if documents_response.status_code == 200:
+            for item in documents_response.json().get("items", []):
+                access_policies.append(
+                    {
+                        "document_id": item.get("document_id"),
+                        "title": item.get("title", ""),
+                        "level": item.get("access_level", "internal"),
+                        "access_policy": {
+                            "level": item.get("access_level", "internal"),
+                            "allowed_roles": [],
+                        },
+                    }
+                )
         return {
             "users": users,
-            "access_policies": [],
+            "access_policies": access_policies,
             "source_spans": {},
         }
 
@@ -263,12 +282,17 @@ class AdminService:
             params={"limit": 500},
         )
         events = audit_response.json() if audit_response.status_code == 200 else []
+        restricted_documents = sum(
+            1
+            for policy in admin.get("access_policies", [])
+            if policy.get("level") in {"restricted", "confidential"}
+        )
         return {
             **admin,
             "summary": {
                 "users_count": len(admin.get("users", [])),
                 "audit_events_24h": len(events),
-                "restricted_documents": 0,
+                "restricted_documents": restricted_documents,
                 "access_denied_24h": sum(1 for e in events if e.get("action") == "access_denied"),
             },
             "operations": {"latency_ms": 0, "errors": 0, "rps": 0, "services": []},

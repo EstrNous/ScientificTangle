@@ -188,6 +188,31 @@ export function mapAdminPolicy(item = {}) {
   };
 }
 
+export function mapDocumentCatalogItem(item = {}) {
+  return {
+    documentId: item.document_id ?? item.documentId ?? '',
+    title: item.title ?? '',
+    sourcePath: item.source_path ?? item.sourcePath ?? null,
+    sourceType: item.source_type ?? item.sourceType ?? '',
+    ingestionTaskId: item.ingestion_task_id ?? item.ingestionTaskId ?? null,
+    status: item.status ?? 'processing',
+    accessLevel: item.access_level ?? item.accessLevel ?? 'internal',
+    sourceSpansCount: item.source_spans_count ?? item.sourceSpansCount ?? 0,
+    indexedPointsCount: item.indexed_points_count ?? item.indexedPointsCount ?? 0,
+    createdAt: item.created_at ?? item.createdAt ?? null,
+    warnings: item.warnings ?? [],
+    errorMessage: item.error_message ?? item.errorMessage ?? null,
+  };
+}
+
+export function mapDocumentCatalog(payload = {}) {
+  return {
+    items: (payload.items ?? []).map(mapDocumentCatalogItem),
+    total: payload.total ?? 0,
+    filtersApplied: payload.filters_applied ?? payload.filtersApplied ?? {},
+  };
+}
+
 export function serializeAdminUserPatch({ role, active }) {
   const body = {};
   if (role != null) {

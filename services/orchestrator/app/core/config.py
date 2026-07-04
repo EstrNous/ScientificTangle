@@ -19,6 +19,7 @@ class Settings(ServiceSettings):
     auth_clock_skew_seconds: int = 30
     top1_scientific_query_enabled: bool = False
     top1_live_stream_enabled: bool = False
+    orchestrator_downstream_timeout_seconds: float = 300.0
     model_config = SettingsConfigDict(env_prefix="", env_file=".env", extra="ignore")
 
 

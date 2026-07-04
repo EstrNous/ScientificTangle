@@ -432,7 +432,19 @@
     "nav": {
       "management": "Управление",
       "stats": "Статистика",
-      "audit": "Журнал аудита"
+      "audit": "Журнал аудита",
+      "documents": "Документы"
+    },
+    "documents": {
+      "title": "Каталог документов",
+      "subtitle": "Всего записей: {{total}}",
+      "filters": {
+        "all": "Все",
+        "completed": "Проиндексированы",
+        "failed": "Ошибки",
+        "noIndex": "Без индекса",
+        "noSourceSpans": "Без source spans"
+      }
     },
     "stats": {
       "summaryTitle": "Сводка"

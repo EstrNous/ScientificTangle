@@ -40,7 +40,7 @@ http {
         ssl_certificate_key ${TLS_KEY_FILE};
         ssl_protocols TLSv1.2 TLSv1.3;
 
-        client_max_body_size 100M;
+        client_max_body_size 200M;
 
         location /api/auth/ {
             proxy_pass http://auth_audit;
@@ -64,6 +64,8 @@ http {
 
         location /api/ {
             proxy_pass http://gateway/;
+            proxy_read_timeout 300s;
+            proxy_send_timeout 300s;
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Request-ID $proxy_request_id;

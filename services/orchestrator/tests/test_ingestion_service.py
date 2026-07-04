@@ -479,6 +479,7 @@ def test_empty_normalization_marks_task_failed() -> None:
 
     asyncio.run(run())
     assert repository.transitions == ["pending", "processing", "failed"]
+    assert "unsupported_source_format:file.bin" in (repository.failed_message or "")
 
 
 def test_mock_storage_adapter_marks_task_failed() -> None:

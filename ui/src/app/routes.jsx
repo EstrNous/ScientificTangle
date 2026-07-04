@@ -11,6 +11,7 @@ import LabInsightsPage from '../pages/LabInsightsPage.jsx';
 import AdminPage from '../pages/AdminPage.jsx';
 import AdminStatsPage from '../pages/AdminStatsPage.jsx';
 import AdminAuditPage from '../pages/AdminAuditPage.jsx';
+import AdminDocumentsPage from '../pages/AdminDocumentsPage.jsx';
 import UploadPage from '../pages/UploadPage.jsx';
 import SearchPage from '../pages/SearchPage.jsx';
 import RegisterPage from '../pages/RegisterPage.jsx';
@@ -115,6 +116,14 @@ export const routes = [
         element: (
           <RoleRoute paths={['admin']}>
             <AdminAuditPage />
+          </RoleRoute>
+        ),
+      },
+      {
+        path: '/admin/documents',
+        element: (
+          <RoleRoute paths={['admin']}>
+            <AdminDocumentsPage />
           </RoleRoute>
         ),
       },

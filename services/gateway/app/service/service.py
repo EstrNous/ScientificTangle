@@ -5,7 +5,7 @@ from uuid import UUID
 import httpx
 from fastapi import UploadFile, status
 
-from shared.contracts import ApiError, DictionaryVersionPayload, IngestionTaskPayload
+from shared.contracts import ApiError, DictionaryVersionPayload, DocumentCatalogResponse, IngestionTaskPayload
 
 from ..core.config import settings
 
@@ -75,6 +75,31 @@ class GatewayService:
         if response.status_code != status.HTTP_200_OK:
             raise self._downstream_error(response)
         return self._task_payload(response)
+
+    async def list_documents(
+        self,
+        authorization: str,
+        request_id: str,
+        status_filter: str | None = None,
+        catalog_filter: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> DocumentCatalogResponse:
+        params: dict[str, str | int] = {"limit": limit, "offset": offset}
+        if status_filter is not None:
+            params["status"] = status_filter
+        if catalog_filter is not None:
+            params["filter"] = catalog_filter
+        response = await self._request(
+            "GET",
+            "/documents",
+            authorization,
+            request_id,
+            params=params,
+        )
+        if response.status_code != status.HTTP_200_OK:
+            raise self._downstream_error(response)
+        return DocumentCatalogResponse.model_validate(response.json())
 
     async def delete_document(
         self,

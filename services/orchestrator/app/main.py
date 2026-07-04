@@ -11,6 +11,7 @@ from shared.web import install_error_handlers, request_id_middleware
 
 from .api.audit import router as audit_router
 from .api.dictionaries import router as dictionaries_router
+from .api.documents import router as documents_router
 from .api.health import router as health_router
 from .api.ingestion import router as ingestion_router
 from .api.query import router as query_router
@@ -58,4 +59,5 @@ app.include_router(ingestion_router)
 app.include_router(query_router)
 app.include_router(audit_router)
 app.include_router(dictionaries_router)
+app.include_router(documents_router)
 app.include_router(workflow_router)

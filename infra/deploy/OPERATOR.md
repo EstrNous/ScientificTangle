@@ -102,6 +102,7 @@ cat infra/deploy/credentials.txt
 ```bash
 curl -fsS http://127.0.0.1/api/health
 curl -fsS http://127.0.0.1/api/health/all
+bash scripts/cloud_verify.sh
 docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloud.yml -f docker-compose.cloud.http.yml ps
 ```
 
@@ -127,9 +128,33 @@ make cloud-down
 |---------|---------|
 | `Health check failed` | `docker compose ... logs gateway auth_audit orchestrator`; подождать 5–10 мин после первого build |
 | Не открывается в браузере | проверить security group: порт 80 открыт; `curl http://127.0.0.1/` на VM |
-| `seed_demo` failed | проверить интернет для скачивания corpus; повторить `python3 scripts/seed_demo.py --api-url http://127.0.0.1/api` |
+| `seed_demo` failed | проверить интернет для скачивания corpus; для большого корпуса использовать batch-скрипт (см. ниже) |
 | LLM не отвечает | добавить `YANDEX_API_KEY` и `YANDEX_FOLDER_ID` в `.env`, `docker compose ... up -d model gateway` |
 | `password authentication failed` или Neo4j unhealthy после старых попыток | старые Docker volumes могли быть созданы с другими паролями; для чистого demo reset выполните `docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloud.yml -f docker-compose.cloud.http.yml down -v` и запустите deploy заново |
+
+## Загрузка корпуса batch-ами
+
+Для корпуса больше 100 MB не используйте `seed_demo.py` — он отправляет все файлы одним запросом и получит `413`.
+
+После деплоя с `--no-demo` и при уже активном словаре:
+
+```bash
+python3 scripts/seed_corpus_batches.py \
+  --api-url http://ВАШ_IP/api \
+  --corpus-dir demo/seed_data/yandex_disk_corpus \
+  --skip-dictionary \
+  --resume
+```
+
+Скрипт группирует файлы пачками (~80 MB), пишет прогресс в `.seed_corpus_batches_state.json` и поддерживает `--resume` после падения.
+
+Проверка после пачек:
+
+```bash
+bash scripts/cloud_verify.sh
+```
+
+или вручную:
 
 ## Остановка и перезапуск
 

@@ -5,6 +5,7 @@ const links = [
   { path: '/admin', labelKey: 'admin.nav.management', end: true },
   { path: '/admin/stats', labelKey: 'admin.nav.stats', end: true },
   { path: '/admin/audit', labelKey: 'admin.nav.audit', end: true },
+  { path: '/admin/documents', labelKey: 'admin.nav.documents', end: true },
 ];
 
 export default function AdminSubNav({ action }) {

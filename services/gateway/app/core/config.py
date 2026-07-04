@@ -17,7 +17,7 @@ class Settings(ServiceSettings):
     auth_jwt_audience: str = "scientific-tangle-api"
     auth_jwks_cache_seconds: int = 300
     auth_clock_skew_seconds: int = 30
-    upload_limit_bytes: int = 100 * 1024 * 1024
+    upload_limit_bytes: int = 200 * 1024 * 1024
     top1_scientific_query_enabled: bool = False
     top1_live_stream_enabled: bool = False
     rate_limit_enabled: bool = True
