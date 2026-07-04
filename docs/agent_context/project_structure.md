@@ -63,6 +63,9 @@
 - `docs/agent_context/nornikel_e6_db_backup_restore_gaps.md` — E6 Databases: backup/restore matrix PostgreSQL/Neo4j/Qdrant/MinIO.
 - `docs/agent_context/nornikel_e7_db_ops_ownership.md` — E7 Databases: сводка ownership, migrations, backup/restore, seed/reset, verified retention/cleanup.
 - `docs/agent_context/nornikel_e7_db_ops_runbook.md` — E7 Databases: операторский runbook (migration fail, Qdrant/Neo4j/MinIO/dictionary incidents).
+- `docs/agent_context/nornikel_e7_bml_operator_runbook.md` — E7 Backend/ML: операторский runbook (clean setup, seed, health, offline eval, no-live restrictions).
+- `docs/agent_context/nornikel_e7_bml_readiness_summary.md` — E7 Backend/ML: финальный no-live readiness summary, P0/P1, deferred live-model tasks.
+- `docs/agent_context/nornikel_e7_fe_polish_checklist.md` — E7 Frontend: production polish checklist (health, PWA/OG, empty/error states).
 - `docs/agent_context/top1_e0_contract_audit.md` — аудит контрактов query path и freeze points для этапов E1–E4.
 - `docs/agent_context/top1_e1_bm2_ml_policy.md` — E1 policy для классов запросов, retrieval planner rules, verification reason codes и synthesis/AnswerPayloadV2 expectations.
 - `docs/agent_context/top1_e4_bm1_eval_regression.md` — E4 pinned demo artifact, eval suites и comparison gate для regression checks.
