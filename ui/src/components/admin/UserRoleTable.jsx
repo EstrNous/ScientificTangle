@@ -10,6 +10,9 @@ export default function UserRoleTable({
   onRoleChange,
   onActiveToggle,
   onDelete,
+  onSave,
+  dirtyUserIds = [],
+  savingUserId,
   expanded,
   onToggleExpand,
 }) {
@@ -48,6 +51,9 @@ export default function UserRoleTable({
                 </th>
                 <th className="w-10 border-b border-nn-border px-2 py-2 font-medium dark:border-slate-600">
                   <span className="sr-only">{t('admin.userActions')}</span>
+                </th>
+                <th className="w-20 border-b border-nn-border px-2 py-2 font-medium dark:border-slate-600">
+                  <span className="sr-only">{t('admin.saveRow')}</span>
                 </th>
               </tr>
             </thead>
@@ -99,6 +105,18 @@ export default function UserRoleTable({
                     >
                       <DeleteIcon className="h-3.5 w-3.5" />
                     </button>
+                  </td>
+                  <td className="border-b border-nn-border px-2 py-2.5 text-center dark:border-slate-700">
+                    {dirtyUserIds.includes(user.id) && (
+                      <button
+                        type="button"
+                        onClick={() => onSave?.(user.id)}
+                        disabled={savingUserId === user.id}
+                        className="rounded-md border border-nn-blue px-2 py-0.5 text-[10px] font-medium text-nn-blue hover:bg-nn-blue-light disabled:opacity-50 dark:border-sky-600 dark:text-sky-300"
+                      >
+                        {savingUserId === user.id ? t('admin.saving') : t('admin.saveRow')}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

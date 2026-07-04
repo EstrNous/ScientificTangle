@@ -1,11 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   fetchNotifications,
   markAllNotificationsRead,
   markNotificationRead,
 } from '../../api/notifications.js';
+import { useMock } from '../../api/client.js';
 import { useNotificationStore } from '../../stores/notificationStore.js';
+import { useSourceDocument } from '../../context/SourceDocumentContext.jsx';
+import { isLiveNotificationsEnabled } from '../../utils/uiFeatureFlags.js';
+import {
+  notificationTitleKey,
+  resolveNotificationTarget,
+} from '../../utils/notificationNavigation.js';
+
+const POLL_INTERVAL_MS = 30000;
 
 function BellIcon() {
   return (
@@ -33,24 +43,42 @@ function formatRelativeTime(value, locale) {
   return locale === 'ru' ? `${days} дн назад` : `${days}d ago`;
 }
 
+function resolveItemTitle(item, t) {
+  const key = notificationTitleKey(item.type);
+  const localized = key ? t(key, { defaultValue: '' }) : '';
+  if (localized) {
+    return localized;
+  }
+  return item.title;
+}
+
 export default function NotificationBell() {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
+  const { openSource } = useSourceDocument();
   const panelRef = useRef(null);
+  const lastPolledRef = useRef(null);
   const [open, setOpen] = useState(false);
+  const [toast, setToast] = useState(null);
   const items = useNotificationStore((s) => s.items);
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   const loading = useNotificationStore((s) => s.loading);
   const setItems = useNotificationStore((s) => s.setItems);
+  const mergeItems = useNotificationStore((s) => s.mergeItems);
   const setLoading = useNotificationStore((s) => s.setLoading);
   const markRead = useNotificationStore((s) => s.markRead);
   const markAllRead = useNotificationStore((s) => s.markAllRead);
+
+  const pollingEnabled = !useMock || isLiveNotificationsEnabled();
 
   useEffect(() => {
     let active = true;
     setLoading(true);
     fetchNotifications()
       .then((data) => {
-        if (active) setItems(Array.isArray(data) ? data : data?.items ?? []);
+        if (!active) return;
+        setItems(Array.isArray(data) ? data : data?.items ?? []);
+        lastPolledRef.current = new Date().toISOString();
       })
       .catch(() => {
         if (active) setItems([]);
@@ -62,6 +90,37 @@ export default function NotificationBell() {
       active = false;
     };
   }, [setItems, setLoading]);
+
+  useEffect(() => {
+    if (!pollingEnabled) return undefined;
+    const poll = async () => {
+      try {
+        const since = lastPolledRef.current ?? new Date(Date.now() - POLL_INTERVAL_MS).toISOString();
+        const incoming = await fetchNotifications({ since });
+        const list = Array.isArray(incoming) ? incoming : incoming?.items ?? [];
+        if (!list.length) return;
+        const unreadIncoming = list.filter((item) => !item.read);
+        mergeItems(list);
+        lastPolledRef.current = new Date().toISOString();
+        if (unreadIncoming.length > 0) {
+          const latest = unreadIncoming[0];
+          setToast({
+            id: latest.id,
+            title: resolveItemTitle(latest, t),
+          });
+        }
+      } catch {
+      }
+    };
+    const timer = window.setInterval(poll, POLL_INTERVAL_MS);
+    return () => window.clearInterval(timer);
+  }, [mergeItems, pollingEnabled, t]);
+
+  useEffect(() => {
+    if (!toast) return undefined;
+    const timer = window.setTimeout(() => setToast(null), 5000);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -92,10 +151,31 @@ export default function NotificationBell() {
       } catch {
       }
     }
+    const target = resolveNotificationTarget(item);
+    if (target.kind === 'source') {
+      setOpen(false);
+      await openSource(target.ref);
+      return;
+    }
+    if (target.kind === 'navigate') {
+      setOpen(false);
+      navigate(target.path, target.state ? { state: target.state } : undefined);
+    }
   };
 
   return (
     <div className="relative" ref={panelRef}>
+      {toast && (
+        <div
+          role="status"
+          className="absolute right-0 top-full z-50 mt-2 w-72 rounded-lg border border-nn-border bg-white px-3 py-2 shadow-card dark:border-slate-700 dark:bg-slate-900"
+        >
+          <p className="text-xs font-medium text-nn-blue dark:text-sky-300">
+            {t('notifications.newTitle')}
+          </p>
+          <p className="mt-1 text-sm text-gray-900 dark:text-slate-100">{toast.title}</p>
+        </div>
+      )}
       <button
         type="button"
         aria-label={t('notifications.bell')}
@@ -152,13 +232,13 @@ export default function NotificationBell() {
                   )}
                   <span className={`min-w-0 flex-1 ${item.read ? 'pl-5' : ''}`}>
                     <span className="block text-sm font-medium text-gray-900 dark:text-slate-100">
-                      {item.title}
+                      {resolveItemTitle(item, t)}
                     </span>
                     <span className="mt-1 block text-xs text-nn-gray dark:text-slate-400">
                       {item.reason}
                     </span>
                     <span className="mt-1 block text-xs text-nn-gray/80 dark:text-slate-500">
-                      {formatRelativeTime(item.created_at, i18n.language)}
+                      {formatRelativeTime(item.createdAt ?? item.created_at, i18n.language)}
                     </span>
                   </span>
                 </button>

@@ -92,12 +92,14 @@ export default function UploadPage() {
     if (!window.confirm(t('upload.confirmDeleteDocument', { name: document.filename }))) {
       return;
     }
+    const snapshot = uploadedDocuments;
     setDeletingDocumentId(document.id);
     setError(null);
+    setUploadedDocuments((current) => current.filter((item) => item.id !== document.id));
     try {
       await deleteDocument(document.id);
-      setUploadedDocuments((current) => current.filter((item) => item.id !== document.id));
     } catch (deleteError) {
+      setUploadedDocuments(snapshot);
       setError(deleteError?.message ?? 'delete_failed');
     } finally {
       setDeletingDocumentId(null);

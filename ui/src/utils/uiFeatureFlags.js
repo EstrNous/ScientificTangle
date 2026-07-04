@@ -29,7 +29,10 @@ export function isReviewConsoleEnabled() {
 }
 
 export function isReviewActionsEnabled() {
-  return useMock;
+  if (useMock) {
+    return true;
+  }
+  return isReviewConsoleEnabled();
 }
 
 export function isSourceLiveModeEnabled() {

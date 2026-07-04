@@ -154,7 +154,7 @@ export function mapAdminPolicy(item = {}) {
   return {
     id: item.id ?? item.document_id,
     documentId: item.document_id ?? item.id,
-    title: item.title ?? item.document_title ?? '',
+    title: item.title ?? item.document_title ?? item.document ?? '',
     level: item.level ?? item.access_policy?.level ?? 'internal',
     exportAllowed: item.export_allowed ?? item.access_policy?.export_allowed ?? false,
     roles: item.roles ?? item.access_policy?.roles ?? [],

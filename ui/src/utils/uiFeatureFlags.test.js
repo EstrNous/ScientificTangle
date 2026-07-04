@@ -38,7 +38,14 @@ describe('uiFeatureFlags', () => {
     expect(isSourceLiveModeEnabled()).toBe(true);
   });
 
-  it('enables review actions only in mock mode', async () => {
+  it('enables review actions in live mode when review console flag is on', async () => {
+    vi.stubEnv('VITE_REVIEW_CONSOLE_ENABLED', 'true');
+    vi.resetModules();
+    const flags = await import('../utils/uiFeatureFlags.js');
+    expect(flags.isReviewActionsEnabled()).toBe(true);
+  });
+
+  it('enables review actions only in mock mode without review console flag', async () => {
     vi.doMock('../api/client.js', () => ({ useMock: true }));
     vi.resetModules();
     const flags = await import('../utils/uiFeatureFlags.js');

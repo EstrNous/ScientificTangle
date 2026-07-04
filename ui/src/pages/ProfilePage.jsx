@@ -17,8 +17,9 @@ import {
   updateProfile,
 } from '../api/auth.js';
 import { useAuthStore } from '../stores/authStore.js';
-import { extractInterests } from '../utils/interestsExtract.js';
-import { loadUserInterests, saveUserInterests } from '../utils/interestsStorage.js';
+import { loadInterestsProfile, saveInterestsProfile } from '../utils/interestsWorkflow.js';
+import { useMock } from '../api/client.js';
+import { loadUserInterests } from '../utils/interestsStorage.js';
 import {
   validatePasswordChangeForm,
   validateProfileUpdateForm,
@@ -69,7 +70,7 @@ function AccountSummary({ user, role, t }) {
   );
 }
 
-function InterestsSummary({ interests, interestsText, t }) {
+function InterestsSummary({ interests, interestsText, extractedEntities, t }) {
   if (interests.length > 0) {
     return (
       <div className="space-y-2">
@@ -79,17 +80,22 @@ function InterestsSummary({ interests, interestsText, t }) {
         <div className="flex max-h-16 flex-wrap gap-1.5 overflow-hidden">
           {interests.map((interest) => (
             <span
-              key={`${interest.label}-${interest.source_terms.join('-')}`}
+              key={`${interest.label}-${(interest.sourceTerms ?? interest.source_terms ?? []).join('-')}`}
               className="rounded-full bg-nn-blue-light px-2.5 py-0.5 text-xs font-medium text-nn-blue dark:bg-slate-800 dark:text-slate-200"
-              title={interest.source_terms.join(', ')}
+              title={(interest.sourceTerms ?? interest.source_terms ?? []).join(', ')}
             >
               {interest.label}
-              {interest.source_terms.length > 0
-                ? `: ${interest.source_terms.slice(0, 2).join(', ')}`
+              {(interest.sourceTerms ?? interest.source_terms ?? []).length > 0
+                ? `: ${(interest.sourceTerms ?? interest.source_terms ?? []).slice(0, 2).join(', ')}`
                 : ''}
             </span>
           ))}
         </div>
+        {extractedEntities.length > 0 && (
+          <p className="text-xs text-nn-gray dark:text-slate-400">
+            {t('profile.extractedEntities', { count: extractedEntities.length })}
+          </p>
+        )}
       </div>
     );
   }
@@ -130,8 +136,11 @@ export default function ProfilePage() {
 
   const [interestsText, setInterestsText] = useState('');
   const [interests, setInterests] = useState([]);
+  const [extractedEntities, setExtractedEntities] = useState([]);
+  const [interestsBaseline, setInterestsBaseline] = useState(null);
   const [interestsSaving, setInterestsSaving] = useState(false);
   const [interestsSuccess, setInterestsSuccess] = useState(false);
+  const [interestsError, setInterestsError] = useState(null);
 
   const [deactivatePassword, setDeactivatePassword] = useState('');
   const [securityError, setSecurityError] = useState(null);
@@ -156,10 +165,24 @@ export default function ProfilePage() {
   };
 
   const resetInterestsForm = () => {
-    const stored = loadUserInterests(user?.id);
-    setInterestsText(stored.rawText);
-    setInterests(stored.interests);
+    const baseline = useMock ? loadUserInterests(user?.id) : interestsBaseline;
+    if (baseline) {
+      applyInterestsProfile(baseline);
+    }
     setInterestsSuccess(false);
+    setInterestsError(null);
+  };
+
+  const applyInterestsProfile = (profile) => {
+    const normalized = {
+      rawText: profile.rawText ?? '',
+      interests: profile.interests ?? [],
+      extractedEntities: profile.extractedEntities ?? [],
+    };
+    setInterestsText(normalized.rawText);
+    setInterests(normalized.interests);
+    setExtractedEntities(normalized.extractedEntities);
+    setInterestsBaseline(normalized);
   };
 
   const resetSecurityForm = () => {
@@ -187,22 +210,27 @@ export default function ProfilePage() {
     let active = true;
     ensureAuth()
       .then(() => fetchCurrentUser())
-      .then((data) => {
+      .then(async (data) => {
         if (!active) return;
         setProfileUsername(data.username ?? '');
         setProfileEmail(data.email ?? '');
-        const stored = loadUserInterests(data.id);
-        setInterestsText(stored.rawText);
-        setInterests(stored.interests);
+        try {
+          const profile = await loadInterestsProfile(data.id);
+          if (active) applyInterestsProfile(profile);
+        } catch {
+          if (active && useMock) {
+            applyInterestsProfile(loadUserInterests(data.id));
+          }
+        }
       })
       .catch(() => {
         if (!active) return;
         if (user) {
           setProfileUsername(user.username ?? '');
           setProfileEmail(user.email ?? '');
-          const stored = loadUserInterests(user.id);
-          setInterestsText(stored.rawText);
-          setInterests(stored.interests);
+          if (useMock) {
+            applyInterestsProfile(loadUserInterests(user.id));
+          }
         }
       })
       .finally(() => {
@@ -286,12 +314,14 @@ export default function ProfilePage() {
     if (!trimmed) return;
     setInterestsSaving(true);
     setInterestsSuccess(false);
+    setInterestsError(null);
     try {
-      const extracted = extractInterests(trimmed);
-      setInterests(extracted);
-      saveUserInterests(user?.id, trimmed, extracted);
+      const profile = await saveInterestsProfile(user?.id, trimmed);
+      applyInterestsProfile(profile);
       setInterestsSuccess(true);
       setEditingInterests(false);
+    } catch (error) {
+      setInterestsError(error?.message ?? 'interests_save_failed');
     } finally {
       setInterestsSaving(false);
     }
@@ -442,7 +472,12 @@ export default function ProfilePage() {
                   setEditingInterests(false);
                 }}
                 summary={
-                  <InterestsSummary interests={interests} interestsText={interestsText} t={t} />
+                  <InterestsSummary
+                    interests={interests}
+                    interestsText={interestsText}
+                    extractedEntities={extractedEntities}
+                    t={t}
+                  />
                 }
               >
                 <div className="space-y-3">
@@ -457,6 +492,11 @@ export default function ProfilePage() {
                   {interestsSuccess && (
                     <p className="text-sm text-green-700 dark:text-green-400" role="status">
                       {t('profile.interestsSaved')}
+                    </p>
+                  )}
+                  {interestsError && (
+                    <p className="text-sm text-red-600 dark:text-red-400" role="alert">
+                      {t(`profile.errors.${interestsError}`, { defaultValue: interestsError })}
                     </p>
                   )}
                   <button

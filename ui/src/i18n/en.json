@@ -36,7 +36,15 @@
     "title": "Notifications",
     "empty": "No notifications",
     "loading": "Loading…",
-    "markAllRead": "Mark all read"
+    "markAllRead": "Mark all read",
+    "newTitle": "New notification",
+    "types": {
+      "interest_match": "Interest match",
+      "ingestion_complete": "Document processing complete",
+      "conflict_detected": "Conflict detected",
+      "review_pending": "Review candidate",
+      "query_conflict": "Answer conflict"
+    }
   },
   "auth": {
     "loginTitle": "Sign in",
@@ -110,6 +118,11 @@
     "interestsPlaceholder": "For example: nickel electrowinning, catholyte circulation, mine water desalination",
     "saveInterests": "Save interests",
     "interestsSaved": "Interests saved",
+    "extractedEntities": "Extracted entities: {{count}}",
+    "errors": {
+      "interests_load_failed": "Failed to load interests",
+      "interests_save_failed": "Failed to save interests"
+    },
     "securityTitle": "Security",
     "securitySummary": "Sign out and manage active sessions",
     "logout": "Sign out",
@@ -388,6 +401,18 @@
     "auditActions": "Actions",
     "deleteDocument": "Delete document",
     "confirmDeleteDocument": "Delete document «{{name}}» from the database?",
+    "saveRow": "Save",
+    "saveAll": "Save all ({{count}})",
+    "saving": "Saving…",
+    "savingAll": "Saving…",
+    "saved": "Changes saved",
+    "errors": {
+      "admin_load_failed": "Failed to load admin data",
+      "admin_user_save_failed": "Failed to save user",
+      "admin_policy_save_failed": "Failed to save access policy",
+      "admin_save_failed": "Failed to save changes",
+      "forbidden": "Insufficient permissions for this operation"
+    },
     "filterAll": "All actions",
     "actions": {
       "query_created": "query",
@@ -554,7 +579,10 @@
     },
     "errors": {
       "upload_failed": "Failed to upload files",
-      "delete_failed": "Failed to delete document"
+      "delete_failed": "Failed to delete document",
+      "forbidden": "Insufficient permissions to delete this document",
+      "not_found": "Document not found",
+      "document_delete_not_implemented": "Document deletion is not yet available on the server"
     }
   },
   "review": {
@@ -565,7 +593,12 @@
     "conflictsTitle": "Value conflict",
     "sourcePanelTitle": "Candidate source",
     "sourceEmpty": "Select a candidate with a source binding",
-    "actionsBlocked": "Decisions are mock-only until backend workflow wiring (E3)",
+    "actionsBlocked": "Decisions require the review console flag and a connected backend",
+    "errors": {
+      "review_queue_failed": "Failed to load review queue",
+      "review_decision_failed": "Failed to save decision",
+      "review_storage_not_implemented": "Backend review workflow is not connected yet"
+    },
     "filters": {
       "status": "Status",
       "type": "Type",
