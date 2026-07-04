@@ -43,6 +43,7 @@
 - `docs/agent_context/sync_rules.md` — правила синхронизации контекста между агентами.
 - `docs/agent_context/ml_mvp_status.md` — текущий статус ML MVP, открытые gaps и позиция по VL/OCR.
 - `docs/agent_context/implementation_quality_report.md` — оценка реализации vs ТЗ по сервисам, стеку и gaps.
+- `docs/agent_context/feature_readiness_matrix.md` — матрица готовности фич (фронт/бэк/связь), backlog по приоритету и план закрытия MVP на 100%.
 - `docs/agent_context/query_pipeline.md` — сквозной пайплайн запроса user → answer.
 - `docs/agent_context/top1_parallel_execution_plan.md` — поэтапный план параллельной работы двух Backend/ML-специалистов и одного Frontend-специалиста.
 - `docs/agent_context/nornikel_parallel_execution_plan.md` — параллельный план закрытия gaps НорСинтез/ScientificTangle по ролям Databases, Backend/ML, Frontend и Validator без live model calls.
