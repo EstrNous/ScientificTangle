@@ -8,7 +8,7 @@ Vector:
 - source: model service `/v1/embeddings`
 
 Payload indexes created by `POST /v1/index/bootstrap`:
-- keyword: `item_type`, `document_id`, `source_span_id`, `source_type`, `access_level`, `allowed_roles`, `table_block_id`, `table_row_id`, `units`, `geo_bucket`, `geo_country`, `claim_ids`, `graph_entity_ids`
+- keyword: `item_type`, `document_id`, `source_span_id`, `source_type`, `access_level`, `allowed_roles`, `table_block_id`, `table_row_id`, `units`, `geo_bucket`, `geo_country`, `claim_ids`, `graph_entity_ids`, `dictionary_version_id`
 - integer: `page`, `highlight_start`, `highlight_end`, `published_year`
 - float: `numeric_min`, `numeric_max`
 
@@ -28,4 +28,5 @@ Required payload fields:
 - `geo_bucket`
 - `claim_ids`
 - `graph_entity_ids`
+- `dictionary_version_id`
 - `document_metadata`

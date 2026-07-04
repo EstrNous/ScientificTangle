@@ -138,8 +138,11 @@ class ReviewStorageRepository:
         text_snippet: str,
         table_block_id: str | None = None,
         table_row_id: str | None = None,
+        access_level: str = "internal",
+        allowed_roles: list[str] | None = None,
     ) -> SourceSpanLookup:
         row_id = table_row_id or table_row_id_from_block(table_block_id)
+        roles = allowed_roles or []
         stmt = (
             insert(SourceSpanLookup)
             .values(
@@ -152,6 +155,8 @@ class ReviewStorageRepository:
                 table_block_id=table_block_id,
                 source_type=source_type,
                 text_snippet=text_snippet,
+                access_level=access_level,
+                allowed_roles=roles,
             )
             .on_conflict_do_update(
                 index_elements=[SourceSpanLookup.source_span_id],
@@ -164,6 +169,8 @@ class ReviewStorageRepository:
                     "table_block_id": table_block_id,
                     "source_type": source_type,
                     "text_snippet": text_snippet,
+                    "access_level": access_level,
+                    "allowed_roles": roles,
                 },
             )
             .returning(SourceSpanLookup)

@@ -9,6 +9,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from infra.postgres.common.cursor import CursorPage, decode_cursor, encode_cursor
 
+from .access_audit import (
+    build_access_denied_details,
+    build_export_audit_details,
+    build_search_audit_details,
+    build_source_viewed_details,
+)
+
 from .models import (
     AuditEvent,
     CascadeStatus,
@@ -368,6 +375,119 @@ class WorkflowStorageRepository:
                 refs.graph_node_refs = []
                 refs.minio_object_refs = []
                 refs.updated_at = datetime.now(UTC)
+
+    async def record_access_denied_audit(
+        self,
+        *,
+        user_id: UUID | None,
+        resource_type: str,
+        resource_id: str,
+        role: str,
+        request_id: str,
+        source_span_id: str | None = None,
+        document_id: str | None = None,
+        reason: str | None = None,
+        query_run_id: str | None = None,
+        export_format: str | None = None,
+        commit: bool = True,
+    ) -> AuditEvent:
+        return await self.record_audit_event(
+            user_id=user_id,
+            action="access_denied",
+            resource_type=resource_type,
+            resource_id=resource_id,
+            details=build_access_denied_details(
+                role=role,
+                source_span_id=source_span_id,
+                document_id=document_id,
+                reason=reason,
+                query_run_id=query_run_id,
+                export_format=export_format,
+            ),
+            request_id=request_id,
+            commit=commit,
+        )
+
+    async def record_source_viewed_audit(
+        self,
+        *,
+        user_id: UUID | None,
+        source_span_id: str,
+        role: str,
+        status: str,
+        request_id: str,
+        document_id: str | None = None,
+        commit: bool = True,
+    ) -> AuditEvent:
+        return await self.record_audit_event(
+            user_id=user_id,
+            action="source_viewed",
+            resource_type="source_span",
+            resource_id=source_span_id,
+            details=build_source_viewed_details(
+                source_span_id=source_span_id,
+                role=role,
+                status=status,
+                document_id=document_id,
+            ),
+            request_id=request_id,
+            commit=commit,
+        )
+
+    async def record_search_audit(
+        self,
+        *,
+        user_id: UUID | None,
+        query: str,
+        role: str,
+        status: str,
+        request_id: str,
+        result_count: int | None = None,
+        filters: dict[str, Any] | None = None,
+        commit: bool = True,
+    ) -> AuditEvent:
+        return await self.record_audit_event(
+            user_id=user_id,
+            action="search",
+            resource_type="search_query",
+            resource_id=query[:256],
+            details=build_search_audit_details(
+                query=query,
+                role=role,
+                status=status,
+                result_count=result_count,
+                filters=filters,
+            ),
+            request_id=request_id,
+            commit=commit,
+        )
+
+    async def record_export_audit(
+        self,
+        *,
+        user_id: UUID | None,
+        export_job_id: str,
+        query_run_id: str,
+        export_format: str,
+        role: str,
+        status: str,
+        request_id: str,
+        commit: bool = True,
+    ) -> AuditEvent:
+        return await self.record_audit_event(
+            user_id=user_id,
+            action="document_exported",
+            resource_type="export_job",
+            resource_id=export_job_id,
+            details=build_export_audit_details(
+                query_run_id=query_run_id,
+                export_format=export_format,
+                role=role,
+                status=status,
+            ),
+            request_id=request_id,
+            commit=commit,
+        )
 
     def audit_event_to_dict(self, event: AuditEvent) -> dict[str, Any]:
         return {

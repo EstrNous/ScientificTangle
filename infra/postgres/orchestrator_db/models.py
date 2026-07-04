@@ -173,6 +173,7 @@ class IndexedDocument(Base):
         Index("ix_indexed_documents_access_level", "access_level"),
         Index("ix_indexed_documents_deletion_status", "deletion_status"),
         Index("ix_indexed_documents_deleted_at", "deleted_at"),
+        Index("ix_indexed_documents_access_deletion", "access_level", "deletion_status"),
     )
 
     document_id: Mapped[str] = mapped_column(String(128), primary_key=True)
@@ -262,6 +263,8 @@ class SourceSpanLookup(Base):
         Index("ix_source_span_lookup_page", "page"),
         Index("ix_source_span_lookup_table_row_id", "table_row_id"),
         Index("ix_source_span_lookup_document_page", "document_id", "page"),
+        Index("ix_source_span_lookup_access_level", "access_level"),
+        Index("ix_source_span_lookup_document_access", "document_id", "access_level"),
     )
 
     source_span_id: Mapped[str] = mapped_column(String(128), primary_key=True)
@@ -273,6 +276,8 @@ class SourceSpanLookup(Base):
     table_block_id: Mapped[str | None] = mapped_column(String(256))
     source_type: Mapped[str] = mapped_column(String(32), nullable=False, default="text")
     text_snippet: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    access_level: Mapped[str] = mapped_column(String(32), nullable=False, default="internal")
+    allowed_roles: Mapped[list] = mapped_column(JSONB, nullable=False, server_default="[]")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
