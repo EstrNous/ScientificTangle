@@ -20,10 +20,18 @@
 - `.cursor/rules/project.mdc` — always-on L0 для Cursor.
 - `.github/copilot-instructions.md` — инструкции для GitHub Copilot.
 - `.zed/rules/project.md` — правила для Zed Agent.
-- `docker-compose.yml` — полная локальная среда (сервисы + PostgreSQL + Neo4j + Qdrant + MinIO + Redis + nginx), включая запуск миграций `auth_audit` и `orchestrator`, а также подключение внешних RSA-секретов.
-- `docker-compose.prod.yml` — production-оверрайды (ресурсы, логирование, реплики).
-- `Makefile` — цели сборки и управления: bootstrap, up, up-auth, down, build, logs, seed, ingest-demo, eval, eval-yandex-live, perf-smoke, test, test-yandex-live и др.
-- `.env.example` — шаблон переменных окружения для копирования в `.env`, включая `INTERNAL_SERVICE_TOKEN` для межсервисных вызовов export/notification и настройки rate limiting.
+- `docker-compose.yml` — base-стек без host ports (сервисы + PostgreSQL + Neo4j + Qdrant + MinIO + Redis + nginx), миграции `auth_audit` и `orchestrator`, RSA-секреты.
+- `docker-compose.dev.yml` — dev overlay: публикация host ports для локальной разработки и smoke.
+- `docker-compose.prod.yml` — prod overlay: resource limits, TLS nginx edge (только 80/443), закрытый периметр.
+- `docker-compose.cloud.yml` — cloud overlay: без публикации внутренних портов, `GF_SERVER_ROOT_URL` из `PUBLIC_URL`.
+- `docker-compose.cloud.http.yml` — cloud HTTP edge: nginx dev config, только порт 80.
+- `docker-compose.cloud.https.yml` — cloud HTTPS edge: self-signed TLS, порты 80/443.
+- `infra/deploy/OPERATOR.md` — пошаговый cloud deploy: `./scripts/cloud_deploy.sh <IP>`.
+- `infra/deploy/yandex-cloud-init.yaml` — cloud-init для Yandex Cloud.
+- `scripts/generate_cloud_env.py` — генерация `.env` и `infra/deploy/credentials.txt` по IP/домену.
+- `scripts/cloud_deploy.sh` — turnkey deploy: env, keys, compose, seed.
+- `Makefile` — цели сборки и управления: bootstrap, up, prod, prod-demo, up-prod, deploy-cloud, seed, eval и др.
+- `.env.example` — шаблон переменных окружения для копирования в `.env`, включая `INTERNAL_SERVICE_TOKEN` для межсервисных вызовов export/notification.
 
 ### Документация
 
@@ -148,10 +156,13 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 - `infra/neo4j/` — схема Neo4j MVP: `constraints.cypher`, `indexes.cypher`, `migrator.py` (SchemaVersion, bootstrap при старте Knowledge).
 - `infra/qdrant/` — описание Qdrant collection `st_evidence_v1`, payload indexes и access-aware retrieval.
 - `infra/minio/buckets.txt` — список бакетов MinIO.
-- `infra/nginx/nginx.conf` — reverse proxy (порт 80), маршрутизирует `/api/auth/` и JWKS в `auth_audit`, остальные внешние API — в Gateway.
+- `infra/nginx/nginx.dev.conf` — dev reverse proxy (порт 80), debug routes к внутренним сервисам.
+- `infra/nginx/nginx.prod.conf.template` — prod edge: только `/`, `/api/*`, `/grafana/`, TLS 443.
+- `infra/nginx/nginx.conf` — alias dev-конфига для обратной совместимости.
+- `infra/nginx/Dockerfile` — nginx с basic auth для `/grafana/`, envsubst для prod TLS.
 - `infra/monitoring/prometheus.yml` — конфигурация Prometheus для сбора /metrics со всех сервисов.
 - `infra/monitoring/grafana/` — provisioning datasource и SRE-дашборды Grafana.
-- `infra/nginx/Dockerfile` — nginx с basic auth для `/grafana/`.
+- `docs/agent_context/prod_compose_runbook.md` — runbook публичного стенда (`make prod`).
 - `infra/docker/Dockerfile.python-service` — multistage Dockerfile для Python-сервисов (deps + runtime, shared).
 - `infra/scripts/` — скрипты эксплуатации.
 - `scripts/` — локальные MVP smoke/eval/seed scripts: demo seed, Yandex live smoke, official eval, performance smoke, `neo4j_smoke.py`.

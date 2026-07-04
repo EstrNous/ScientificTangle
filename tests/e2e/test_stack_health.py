@@ -32,3 +32,10 @@ def test_service_health(name: str, base_url: str) -> None:
     response = httpx.get(f"{base_url}/health", timeout=5.0)
     assert response.status_code == 200, name
     assert response.json().get("status") == "ok"
+
+
+def test_nginx_edge_health() -> None:
+    edge_url = os.getenv("EDGE_URL", "http://localhost/api/health")
+    response = httpx.get(edge_url, timeout=5.0)
+    assert response.status_code == 200
+    assert response.json().get("status") == "ok"

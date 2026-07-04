@@ -62,7 +62,8 @@ async def run_demo(args: argparse.Namespace) -> dict[str, Any]:
     corpus_files = [path for path in corpus_root.rglob("*") if path.is_file() and path.name != "manifest.json"]
     if not corpus_files:
         raise SystemExit(f"Real demo corpus is missing in {corpus_root}")
-    async with httpx.AsyncClient(timeout=180.0) as client:
+    verify_tls = os.getenv("EDGE_TLS_VERIFY", "true").lower() not in {"0", "false", "no"}
+    async with httpx.AsyncClient(timeout=180.0, verify=verify_tls) as client:
         login = await client.post(
             f"{args.api_url}/auth/login",
             json={"identifier": args.username, "password": args.password},
