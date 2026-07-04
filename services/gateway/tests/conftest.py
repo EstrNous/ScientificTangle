@@ -1,12 +1,10 @@
 # ruff: noqa: E402
 import sys
-from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID, uuid4
 
-import httpx
 import pytest
 from httpx import ASGITransport, AsyncClient
 
@@ -92,18 +90,6 @@ def fake_chat_repository() -> FakeChatRepository:
 def chat_test_app(fake_chat_repository: FakeChatRepository, principal: AuthenticatedPrincipal):
     from unittest.mock import AsyncMock
 
-    @asynccontextmanager
-    async def test_lifespan(app):
-        http_client = httpx.AsyncClient()
-        app.state.session_factory = None
-        app.state.http_client = http_client
-        app.state.gateway_service = AsyncMock()
-        app.state.notification_service = AsyncMock()
-        app.state.jwt_validator = AsyncMock()
-        app.state.jwt_validator.validate = AsyncMock(return_value=principal)
-        yield
-        await http_client.aclose()
-
     app = create_app(
         Settings(
             service_name="gateway-test",
@@ -111,13 +97,16 @@ def chat_test_app(fake_chat_repository: FakeChatRepository, principal: Authentic
             rate_limit_use_redis=False,
         )
     )
-    app.router.lifespan_context = test_lifespan
+    app.state.gateway_service = AsyncMock()
+    app.state.notification_service = AsyncMock()
+    app.state.jwt_validator = AsyncMock()
+    app.state.jwt_validator.validate = AsyncMock(return_value=principal)
 
-    async def override_get_chat_service(request):
+    async def override_get_chat_service(_request):
         return ChatService(
             repository=fake_chat_repository,
-            gateway_service=request.app.state.gateway_service,
-            notification_service=request.app.state.notification_service,
+            gateway_service=app.state.gateway_service,
+            notification_service=app.state.notification_service,
         )
 
     app.dependency_overrides[dependencies.get_chat_service] = override_get_chat_service
