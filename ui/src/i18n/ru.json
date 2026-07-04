@@ -335,6 +335,9 @@
     "auditUser": "Пользователь",
     "auditAction": "Действие",
     "auditObject": "Объект",
+    "auditActions": "Действия",
+    "deleteDocument": "Удалить документ",
+    "confirmDeleteDocument": "Удалить документ «{{name}}» из базы?",
     "filterAll": "Все действия",
     "actions": {
       "query_created": "запрос",
@@ -454,8 +457,9 @@
     "subtitle": "Загрузка документов, анализ содержимого и проверка извлечённых сущностей",
     "dropTitle": "Перетащите файлы сюда",
     "dropActive": "Отпустите файлы для загрузки",
-    "dropHint": "PDF, DOCX или TXT — до 100 МБ на пакет",
+    "dropHint": "PDF, DOCX или TXT — до 100 МБ на пакет. Словари — JSON.",
     "selectFiles": "Выбрать файлы",
+    "selectDictionary": "Загрузить словарь",
     "filesCount": "Файлов: {{count}}",
     "startUpload": "Загрузить",
     "uploading": "Загрузка…",
@@ -471,7 +475,13 @@
     "saveEntity": "Сохранить",
     "cancelEntity": "Отмена",
     "deleteEntity": "Удалить",
+    "deleteDocument": "Удалить документ",
+    "confirmDeleteDocument": "Удалить документ «{{name}}» из базы?",
     "entityNamePlaceholder": "Название сущности",
+    "fileKinds": {
+      "document": "документ",
+      "dictionary": "словарь"
+    },
     "fileStatus": {
       "queued": "в очереди",
       "uploading": "загрузка",
@@ -493,7 +503,8 @@
       "indexed": "Индекс"
     },
     "errors": {
-      "upload_failed": "Не удалось загрузить файлы"
+      "upload_failed": "Не удалось загрузить файлы",
+      "delete_failed": "Не удалось удалить документ"
     }
   }
 }

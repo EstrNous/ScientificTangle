@@ -3,17 +3,28 @@ import { useTranslation } from 'react-i18next';
 import PageShell from '../components/shared/PageShell.jsx';
 import { UploadAnalysisPanel, UploadDropzone, UploadEntityPanel } from '../components/upload/index.js';
 import { ensureAuth } from '../api/auth.js';
+import {
+  deleteDocument,
+  resolveUploadedDocuments,
+  uploadFiles,
+} from '../api/upload.js';
 import { deriveEntitiesFromReport } from '../utils/uploadEntities.js';
 
 const baseURL = import.meta.env.VITE_API_URL || '/api';
+
+function fileKey(entry) {
+  return `${entry.kind}:${entry.file.name}`;
+}
 
 export default function UploadPage() {
   const { t } = useTranslation();
   const [files, setFiles] = useState([]);
   const [fileStatuses, setFileStatuses] = useState({});
   const [task, setTask] = useState(null);
+  const [uploadedDocuments, setUploadedDocuments] = useState([]);
   const [entities, setEntities] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [deletingDocumentId, setDeletingDocumentId] = useState(null);
   const [error, setError] = useState(null);
 
   const pollTask = useCallback(async (taskId, token) => {
@@ -34,25 +45,28 @@ export default function UploadPage() {
     return null;
   }, []);
 
-  const handleFilesSelected = (selected) => {
+  const handleFilesSelected = (selected, kind) => {
     setError(null);
     setTask(null);
     setEntities([]);
+    setUploadedDocuments([]);
+    const entries = selected.map((file) => ({ file, kind }));
     setFiles((current) => {
-      const names = new Set(current.map((file) => file.name));
+      const names = new Set(current.map((entry) => fileKey(entry)));
       const merged = [...current];
-      selected.forEach((file) => {
-        if (!names.has(file.name)) {
-          merged.push(file);
+      entries.forEach((entry) => {
+        if (!names.has(fileKey(entry))) {
+          merged.push(entry);
         }
       });
       return merged;
     });
     setFileStatuses((current) => {
       const next = { ...current };
-      selected.forEach((file) => {
-        if (!next[file.name]) {
-          next[file.name] = 'queued';
+      entries.forEach((entry) => {
+        const key = fileKey(entry);
+        if (!next[key]) {
+          next[key] = 'queued';
         }
       });
       return next;
@@ -66,7 +80,7 @@ export default function UploadPage() {
       if (removed) {
         setFileStatuses((statuses) => {
           const updated = { ...statuses };
-          delete updated[removed.name];
+          delete updated[fileKey(removed)];
           return updated;
         });
       }
@@ -74,49 +88,80 @@ export default function UploadPage() {
     });
   };
 
+  const handleDeleteUploadedDocument = async (document) => {
+    if (!window.confirm(t('upload.confirmDeleteDocument', { name: document.filename }))) {
+      return;
+    }
+    setDeletingDocumentId(document.id);
+    setError(null);
+    try {
+      await deleteDocument(document.id);
+      setUploadedDocuments((current) => current.filter((item) => item.id !== document.id));
+    } catch (deleteError) {
+      setError(deleteError?.message ?? 'delete_failed');
+    } finally {
+      setDeletingDocumentId(null);
+    }
+  };
+
   const handleUpload = async () => {
     if (!files.length) return;
     setLoading(true);
     setError(null);
     setEntities([]);
+    setUploadedDocuments([]);
     setFileStatuses((current) => {
       const next = { ...current };
-      files.forEach((file) => {
-        next[file.name] = 'uploading';
+      files.forEach((entry) => {
+        next[fileKey(entry)] = 'uploading';
       });
       return next;
     });
     try {
       const token = await ensureAuth();
-      const formData = new FormData();
-      files.forEach((file) => formData.append('files', file));
-      const response = await fetch(`${baseURL}/documents/upload`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
+      const groups = { document: [], dictionary: [] };
+      files.forEach((entry) => {
+        groups[entry.kind].push(entry.file);
       });
-      if (!response.ok) {
-        throw new Error('upload_failed');
+
+      let lastTask = null;
+      let lastReport = null;
+      const collectedDocuments = [];
+
+      for (const kind of ['document', 'dictionary']) {
+        const batch = groups[kind];
+        if (!batch.length) continue;
+        const payload = await uploadFiles(batch, { kind });
+        setTask(payload);
+        const completed = await pollTask(payload.id, token);
+        lastTask = completed ?? payload;
+        if (completed?.status === 'failed') {
+          throw new Error('upload_failed');
+        }
+        if (completed?.report) {
+          lastReport = completed.report;
+          collectedDocuments.push(...resolveUploadedDocuments(completed.report));
+        }
       }
-      const payload = await response.json();
-      setTask(payload);
-      const completed = await pollTask(payload.id, token);
+
+      setTask(lastTask);
+      setUploadedDocuments(collectedDocuments);
       setFileStatuses((current) => {
         const next = { ...current };
-        files.forEach((file) => {
-          next[file.name] = completed?.status === 'failed' ? 'failed' : 'completed';
+        files.forEach((entry) => {
+          next[fileKey(entry)] = lastTask?.status === 'failed' ? 'failed' : 'completed';
         });
         return next;
       });
-      if (completed?.status === 'completed') {
-        setEntities(deriveEntitiesFromReport(completed.report));
+      if (lastReport) {
+        setEntities(deriveEntitiesFromReport(lastReport));
       }
     } catch (uploadError) {
       setError(uploadError?.message ?? 'upload_failed');
       setFileStatuses((current) => {
         const next = { ...current };
-        files.forEach((file) => {
-          next[file.name] = 'failed';
+        files.forEach((entry) => {
+          next[fileKey(entry)] = 'failed';
         });
         return next;
       });
@@ -145,7 +190,13 @@ export default function UploadPage() {
           )}
         </div>
         <div className="flex min-h-0 flex-col gap-4">
-          <UploadAnalysisPanel task={task} loading={loading} />
+          <UploadAnalysisPanel
+            task={task}
+            loading={loading}
+            uploadedDocuments={uploadedDocuments}
+            onDeleteDocument={handleDeleteUploadedDocument}
+            deletingDocumentId={deletingDocumentId}
+          />
           <UploadEntityPanel entities={entities} onChange={setEntities} disabled={loading} />
         </div>
       </div>
