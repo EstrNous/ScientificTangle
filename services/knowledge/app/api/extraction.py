@@ -2,6 +2,7 @@ import httpx
 from adapters.mapper import artifacts_to_bundle
 from adapters.neo4j_adapter import Neo4jKnowledgeAdapter
 from fastapi import APIRouter, Request
+from pydantic import BaseModel, Field
 
 from shared.contracts import (
     KnowledgeIngestionRequest,
@@ -14,6 +15,13 @@ from ..core.config import settings
 from .dictionaries import _load_version
 
 router = APIRouter(prefix="/v1/documents", tags=["knowledge"])
+
+
+class DocumentGraphDeleteResponse(BaseModel):
+    document_id: str
+    deleted: bool
+    deleted_nodes: int = 0
+    warnings: list[str] = Field(default_factory=list)
 
 
 @router.post("/extract", response_model=KnowledgeIngestionResponse)
@@ -87,4 +95,38 @@ async def extract_document(
             warnings=warnings,
         ),
         warnings=warnings,
+    )
+
+
+@router.delete("/{document_id}/graph", response_model=DocumentGraphDeleteResponse)
+async def delete_document_graph(
+    document_id: str,
+    app_request: Request,
+) -> DocumentGraphDeleteResponse:
+    adapter: Neo4jKnowledgeAdapter | None = getattr(app_request.app.state, "neo4j_adapter", None)
+    if adapter is None:
+        return DocumentGraphDeleteResponse(
+            document_id=document_id,
+            deleted=False,
+            warnings=["neo4j_adapter_pending"],
+        )
+    async with adapter._driver.session() as session:
+        result = await session.run(
+            """
+            MATCH (d:Document {document_id: $document_id})
+            OPTIONAL MATCH (d)<-[:PART_OF]-(s:SourceSpan)
+            OPTIONAL MATCH (s)<-[:DESCRIBED_IN]-(n)
+            WITH d, collect(DISTINCT s) AS spans, collect(DISTINCT n) AS linked
+            WITH [d] + spans + linked AS nodes
+            FOREACH (node IN nodes | DETACH DELETE node)
+            RETURN size(nodes) AS deleted_nodes
+            """,
+            document_id=document_id,
+        )
+        record = await result.single()
+    deleted_nodes = int(record["deleted_nodes"]) if record and record.get("deleted_nodes") else 0
+    return DocumentGraphDeleteResponse(
+        document_id=document_id,
+        deleted=deleted_nodes > 0,
+        deleted_nodes=deleted_nodes,
     )

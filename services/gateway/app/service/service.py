@@ -74,6 +74,71 @@ class GatewayService:
             raise self._downstream_error(response)
         return self._task_payload(response)
 
+    async def delete_document(
+        self,
+        document_id: str,
+        authorization: str,
+        request_id: str,
+    ) -> dict:
+        response = await self._request(
+            "DELETE",
+            f"/documents/{document_id}",
+            authorization,
+            request_id,
+        )
+        if response.status_code != status.HTTP_200_OK:
+            raise self._downstream_error(response)
+        return self._json_payload(response)
+
+    async def get_review_queue(
+        self,
+        authorization: str,
+        request_id: str,
+        status_filter: str,
+        limit: int,
+    ) -> dict:
+        return await self._get_json(
+            "/review/queue",
+            authorization,
+            request_id,
+            params={"status": status_filter, "limit": limit},
+        )
+
+    async def post_review_queue(
+        self,
+        authorization: str,
+        request_id: str,
+        status_filter: str,
+        limit: int,
+    ) -> dict:
+        response = await self._request(
+            "POST",
+            "/review/queue",
+            authorization,
+            request_id,
+            json_body={"status": status_filter, "limit": limit},
+        )
+        if response.status_code != status.HTTP_200_OK:
+            raise self._downstream_error(response)
+        return self._json_payload(response)
+
+    async def review_decision(
+        self,
+        payload: dict,
+        authorization: str,
+        request_id: str,
+    ) -> dict:
+        response = await self._request(
+            "POST",
+            "/review/decisions",
+            authorization,
+            request_id,
+            json_body=payload,
+        )
+        if response.status_code != status.HTTP_200_OK:
+            raise self._downstream_error(response)
+        return self._json_payload(response)
+
     async def upload_dictionary(
         self,
         package: UploadFile,

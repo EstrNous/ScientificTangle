@@ -1,4 +1,7 @@
+from datetime import datetime
 from uuid import UUID
+
+import httpx
 
 from infra.postgres.notification_db.repository import SqlAlchemyNotificationRepository
 from shared.contracts import (
@@ -10,6 +13,8 @@ from shared.contracts import (
     UserInterestsUpdatePayload,
 )
 from shared.security import AuthenticatedPrincipal
+
+from ..core.config import settings
 
 
 class NotificationServiceError(Exception):
@@ -28,11 +33,22 @@ TYPE_TITLES = {
 
 
 class NotificationService:
-    def __init__(self, repository: SqlAlchemyNotificationRepository) -> None:
+    def __init__(
+        self,
+        repository: SqlAlchemyNotificationRepository,
+        client: httpx.AsyncClient | None = None,
+        model_url: str | None = None,
+    ) -> None:
         self._repository = repository
+        self._client = client
+        self._model_url = (model_url or settings.model_url).rstrip("/")
 
-    async def list_notifications(self, principal: AuthenticatedPrincipal) -> NotificationListPayload:
-        notes = await self._repository.get_user_notifications(principal.user_id)
+    async def list_notifications(
+        self,
+        principal: AuthenticatedPrincipal,
+        since: datetime | None = None,
+    ) -> NotificationListPayload:
+        notes = await self._repository.get_user_notifications(principal.user_id, since=since)
         items = [self._payload(note) for note in notes]
         return NotificationListPayload(
             items=items,
@@ -74,11 +90,19 @@ class NotificationService:
         principal: AuthenticatedPrincipal,
         payload: UserInterestsUpdatePayload,
     ) -> UserInterestsPayload:
+        interests = payload.interests
+        warnings = []
+        if payload.raw_text.strip() and not interests:
+            extracted = await self._extract_interests(payload.raw_text)
+            interests = extracted["interests"]
+            warnings = extracted["warnings"]
         entities = {
             "interests": [
-                item.model_dump(mode="json") for item in payload.interests
+                item.model_dump(mode="json") for item in interests
             ]
         }
+        if warnings:
+            entities["warnings"] = warnings
         interest = await self._repository.update_user_interests(
             principal.user_id,
             payload.raw_text,
@@ -87,10 +111,33 @@ class NotificationService:
         return UserInterestsPayload(
             user_id=principal.user_id,
             raw_text=interest.raw_text,
-            interests=payload.interests,
+            interests=interests,
             extracted_entities=interest.extracted_entities or entities,
             updated_at=interest.updated_at,
+            warnings=warnings,
         )
+
+    async def _extract_interests(self, raw_text: str) -> dict[str, list]:
+        if self._client is None:
+            return {"interests": [], "warnings": ["model_interest_extraction_unavailable"]}
+        try:
+            response = await self._client.post(
+                f"{self._model_url}/v1/interests/extract",
+                json={"text": raw_text},
+            )
+            response.raise_for_status()
+            payload = response.json()
+        except (httpx.HTTPError, ValueError):
+            return {"interests": [], "warnings": ["model_interest_extraction_failed"]}
+        interests = [
+            UserInterestItem.model_validate(item)
+            for item in payload.get("interests", [])
+            if isinstance(item, dict)
+        ]
+        return {
+            "interests": interests,
+            "warnings": [str(item) for item in payload.get("warnings", [])],
+        }
 
     @staticmethod
     def _payload(note) -> NotificationPayload:

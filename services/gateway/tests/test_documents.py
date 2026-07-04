@@ -77,3 +77,38 @@ def test_upload_validation(content: bytes, limit: int, code: str) -> None:
             assert error.value.code == code
 
     asyncio.run(run())
+
+
+def test_delete_document_proxies_to_orchestrator() -> None:
+    captured: dict[str, str] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["method"] = request.method
+        captured["path"] = request.url.path
+        captured["authorization"] = request.headers["Authorization"]
+        captured["request_id"] = request.headers["X-Request-ID"]
+        return httpx.Response(
+            200,
+            json={
+                "document_id": "doc-1",
+                "status": "deleted",
+                "deleted_source_spans": 2,
+                "deleted_vectors": 2,
+                "deleted_graph_nodes": 1,
+                "warnings": [],
+            },
+        )
+
+    async def run() -> None:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            service = GatewayService(client, "http://orchestrator", 1024)
+            result = await service.delete_document("doc-1", "Bearer token", "request-1")
+            assert result["status"] == "deleted"
+
+    asyncio.run(run())
+    assert captured == {
+        "method": "DELETE",
+        "path": "/documents/doc-1",
+        "authorization": "Bearer token",
+        "request_id": "request-1",
+    }

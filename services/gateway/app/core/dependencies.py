@@ -41,6 +41,10 @@ def get_chat_service(
 
 
 def get_notification_service(
+    request: Request,
     session: Annotated[AsyncSession, Depends(get_session)],
 ) -> NotificationService:
-    return NotificationService(SqlAlchemyNotificationRepository(session))
+    return NotificationService(
+        SqlAlchemyNotificationRepository(session),
+        client=request.app.state.http_client,
+    )

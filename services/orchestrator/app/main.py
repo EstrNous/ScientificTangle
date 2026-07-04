@@ -14,6 +14,7 @@ from .api.dictionaries import router as dictionaries_router
 from .api.health import router as health_router
 from .api.ingestion import router as ingestion_router
 from .api.query import router as query_router
+from .api.workflow import router as workflow_router
 from .core.config import settings
 from .core.logging import setup_logging
 
@@ -57,3 +58,4 @@ app.include_router(ingestion_router)
 app.include_router(query_router)
 app.include_router(audit_router)
 app.include_router(dictionaries_router)
+app.include_router(workflow_router)

@@ -56,10 +56,14 @@ async def get_ingestion_task(
 @router.delete("/documents/{document_id}", response_model=DeleteDocumentResult)
 async def delete_document(
     document_id: str,
+    request: Request,
+    authorization: Annotated[str, Header()],
     principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],
+    service: Annotated[GatewayService, Depends(get_gateway_service)],
 ) -> DeleteDocumentResult:
-    raise ServiceError(
-        status.HTTP_501_NOT_IMPLEMENTED,
-        "document_delete_not_implemented",
-        "Document deletion API contract is available, storage purge wiring is not implemented in E1",
-    )
+    try:
+        return DeleteDocumentResult.model_validate(
+            await service.delete_document(document_id, authorization, request.state.request_id)
+        )
+    except GatewayServiceError as error:
+        raise ServiceError(error.status_code, error.code, error.message) from error

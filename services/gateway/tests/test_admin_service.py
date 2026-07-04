@@ -4,6 +4,8 @@ from uuid import uuid4
 import httpx
 from app.service.analytics_service import AdminService
 
+from shared.contracts import AccessPolicy
+
 
 def test_list_audit_events_forwards_filters_to_orchestrator() -> None:
     captured: dict[str, object] = {}
@@ -35,3 +37,33 @@ def test_list_audit_events_forwards_filters_to_orchestrator() -> None:
     assert f"user_id={user_id}" in str(captured["query"])
     assert "limit=25" in str(captured["query"])
     assert "offset=10" in str(captured["query"])
+
+
+def test_patch_policy_proxies_to_orchestrator() -> None:
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["path"] = request.url.path
+        captured["authorization"] = request.headers["Authorization"]
+        captured["body"] = request.read()
+        return httpx.Response(
+            200,
+            json={
+                "document_id": "doc-1",
+                "access_policy": {"level": "restricted", "allowed_roles": ["admin"]},
+            },
+        )
+
+    async def run() -> None:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            service = AdminService(client)
+            result = await service.patch_policy(
+                "doc-1",
+                AccessPolicy(level="restricted", allowed_roles=["admin"]),
+                "Bearer token",
+            )
+            assert result["access_policy"]["level"] == "restricted"
+
+    asyncio.run(run())
+    assert captured["path"] == "/admin/policies/doc-1"
+    assert captured["authorization"] == "Bearer token"
