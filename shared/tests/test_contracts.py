@@ -2,6 +2,9 @@ import pytest
 from pydantic import ValidationError
 
 from shared.contracts import (
+    AuditEvent,
+    ExportPayload,
+    ExportRequest,
     IngestionReport,
     IngestionTaskPayload,
     KnowledgeIngestionRequest,
@@ -50,6 +53,8 @@ def test_source_span_rejects_invalid_source_type() -> None:
 
 
 def test_new_cross_service_contracts_are_exported() -> None:
+    assert ExportRequest.model_fields
+    assert ExportPayload.model_fields
     assert KnowledgeIngestionRequest.model_fields
     assert NormalizeStoredSourcesResponse.model_fields
     assert RetrievalIndexResponse.model_fields
@@ -101,3 +106,25 @@ def test_query_ir_minimal() -> None:
         intent="fact_lookup",
     )
     assert query.raw_query == "test"
+
+
+def test_audit_event_accepts_extended_runtime_fields() -> None:
+    event = AuditEvent(
+        id="event-1",
+        user="user-1",
+        user_id="user-1",
+        role="researcher",
+        action="source_viewed",
+        status="success",
+        object="span-1",
+        resource_type="source_span",
+        resource_id="span-1",
+        request_id="req-1",
+        timestamp="2026-07-04T12:00:00+00:00",
+        details={"source_span_id": "span-1"},
+        source_span_id="span-1",
+    )
+
+    assert event.role == "researcher"
+    assert event.status == "success"
+    assert event.details["source_span_id"] == "span-1"

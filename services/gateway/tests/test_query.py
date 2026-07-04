@@ -46,3 +46,48 @@ def test_run_query_maps_downstream_error() -> None:
     import asyncio
 
     asyncio.run(run())
+
+
+def test_export_query_forwards_to_orchestrator() -> None:
+    captured: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        captured["path"] = request.url.path
+        captured["authorization"] = request.headers["Authorization"]
+        captured["request_id"] = request.headers["X-Request-ID"]
+        captured["body"] = request.read().decode()
+        return httpx.Response(
+            200,
+            json={
+                "export_job_id": "ed791c22-76e3-469a-ac76-26fe5aeb8792",
+                "query_run_id": "28df9d8f-7be5-474d-bf95-1bbda500c8b2",
+                "format": "markdown",
+                "status": "completed",
+                "content_type": "text/markdown",
+                "content": "# ok",
+                "file_url": "inline://export-jobs/test.md",
+                "warnings": [],
+                "generated_at": "2026-07-04T12:00:00+00:00",
+            },
+        )
+
+    async def run() -> None:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            service = GatewayService(client, "http://orchestrator", 1024)
+            result = await service.export_query_run(
+                {
+                    "query_run_id": "28df9d8f-7be5-474d-bf95-1bbda500c8b2",
+                    "format": "markdown",
+                },
+                "Bearer token",
+                "req-2",
+            )
+            assert result["format"] == "markdown"
+
+    import asyncio
+
+    asyncio.run(run())
+    assert captured["path"] == "/export"
+    assert captured["authorization"] == "Bearer token"
+    assert captured["request_id"] == "req-2"
+    assert "markdown" in str(captured["body"])

@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from shared.contracts import (
     AnswerPayload,
     EvidenceBundle,
+    ExportPayload,
     GraphSubgraph,
     IngestionReport,
     IngestionTaskStatus,
@@ -15,7 +16,7 @@ from shared.contracts import (
     QueryRunStatus,
 )
 
-from .models import IngestionTask, QueryRun, QueryRunStatus
+from .models import ExportJob, ExportJobStatus, IngestionTask, QueryRun, QueryRunStatus
 
 
 class IngestionTaskRepository:
@@ -101,17 +102,48 @@ class IngestionTaskRepository:
         )
         await self._session.commit()
 
-    async def list_audit_events(self, limit: int = 200) -> list[dict]:
+    async def list_audit_events(
+        self,
+        limit: int = 200,
+        offset: int = 0,
+        action: str | None = None,
+        user_id: UUID | None = None,
+    ) -> list[dict]:
+        return await self._list_audit_events(
+            limit=limit,
+            offset=offset,
+            action=action,
+            user_id=user_id,
+        )
+
+    async def _list_audit_events(
+        self,
+        limit: int = 200,
+        offset: int = 0,
+        action: str | None = None,
+        user_id: UUID | None = None,
+    ) -> list[dict]:
+        clauses: list[str] = []
+        params: dict[str, object] = {"limit": limit, "offset": offset}
+        if action is not None:
+            clauses.append("action = :action")
+            params["action"] = action
+        if user_id is not None:
+            clauses.append("user_id = :user_id")
+            params["user_id"] = user_id
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
         result = await self._session.execute(
             text(
-                """
+                f"""
                 SELECT id, user_id, action, resource_type, resource_id, details, request_id, created_at
                 FROM audit_events
+                {where}
                 ORDER BY created_at DESC
                 LIMIT :limit
+                OFFSET :offset
                 """
             ),
-            {"limit": limit},
+            params,
         )
         rows = result.mappings().all()
         return [dict(row) for row in rows]
@@ -140,6 +172,22 @@ class QueryRunRepository:
 
     async def get(self, run_id: UUID) -> QueryRun | None:
         return await self._session.get(QueryRun, run_id)
+
+    async def create_export_job(
+        self,
+        user_id: UUID,
+        query_run_id: UUID,
+        export_format: str,
+    ) -> ExportJob:
+        job = ExportJob(
+            user_id=user_id,
+            query_run_id=query_run_id,
+            format=export_format,
+            status=ExportJobStatus.PENDING.value,
+        )
+        self._session.add(job)
+        await self._save_export_job(job)
+        return job
 
     async def mark_processing(self, run: QueryRun) -> QueryRun:
         run.status = QueryRunStatus.PROCESSING.value
@@ -187,21 +235,69 @@ class QueryRunRepository:
         await self._save(run)
         return run
 
+    async def mark_export_processing(self, job: ExportJob) -> ExportJob:
+        job.status = ExportJobStatus.PROCESSING.value
+        job.updated_at = datetime.now(UTC)
+        await self._save_export_job(job)
+        return job
+
+    async def mark_export_completed(
+        self,
+        job: ExportJob,
+        payload: ExportPayload,
+        file_url: str,
+    ) -> ExportJob:
+        job.status = ExportJobStatus.COMPLETED.value
+        job.file_url = file_url
+        job.payload = payload.model_dump(mode="json")
+        job.error_message = None
+        job.updated_at = datetime.now(UTC)
+        await self._save_export_job(job)
+        return job
+
+    async def mark_export_failed(self, job: ExportJob, message: str) -> ExportJob:
+        job.status = ExportJobStatus.FAILED.value
+        job.error_message = message
+        job.updated_at = datetime.now(UTC)
+        await self._save_export_job(job)
+        return job
+
     async def _save(self, run: QueryRun) -> None:
         await self._session.commit()
         await self._session.refresh(run)
 
-    async def list_audit_events(self, limit: int = 200) -> list[dict]:
+    async def _save_export_job(self, job: ExportJob) -> None:
+        await self._session.commit()
+        await self._session.refresh(job)
+
+    async def list_audit_events(
+        self,
+        limit: int = 200,
+        offset: int = 0,
+        action: str | None = None,
+        user_id: UUID | None = None,
+    ) -> list[dict]:
+        clauses: list[str] = []
+        params: dict[str, object] = {"limit": limit, "offset": offset}
+        if action is not None:
+            clauses.append("action = :action")
+            params["action"] = action
+        if user_id is not None:
+            clauses.append("user_id = :user_id")
+            params["user_id"] = user_id
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
         result = await self._session.execute(
             text(
-                """
+                f"""
                 SELECT id, user_id, action, resource_type, resource_id, details, request_id, created_at
                 FROM audit_events
+                {where}
                 ORDER BY created_at DESC
                 LIMIT :limit
+                OFFSET :offset
                 """
             ),
-            {"limit": limit},
+            params,
         )
         rows = result.mappings().all()
         return [dict(row) for row in rows]

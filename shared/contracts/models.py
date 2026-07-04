@@ -238,6 +238,23 @@ class QueryRunResponse(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class ExportRequest(BaseModel):
+    query_run_id: UUID
+    format: Literal["markdown", "json"]
+
+
+class ExportPayload(BaseModel):
+    export_job_id: UUID
+    query_run_id: UUID
+    format: Literal["markdown", "json"]
+    status: QueryRunStatus
+    content_type: str
+    content: str | dict
+    file_url: str = ""
+    warnings: list[str] = Field(default_factory=list)
+    generated_at: datetime
+
+
 class GraphNode(BaseModel):
     id: str
     label: str
@@ -346,10 +363,16 @@ class SearchResultsPayload(BaseModel):
 class AuditEvent(BaseModel):
     id: str
     user: str = ""
+    user_id: str = ""
     role: str = ""
     action: str
+    status: str = ""
     object: str = ""
+    resource_type: str = ""
+    resource_id: str = ""
+    request_id: str = ""
     timestamp: str = ""
+    details: dict = Field(default_factory=dict)
     source_span_id: str | None = None
 
 
