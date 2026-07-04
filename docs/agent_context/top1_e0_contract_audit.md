@@ -167,3 +167,137 @@ Search endpoint (`GET /search`) маппит query params → `filters["source_t
 ### Gap: verified vs candidate layer
 
 Shared `EvidenceBundle` **не различает** verified/candidate/conflicting/unsupported. Разделение есть только в model-local `ExtractionArtifact` (`services/model/app/contracts.py`). E3 должен либо расширить bundle BC-полями, либо держать split в synthesis response — **решение команды в E1 gate**.
+
+---
+
+## 5. AnswerPayload
+
+**Источник:** `shared/contracts/models.py`  
+**Сборка:** model `synthesize_answer` → orchestrator `AnswerPayload.model_validate`  
+**Degraded path:** orchestrator inline `AnswerPayload(...)` при пустом evidence
+
+### Поля
+
+| Поле | Тип | Статус | UI mapping (gateway chat) |
+|------|-----|--------|----------------------------|
+| `id` | `str` | stable | не пробрасывается в chat JSON |
+| `query_ir` | `QueryIR` | stable | `expanded_synonyms` ← entities |
+| `evidence_bundle` | `EvidenceBundle` | stable | evidence_table rows |
+| `answer_text` | `str` | **freeze** | `content` |
+| `confidence` | `float` | **freeze** | `confidence` |
+| `sources_count` | `int` | stable | не mapped напрямую |
+| `model_used` | `str` | stable | audit/debug |
+| `created_at` | `datetime` | stable | не mapped |
+
+### Model-local synthesis wrapper
+
+`AnswerSynthesisResponse` (`services/model/app/contracts.py`):
+
+- `answer: AnswerPayload`
+- `unsupported_warnings: list[UnsupportedWarning]` — orchestrator flatten в `warnings` (reason_codes as strings)
+- `candidate_count: int`
+- `warnings: list[str]`
+
+`UnsupportedWarning`: `statement`, `reason_codes` (`CandidateReasonCode`), `source_span_ids`.
+
+Текущие reason codes (model-local, **не shared**):
+
+`missing_source_span`, `low_confidence`, `ambiguous_alias`, `conflicting_values`, `needs_unit_check`, `access_filtered`, `schema_candidate`.
+
+E1 план добавляет: `outside_time_range`, `geo_mismatch`, `unit_mismatch`, `unsupported_claim`, `unresolved_alias`, `inaccessible_source` — **extension в model contracts**, не в shared до E3 gate.
+
+### AnswerPayloadV2 (E3, не существует)
+
+План E3 упоминает AnswerPayloadV2 с facts, limits, conflicts, gaps, follow-up. **Shared DTO отсутствует.** Варианты для E3:
+
+1. BC-расширение `AnswerPayload` optional fields.
+2. Новый shared class + gateway fallback (E4 wiring).
+3. Internal-only payload до E4 feature flag.
+
+**Freeze до E3 PR review:** `answer_text`, `confidence`, nested `evidence_bundle` shape.
+
+---
+
+## 6. QueryRunPayload
+
+**Источник:** `shared/contracts/models.py`  
+**Публичный API:** gateway `POST /query`, `GET /runs/{id}`; orchestrator `POST /query/run`, `GET /runs/{id}`  
+**Сборка:** `orchestrator/service.py` → `_query_payload`
+
+### Поля
+
+| Поле | Тип | Статус | Примечание |
+|------|-----|--------|------------|
+| `id` | `UUID` | **freeze** | query_run_id для export/graph |
+| `status` | `QueryRunStatus` | **freeze** | pending/processing/completed/failed |
+| `question` | `str` | **freeze** | исходный вопрос |
+| `query_ir` | `QueryIR \| None` | stable | null до processing |
+| `evidence_bundle` | `EvidenceBundle \| None` | stable | |
+| `answer` | `AnswerPayload \| None` | stable | |
+| `graph_subgraph` | `GraphSubgraph` | stable | default empty |
+| `retrieval_trace` | `dict` | **extension zone** | см. ниже |
+| `warnings` | `list[str]` | extension | merged pipeline warnings |
+| `error_code` | `str \| None` | stable | failed runs |
+| `error_message` | `str \| None` | stable | |
+| `request_id` | `str` | **freeze** | observability |
+| `latency_ms` | `int \| None` | stable | eval metrics |
+| `created_at` | `datetime` | **freeze** | |
+| `updated_at` | `datetime` | **freeze** | |
+
+### `retrieval_trace` (de-facto schema)
+
+Текущие ключи из retrieval (`RetrievalQueryResponse.retrieval_trace`):
+
+```json
+{
+  "storage": "qdrant",
+  "retrieved": N,
+  "accessible": M,
+  "reranked": K
+}
+```
+
+**Extension zone E2:** planner profile, retriever list, filter trace — добавлять ключи без удаления существующих.
+
+### Связанный но неиспользуемый DTO
+
+`QueryRunResponse` в shared (`query_run_id`, `unsupported_warnings`) — **legacy/alternate shape**, production path использует `QueryRunPayload`. Не удалять без team decision; не расширять в E1–E4.
+
+### Chat UI boundary (не shared)
+
+`gateway/app/service/chat_service.py` → `_map_query_response` трансформирует `QueryRunPayload` dict в ad-hoc JSON:
+
+- `content`, `confidence`, `sources[]`, `expanded_synonyms`, `evidence_table`, `warnings`
+
+Это **не frozen shared contract** — Frontend E0/E1 audit отдельно. Backend freeze: поля `QueryRunPayload`, из которых gateway строит mapping.
+
+---
+
+## 7. Границы сервисов: локальные DTO
+
+### Retrieval (`services/retrieval/app/api/query.py`)
+
+| DTO | Shared? | Freeze |
+|-----|---------|--------|
+| `RetrievalQueryRequest` | локальный | `question`, `filters`, `access_roles`, `limit` — orchestrator зависит |
+| `RetrievalQueryResponse` | локальный | must contain `query_ir`, `evidence_bundle`, `retrieval_trace`, `warnings` |
+| Qdrant payload `qdrant_evidence.v1` | infra contract | E2 planner может добавить payload keys |
+
+### Model (`services/model/app/contracts.py`)
+
+53+ локальных request/response wrappers с `schema_version`, `prompt_version`, `mode`. Изменения **допустимы per-service** если shared nested DTO не ломаются.
+
+Критичные для query path:
+
+| Endpoint | Request | Response nested shared |
+|----------|---------|------------------------|
+| `/v1/query-ir` | `QueryIRBuildRequest` | `QueryIR` |
+| `/v1/rerank` | `RerankRequest` | `EvidenceItem` in `ScoredEvidenceItem` |
+| `/v1/gaps/suggest` | `GapSuggestionRequest` | — (gaps → orchestrator → EvidenceBundle.gaps) |
+| `/v1/answers/synthesize` | `AnswerSynthesisRequest` | `AnswerPayload` |
+
+### Gateway / Orchestrator request bodies
+
+| DTO | Поля | Freeze |
+|-----|------|--------|
+| `QueryRequest` / `QueryRunRequest` | `question`, `filters`, `limit` | **freeze** — eval runner, UI |
