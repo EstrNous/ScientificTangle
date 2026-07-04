@@ -10,8 +10,8 @@ from shared.contracts import (
 )
 
 from ..parsers import ParserRegistry, SourceContent
-from .storage import InvalidUploadError, SourceStorage, StorageOperationError
 from .dictionaries import DictionaryPackageError, parse_dictionary_package
+from .storage import InvalidUploadError, SourceStorage, StorageOperationError
 
 
 class UploadStorageError(Exception):

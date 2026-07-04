@@ -3,11 +3,10 @@ from uuid import uuid4
 
 import httpx
 import pytest
+from app.service.notification_service import TYPE_TITLES, NotificationService
 
 from infra.postgres.notification_db.repository import NotificationData
 from shared.contracts import UserInterestsUpdatePayload
-
-from app.service.notification_service import TYPE_TITLES, NotificationService
 
 
 def test_notification_payload_maps_ui_fields(notification_service: NotificationService, fake_repository) -> None:

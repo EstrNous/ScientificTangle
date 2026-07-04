@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { fetchSourceDocument, mergeSourceSpan } from '../api/sourceResolver/index.js';
+import { fetchSourceDocument, getSourceMode, mergeSourceSpan } from '../api/sourceResolver/index.js';
 import SourceDocumentModal from '../components/shared/SourceDocumentModal.jsx';
 
 const SourceDocumentContext = createContext(null);
@@ -8,13 +8,26 @@ function isAccessDeniedDocument(document) {
   return Boolean(document?.accessDenied || document?.locked);
 }
 
+function sourceRefId(ref) {
+  if (!ref) return null;
+  if (typeof ref === 'string') return ref;
+  return ref.source_span_id ?? ref.id ?? null;
+}
+
+function hasInlineSourcePayload(ref) {
+  return Boolean(ref?.pages || ref?.raw_text || ref?.tableRows);
+}
+
 export function SourceDocumentProvider({ children }) {
   const [open, setOpen] = useState(false);
   const [source, setSource] = useState(null);
   const [locked, setLocked] = useState(false);
 
   const openSource = useCallback(async (ref) => {
-    if (typeof ref === 'object' && ref?.id && (ref?.pages || ref?.raw_text || ref?.tableRows)) {
+    const liveMode = getSourceMode() === 'live';
+    const fetchRef = liveMode ? sourceRefId(ref) ?? ref : ref;
+
+    if (!liveMode && typeof ref === 'object' && ref?.id && hasInlineSourcePayload(ref)) {
       if (isAccessDeniedDocument(ref)) {
         setSource({ id: ref.id, locked: true, accessDenied: true });
         setLocked(true);
@@ -26,11 +39,19 @@ export function SourceDocumentProvider({ children }) {
       setOpen(true);
       return;
     }
+
+    if (liveMode && typeof ref === 'object' && isAccessDeniedDocument(ref)) {
+      setSource({ id: sourceRefId(ref), locked: true, accessDenied: true });
+      setLocked(true);
+      setOpen(true);
+      return;
+    }
+
     try {
-      const document = await fetchSourceDocument(ref);
+      const document = await fetchSourceDocument(fetchRef);
       if (!document) return;
       if (isAccessDeniedDocument(document)) {
-        setSource({ id: document.id ?? ref, locked: true, accessDenied: true });
+        setSource({ id: document.id ?? sourceRefId(ref), locked: true, accessDenied: true });
         setLocked(true);
         setOpen(true);
         return;
@@ -41,7 +62,7 @@ export function SourceDocumentProvider({ children }) {
     } catch (error) {
       const code = error?.code ?? error?.message ?? '';
       if (code === 'access_denied' || String(code).includes('access_denied')) {
-        const id = typeof ref === 'object' ? ref?.id ?? ref?.source_span_id : ref;
+        const id = sourceRefId(ref);
         setSource({ id, locked: true, accessDenied: true });
         setLocked(true);
         setOpen(true);

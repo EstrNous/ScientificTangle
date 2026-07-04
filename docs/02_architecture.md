@@ -39,18 +39,24 @@
 
 ## Маршрутизация (nginx)
 
-nginx (порт 80) проксирует запросы по prefix:
+**Dev** (`docker-compose.dev.yml`, `nginx.dev.conf`): nginx на порту 80 проксирует:
+
 - `/api/` → gateway:8000
 - `/api/auth/` → auth_audit:8001
 - `/.well-known/jwks.json` → auth_audit:8001
-- `/orchestrator/` → orchestrator:8002
-- `/ingestion/` → ingestion:8003
-- `/knowledge/` → knowledge:8004
-- `/retrieval/` → retrieval:8005
-- `/model/` → model:8006
-- `/export/` → export:8007
-- `/notification/` → notification:8008
+- `/orchestrator/`, `/ingestion/`, `/knowledge/`, `/retrieval/`, `/model/` → прямые debug routes (только dev)
+- `/grafana/` → grafana:3000 (basic auth)
 - `/` → ui:3000
+
+**Prod** (`docker-compose.prod.yml`, `nginx.prod.conf.template`): только HTTPS edge:
+
+- `/api/*`, `/api/auth/`, `/.well-known/jwks.json` → auth_audit / gateway
+- `/grafana/` → grafana (basic auth)
+- `/health` → gateway probe
+- `/` → ui
+- export/notification — только через gateway `/api/*`, наружу не публикуются
+
+Product API path: UI → nginx `/api` → gateway → orchestrator / notification / export.
 
 ## Healthcheck
 
@@ -89,11 +95,15 @@ services/<name>/
 
 ```bash
 cp .env.example .env
-make up      # docker compose up -d — все сервисы + инфраструктура
-make build   # пересборка образов
-make down    # остановка и удаление томов
-make logs    # логи (SERVICE=<name> для фильтра)
+make up          # dev: compose + dev overlay, все host ports
+make prod        # prod: .env + TLS + закрытый периметр + seed
+make prod-demo   # prod + demo corpus
+make build
+make down
+make logs        # SERVICE=<name> для фильтра
 ```
+
+Prod runbook: [`docs/agent_context/prod_compose_runbook.md`](agent_context/prod_compose_runbook.md).
 
 ## Онтология
 

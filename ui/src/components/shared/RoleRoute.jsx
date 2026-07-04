@@ -1,12 +1,19 @@
 import { Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { EmptyState } from './PageState.jsx';
+import Loader from './Loader.jsx';
 import { useRoleAccess } from '../../hooks/useRoleAccess.js';
+import { useAuthStore } from '../../stores/authStore.js';
 
 export default function RoleRoute({ paths, children }) {
   const { t } = useTranslation();
   const { canAccess } = useRoleAccess();
+  const role = useAuthStore((s) => s.role);
   const allowed = paths.some((p) => canAccess(p));
+
+  if (role == null) {
+    return <Loader />;
+  }
 
   if (!allowed) {
     return (

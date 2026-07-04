@@ -12,3 +12,7 @@
 ## Архитектура
 
 PostgreSQL (`scientific_tangle`), JWT RS256, JWKS, refresh rotation, structlog audit sink.
+
+## Gaps
+
+- Rate limiting на login/refresh и публичных endpoints — backlog (см. gateway/nginx).

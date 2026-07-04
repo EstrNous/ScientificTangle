@@ -50,7 +50,7 @@ flowchart TB
 
 | Механизм | Файл | Поведение |
 |----------|------|-----------|
-| `VITE_USE_MOCK !== 'false'` | `api/client.js`, `api/auth.js` | mock по умолчанию |
+| `VITE_USE_MOCK === 'true'` | `ui/src/utils/runtimeMode.js` | mock только при явном флаге; default live |
 | `{ real: true }` в options | `api/chat.js`, `api/source.js` | обход mock для конкретных вызовов |
 | `export { useMock }` | `api/client.js` | runtime-ветвление в UI-компонентах |
 

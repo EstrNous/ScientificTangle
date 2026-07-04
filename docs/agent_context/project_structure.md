@@ -20,10 +20,18 @@
 - `.cursor/rules/project.mdc` — always-on L0 для Cursor.
 - `.github/copilot-instructions.md` — инструкции для GitHub Copilot.
 - `.zed/rules/project.md` — правила для Zed Agent.
-- `docker-compose.yml` — полная локальная среда (сервисы + PostgreSQL + Neo4j + Qdrant + MinIO + Redis + nginx), включая запуск миграций `auth_audit` и `orchestrator`, а также подключение внешних RSA-секретов.
-- `docker-compose.prod.yml` — production-оверрайды (ресурсы, логирование, реплики).
-- `Makefile` — цели сборки и управления: bootstrap, up, up-auth, down, build, logs, seed, ingest-demo, eval, eval-yandex-live, perf-smoke, test, test-yandex-live и др.
-- `.env.example` — шаблон переменных окружения для копирования в `.env`.
+- `docker-compose.yml` — base-стек без host ports (сервисы + PostgreSQL + Neo4j + Qdrant + MinIO + Redis + nginx), миграции `auth_audit` и `orchestrator`, RSA-секреты.
+- `docker-compose.dev.yml` — dev overlay: публикация host ports для локальной разработки и smoke.
+- `docker-compose.prod.yml` — prod overlay: resource limits, TLS nginx edge (только 80/443), закрытый периметр.
+- `docker-compose.cloud.yml` — cloud overlay: без публикации внутренних портов, `GF_SERVER_ROOT_URL` из `PUBLIC_URL`.
+- `docker-compose.cloud.http.yml` — cloud HTTP edge: nginx dev config, только порт 80.
+- `docker-compose.cloud.https.yml` — cloud HTTPS edge: self-signed TLS, порты 80/443.
+- `infra/deploy/OPERATOR.md` — пошаговый cloud deploy: `./scripts/cloud_deploy.sh <IP>`.
+- `infra/deploy/yandex-cloud-init.yaml` — cloud-init для Yandex Cloud.
+- `scripts/generate_cloud_env.py` — генерация `.env` и `infra/deploy/credentials.txt` по IP/домену.
+- `scripts/cloud_deploy.sh` — turnkey deploy: env, keys, compose, seed.
+- `Makefile` — цели сборки и управления: bootstrap, up, prod, prod-demo, up-prod, deploy-cloud, seed, eval и др.
+- `.env.example` — шаблон переменных окружения для копирования в `.env`, включая `INTERNAL_SERVICE_TOKEN` для межсервисных вызовов export/notification.
 
 ### Документация
 
@@ -42,7 +50,7 @@
 - `docs/agent_context/project_structure.md` — этот файл, карта структуры проекта для агентов.
 - `docs/agent_context/sync_rules.md` — правила синхронизации контекста между агентами.
 - `docs/agent_context/ml_mvp_status.md` — текущий статус ML MVP, открытые gaps и позиция по VL/OCR.
-- `docs/agent_context/implementation_quality_report.md` — оценка реализации vs ТЗ по сервисам, стеку и gaps.
+- `docs/agent_context/implementation_quality_report.md` — сводная оценка и зоны готовности (PM view)
 - `docs/agent_context/feature_readiness_matrix.md` — матрица готовности фич (фронт/бэк/связь), backlog по приоритету и план закрытия MVP на 100%.
 - `docs/agent_context/query_pipeline.md` — сквозной пайплайн запроса user → answer.
 - `docs/agent_context/top1_parallel_execution_plan.md` — поэтапный план параллельной работы двух Backend/ML-специалистов и одного Frontend-специалиста.
@@ -84,7 +92,7 @@
 - `shared/logging/` — единая конфигурация structlog (JSON, контекст сервиса).
 - `shared/config/` — базовый класс ServiceSettings с подключениями ко всем хранилищам.
 - `shared/security/` — повторно используемая проверка access token через RS256/JWKS.
-- `shared/web/` — единый request_id, зависимости аутентификации и нормализованные API-ошибки.
+- `shared/web/` — единый request_id, rate limiting middleware, зависимости аутентификации (JWT principal, `require_internal_service`), нормализованные API-ошибки.
 - `shared/metrics/` — Prometheus RED-метрики и `/metrics` для всех сервисов.
 
 ### Микросервисы (`services/`)
@@ -100,16 +108,16 @@
 | `services/knowledge/` | 8004 | Knowledge — Schema Registry, сущности, entity resolution, claims, граф |
 | `services/retrieval/` | 8005 | Retrieval — Query IR, гибридный поиск, fusion, reranking, EvidenceBundle |
 | `services/model/` | 8006 | Model — embeddings, structured extraction, Query IR, reranking/scoring, answer synthesis, prompt/schema registry |
-| `services/export/` | 8007 | Export — Markdown, PDF, JSON, JSON-LD |
+| `services/export/` | 8007 | Export — Markdown, JSON, JSON-LD (PDF — backlog); artifacts в MinIO |
 | `services/notification/` | 8008 | Notification — профиль интересов, сопоставление с источниками, уведомления |
 
 Gateway, Orchestrator и Ingestion используют слои по образцу `auth_audit`: HTTP-маршруты в `app/api`, зависимости в `app/core`, прикладная логика в `app/service`. Слой PostgreSQL для `auth_audit` и `orchestrator` — в `infra/postgres/*_db/`; Alembic-миграции остаются в `services/<name>/storage/`.
 
 ### UI (`ui/`)
 
-Фронтенд-приложение Vite + React. Работает автономно на mock API (`VITE_USE_MOCK=true`).
+Фронтенд-приложение Vite + React. По умолчанию работает с real API (`VITE_USE_MOCK=false`); mock включается явно (`VITE_USE_MOCK=true` или `npm run dev:mock`).
 
-- `ui/package.json` — зависимости и скрипты (`dev`, `build`, `preview`, `lint`).
+- `ui/package.json` — зависимости и скрипты (`dev`, `dev:mock`, `build`, `preview`, `lint`).
 - `ui/vite.config.js` — Vite, proxy `/api` → Gateway.
 - `ui/tailwind.config.js`, `ui/postcss.config.js` — Tailwind CSS.
 - `ui/index.html` — точка входа HTML.
@@ -135,7 +143,8 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 - `ui/src/api/mock/` — JSON demo-данные для экранов без backend.
 - `ui/src/utils/graphFilters.js`, `ui/src/utils/graphSearch.js` — клиентская фильтрация графа.
 - `ui/src/hooks/` — useRoleAccess.
-- `ui/src/utils/reportExport.js` — экспорт MD/JSON/PDF.
+- `ui/src/api/sourceResolver/` — live/mock adapter switch (`liveAdapter` при `VITE_USE_MOCK=false`; `mockAdapter` только для dev/mock).
+- `ui/src/utils/reportExport.js` — клиентский fallback export (отключён в prod при `isServerExportEnabled()`).
 
 ### Инфраструктура (`infra/`)
 
@@ -147,10 +156,13 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 - `infra/neo4j/` — схема Neo4j MVP: `constraints.cypher`, `indexes.cypher`, `migrator.py` (SchemaVersion, bootstrap при старте Knowledge).
 - `infra/qdrant/` — описание Qdrant collection `st_evidence_v1`, payload indexes и access-aware retrieval.
 - `infra/minio/buckets.txt` — список бакетов MinIO.
-- `infra/nginx/nginx.conf` — reverse proxy (порт 80), маршрутизирует `/api/auth/` и JWKS в `auth_audit`, остальные внешние API — в Gateway.
+- `infra/nginx/nginx.dev.conf` — dev reverse proxy (порт 80), debug routes к внутренним сервисам.
+- `infra/nginx/nginx.prod.conf.template` — prod edge: только `/`, `/api/*`, `/grafana/`, TLS 443.
+- `infra/nginx/nginx.conf` — alias dev-конфига для обратной совместимости.
+- `infra/nginx/Dockerfile` — nginx с basic auth для `/grafana/`, envsubst для prod TLS.
 - `infra/monitoring/prometheus.yml` — конфигурация Prometheus для сбора /metrics со всех сервисов.
 - `infra/monitoring/grafana/` — provisioning datasource и SRE-дашборды Grafana.
-- `infra/nginx/Dockerfile` — nginx с basic auth для `/grafana/`.
+- `docs/agent_context/prod_compose_runbook.md` — runbook публичного стенда (`make prod`).
 - `infra/docker/Dockerfile.python-service` — multistage Dockerfile для Python-сервисов (deps + runtime, shared).
 - `infra/scripts/` — скрипты эксплуатации.
 - `scripts/` — локальные MVP smoke/eval/seed scripts: demo seed, Yandex live smoke, official eval, performance smoke, `neo4j_smoke.py`.

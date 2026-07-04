@@ -96,8 +96,10 @@ export function resolveAnswerPhase(message) {
   return CHAT_ANSWER_PHASES.DONE;
 }
 
+import { resolveUseMock } from './runtimeMode.js';
+
 export function isSimulatedLifecycleEnabled() {
-  if (import.meta.env.VITE_USE_MOCK === 'false') {
+  if (!resolveUseMock()) {
     return false;
   }
   return import.meta.env.VITE_CHAT_LIFECYCLE_SIMULATION === 'true';

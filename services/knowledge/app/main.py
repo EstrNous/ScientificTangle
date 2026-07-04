@@ -11,8 +11,8 @@ from fastapi import FastAPI
 from shared.metrics import build_metrics_router, setup_metrics
 from shared.web import install_error_handlers, request_id_middleware
 
-from .api.extraction import router as extraction_router
 from .api.dictionaries import router as dictionaries_router
+from .api.extraction import router as extraction_router
 from .api.graph import router as graph_router
 from .api.health import router as health_router
 from .core.config import settings

@@ -2,7 +2,7 @@
 
 Выдержка из `docs/nauchny_klubok_top1_tz.md` §6 и §33. Полный текст — в основном ТЗ.
 
-**Статус реализации (2026-07-04):** ~85% чеклиста закрыт. Детали — [`implementation_quality_report.md`](../agent_context/implementation_quality_report.md).
+**Статус реализации (2026-07-04):** ~90% чеклиста закрыт. Детали — [`implementation_quality_report.md`](../agent_context/implementation_quality_report.md), [`feature_readiness_matrix.md`](../agent_context/feature_readiness_matrix.md).
 
 ## Когда MVP готов
 
@@ -25,17 +25,19 @@
 
 | Пункт | Статус | Комментарий |
 |-------|--------|-------------|
-| Стек поднимается | ✅ | docker-compose + healthchecks |
+| Стек поднимается | ✅ | docker-compose + healthchecks + CI e2e job |
 | UI и Gateway отвечают | ✅ | real API в compose (`VITE_USE_MOCK=false`) |
 | ingestion → NormalizedDocument → SourceSpan | ✅ | parsers + MinIO |
 | claims в Neo4j | ✅ | Neo4jKnowledgeAdapter |
 | chunks в Qdrant | ✅ | `st_evidence_v1`, seed_demo |
-| Query IR + retrieval | ✅ | hybrid retrieval: dense + lexical + table + graph fusion, planner trace, rerank |
+| Query IR + retrieval | ✅ | hybrid: dense + lexical + table + graph fusion |
 | ответ в чат с таблицей и графом | ✅ | ChatPage, EvidenceTable, LocalGraph |
-| geo/numeric фильтры базово | ✅ | Query IR + Qdrant filters: units/ranges, geo bucket/country, published year |
-| audit и роли | ✅ backend / ⚠️ UI | RoleSwitcher в dev |
-| export Markdown/JSON | ✅ MVP via orchestrator/gateway | `POST /api/export` → `POST /export`; `services/export` reserved boundary |
+| geo/numeric фильтры базово | ✅ | Query IR + Qdrant filters |
+| audit и роли | ✅ backend / ⚠️ UI | RoleSwitcher только при `VITE_USE_MOCK=true` |
+| export Markdown/JSON/JSON-LD | ✅ | orchestrator → export service → MinIO |
+| export PDF | ❌ | backlog post-MVP |
+| post-ingestion notifications | ❌ | conflict events есть; `ingestion_complete` runtime — нет |
 | demo script готов | ✅ | `make seed`, `make eval`, `scripts/seed_demo.py` |
-| ≥4 официальных вопроса | ⚠️ | dataset готов; pinned live eval artifact — нет |
+| ≥4 официальных вопроса | ⚠️ | dataset + offline gate; pinned live eval artifact — нет |
 
-Без полного закрытия ⚠️ — не переходить к полировке и top-1 фичам.
+Оставшиеся ⚠️/❌ — см. план закрытия MVP 100% в [`feature_readiness_matrix.md`](../agent_context/feature_readiness_matrix.md).

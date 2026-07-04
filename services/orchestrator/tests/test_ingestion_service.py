@@ -6,8 +6,8 @@ from uuid import UUID, uuid4
 
 import httpx
 import pytest
-from app.service.ingestion import IngestionService
 from app.service.base import OrchestratorServiceError
+from app.service.ingestion import IngestionService
 from fastapi import UploadFile
 
 from infra.postgres.orchestrator_db import IngestionTask

@@ -25,11 +25,15 @@
 
 JWT validation через JWKS (`auth_audit`). `X-Request-ID` сквозной.
 
+## Export path
+
+`POST /api/export` проксирует запрос в orchestrator, где выполняется access revalidation и создаётся `ExportJob`. Orchestrator вызывает export service для рендера Markdown/JSON/JSON-LD и хранения artifact в MinIO. `GET /api/export/jobs/{id}/artifact` скачивает artifact напрямую из export service.
+
 ## Зависимости
 
-orchestrator (основной proxy), auth_audit (JWKS), PostgreSQL chat_ui_db, knowledge/retrieval (analytics).
+orchestrator (основной proxy), export (artifact download), notification, auth_audit (JWKS), PostgreSQL chat_ui_db, knowledge/retrieval (analytics).
 
 ## Gaps
 
-- Admin user/policy PATCH без полного persist
+- Rate limiting на публичных API — backlog
 - Strategic/lab данные частично из knowledge + eval fixtures

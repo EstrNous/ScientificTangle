@@ -39,16 +39,16 @@
 
 - Нет UI evaluation dashboard; доступны Markdown/JSON eval reports.
 - Нет зафиксированного командного live eval artifact с реальными ответами на общем demo corpus; E4 закрепил только входы и правила regression comparison.
-- Export service wiring: MVP Markdown/JSON идёт через orchestrator/gateway; JSON-LD endpoint готов в model, HTTP export service — reserved boundary/заглушка.
-- Notification service wiring: ML matching готов, HTTP notification service — заглушка.
+- Export production gaps: Markdown/JSON/JSON-LD через `gateway → orchestrator → export → MinIO`; service-to-service auth **закрыт**; остаётся PDF.
+- Notification production gaps: interests/notifications/internal events wired; service-to-service auth **закрыт**; post-ingestion runtime delivery — backlog.
 
 ## Top-1 ML backlog
 
 - Live eval artifact на общем demo corpus с поднятым стеком и Yandex secrets.
 - Gap precision на реальном корпусе после seeded official/hybrid report.
 - Access filtering correctness в связке с backend/Auth/retrieval через live eval gate.
-- JSON-LD enrichment в финальном export service.
-- Notification service wiring.
+- PDF export renderer и retention policy для export artifacts.
+- Notification post-ingestion runtime delivery.
 - p50/p95 latency по живому стэку, а не только локальная проверка отчета.
 
 ## VL/OCR позиция

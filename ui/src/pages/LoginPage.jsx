@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import AuthActionLink from '../components/auth/AuthActionLink.jsx';
 import {
@@ -14,6 +14,8 @@ import { validateLoginForm } from '../utils/authValidation.js';
 export default function LoginPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnUrl = searchParams.get('returnUrl') || '/chat';
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [fieldError, setFieldError] = useState(null);
@@ -34,7 +36,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       await login(identifier.trim(), password);
-      navigate('/chat', { replace: true });
+      navigate(returnUrl.startsWith('/') ? returnUrl : '/chat', { replace: true });
     } catch (error) {
       const code = mapAuthError(error);
       setSubmitError(code);

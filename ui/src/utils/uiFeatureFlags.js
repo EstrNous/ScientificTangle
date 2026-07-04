@@ -1,4 +1,4 @@
-import { useMock } from '../api/client.js';
+import { useMock } from './runtimeMode.js';
 
 function readFlag(name, defaultValue = false) {
   const raw = import.meta.env[name];
@@ -9,7 +9,7 @@ function readFlag(name, defaultValue = false) {
 }
 
 export function isDevRoleSwitcherEnabled() {
-  return useMock || import.meta.env.DEV;
+  return useMock;
 }
 
 export function isProductionAuthMode() {

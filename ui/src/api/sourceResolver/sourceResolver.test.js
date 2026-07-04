@@ -44,25 +44,49 @@ describe('sourceResolver liveAdapter', () => {
   it('labels object refs by title', () => {
     expect(liveAdapter.sourceRefLabel({ id: 'x', title: 'Report A' })).toBe('Report A');
   });
+
+  it('labels object refs by document_title', () => {
+    expect(liveAdapter.sourceRefLabel({ id: 'x', document_title: 'Nickel Report' })).toBe('Nickel Report');
+  });
 });
 
 describe('sourceResolver facade', () => {
   afterEach(() => {
     vi.resetModules();
-    vi.doUnmock('../client.js');
+    vi.unstubAllEnvs();
+    vi.doUnmock('../../utils/uiFeatureFlags.js');
   });
 
-  it('selects mock adapter when useMock is true', async () => {
-    vi.doMock('../client.js', () => ({ useMock: true }));
-    const { getSourceMode, sourceRefLabel } = await import('./index.js');
+  it('selects mock adapter when source live mode is disabled', async () => {
+    vi.resetModules();
+    vi.stubEnv('VITE_USE_MOCK', 'true');
+    vi.doMock('../../utils/uiFeatureFlags.js', () => ({
+      isSourceLiveModeEnabled: () => false,
+    }));
+    const { ensureMockSourceResolver, getSourceMode, sourceRefLabel } = await import('./index.js');
+    await ensureMockSourceResolver();
     expect(getSourceMode()).toBe('mock');
     expect(sourceRefLabel('span-1')).toBe('nickel_report.pdf');
   });
 
-  it('selects live adapter when useMock is false', async () => {
-    vi.doMock('../client.js', () => ({ useMock: false }));
+  it('selects live adapter when source live mode is enabled', async () => {
+    vi.resetModules();
+    vi.stubEnv('VITE_USE_MOCK', 'false');
+    vi.doMock('../../utils/uiFeatureFlags.js', () => ({
+      isSourceLiveModeEnabled: () => true,
+    }));
     const { getSourceMode, sourceRefLabel } = await import('./index.js');
     expect(getSourceMode()).toBe('live');
     expect(sourceRefLabel('span-1')).toBe('span-1');
+  });
+
+  it('rejects mock adapter when mock bundle is disabled', async () => {
+    vi.resetModules();
+    vi.stubEnv('VITE_USE_MOCK', 'false');
+    vi.doMock('../../utils/uiFeatureFlags.js', () => ({
+      isSourceLiveModeEnabled: () => false,
+    }));
+    const { resolveSourceRef } = await import('./index.js');
+    expect(() => resolveSourceRef('span-1')).toThrow('source_mock_unavailable');
   });
 });

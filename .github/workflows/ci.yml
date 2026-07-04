@@ -11,11 +11,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - uses: astral-sh/setup-uv@v5
       - name: Install ruff
         run: uv tool install ruff
+      - name: Bootstrap compose env
+        run: |
+          python scripts/ensure_env.py
+          pip install cryptography pyyaml
+          python scripts/generate_auth_keys.py
+          python scripts/generate_tls_certs.py
       - name: Ruff check
         run: ruff check shared services scripts tests
+      - name: Repo audit
+        run: python scripts/audit_repo.py
+      - name: Validate prod compose config
+        run: docker compose -f docker-compose.yml -f docker-compose.prod.yml config > /dev/null
 
   test-backend:
     runs-on: ubuntu-latest
@@ -69,9 +82,9 @@ jobs:
           pip install cryptography
           python scripts/generate_auth_keys.py
       - name: Start stack
-        run: docker compose up -d --build --wait
+        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build --wait
       - name: Seed users
-        run: docker compose exec -T auth_audit auth-seed-users
+        run: docker compose -f docker-compose.yml -f docker-compose.dev.yml exec -T auth_audit auth-seed-users
       - name: Install test dependencies
         run: pip install pytest httpx
       - name: E2E smoke

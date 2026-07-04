@@ -1,135 +1,71 @@
 # Отчёт о качестве реализации ScientificTangle
 
 **Дата:** 2026-07-04  
-**Статус проекта:** post-MVP (ядро end-to-end реализовано, top-1 фичи частично)  
-**Методология:** анализ кода, тестов, инфраструктуры, CI и сверка с [`mvp.md`](../tz/mvp.md), [`ml_mvp_status.md`](ml_mvp_status.md), [`audit_report.md`](audit_report.md).
+**Статус проекта:** post-MVP — основной путь end-to-end работает; остаётся закрыть product gaps и production hardening  
+**Методология:** анализ кода, тестов, CI, инфраструктуры и сверка с [`mvp.md`](../tz/mvp.md), [`ml_mvp_status.md`](ml_mvp_status.md), [`audit_report.md`](audit_report.md).
 
 Этот документ **дополняет**, а не заменяет `audit_report.md` и `ml_mvp_status.md`.
 
-**Пайплайн запроса (детально):** [`query_pipeline.md`](query_pipeline.md).
+**Пайплайн запроса (детально):** [`query_pipeline.md`](query_pipeline.md).  
+**Матрица фич:** [`feature_readiness_matrix.md`](feature_readiness_matrix.md).
 
 ---
 
-## 1. Резюме
+## 1. Резюме для продукта
 
 ScientificTangle — evidence-first платформа доказательной карты R&D знаний горно-металлургической отрасли. Архитектура: **9 Python-микросервисов**, **React UI**, **shared contracts**, полный Docker-стек (PostgreSQL, Neo4j, Qdrant, MinIO, Redis, Prometheus/Grafana, nginx).
 
-### Общая оценка
+### Сводка по зонам (оценка готовности к production-ready 100%)
 
-| Область | Оценка (1–5) | Комментарий |
-|---------|--------------|-------------|
-| Ядро pipeline (ingestion → knowledge → retrieval → query) | **4.5** | Рабочий E2E, реальные Neo4j и Qdrant |
-| ML / model service | **4.5** | 13 v1 endpoints, Yandex + deterministic fallback |
-| Auth / RBAC / audit | **4.5** | RS256 JWT, 35 тестов |
-| Gateway / orchestrator | **4.0** | Полный BFF и пайплайны; orchestrator — монолит ~940 строк |
-| UI | **3.5** | 15 страниц, real API на ключевых экранах; mock-зависимости остаются |
-| Export / notification | **1.5** | HTTP-заглушки; БД и ML endpoints готовы, wiring отсутствует |
-| Тесты / CI | **3.5** | 184 backend-теста, CI green; нет coverage gate, E2E opt-in |
-| Ops / infra | **4.0** | Compose, Makefile, monitoring; нет cloud deploy |
+| Зона | Готово | Не хватает | Что реально осталось |
+|------|--------|------------|----------------------|
+| **MVP функционально** | ~90% | ~10% | Основной путь работает; не закрыты PDF export, часть notification loop и часть UI-polish |
+| **Production readiness** | ~82% | ~18% | Rate limiting, более жёсткий внешний периметр, актуальная документация, пара product gaps |
+| **UI** | ~78% | ~22% | Mock не дефолт (`VITE_USE_MOCK=false` в compose); `sourceResolver` всё ещё переключается на `mockAdapter` при `VITE_USE_MOCK=true` — риск демо-источников при ошибочной сборке |
+| **Export** | ~86% | ~14% | Markdown/JSON/JSON-LD через `gateway → orchestrator → export → MinIO`; PDF не реализован |
+| **Notification** | ~82% | ~18% | Interests, conflict events, list/read wired; нет автоматического уведомления после загрузки/обработки документа |
+| **Auth / security** | ~94% | ~6% | JWT/RBAC/service-token есть; нет rate limiting и production hardening внешнего периметра |
+| **CI / Ops** | ~86% | ~14% | Ruff, coverage gate 60%, e2e compose job есть; остаётся укрепить prod-периметр compose и регламент pre-release |
+| **Docs / agent context** | обновляется | — | Синхронизация с кодом (в т.ч. закрытый internal service auth) |
+| **Архитектура orchestrator** | ~80% | ~20% | Работает; `OrchestratorService` крупный (~1240 строк) — сложен для эволюции |
 
 ### Вердикт
 
-**MVP pipeline реализован** и превосходит типичный хакатон-MVP по архитектурной дисциплине: microservices, единые контракты, evidence-first, реальные граф и векторное хранилище. Главные разрывы post-MVP: **export/notification как сервисы-заглушки**, **mock-зависимости в UI для source refs**, **отсутствие зафиксированного live eval artifact**, **doc drift** в agent context.
+**MVP pipeline реализован (~90% чеклиста)** и превосходит типичный хакатон-MVP: microservices, единые контракты, evidence-first, реальные Neo4j и Qdrant, export/notification как HTTP-сервисы. Главные разрывы post-MVP: **PDF export**, **post-ingestion notification delivery**, **rate limiting / edge hardening**, **риск mock path в UI при неверном флаге**, **live eval artifact**, **декомпозиция orchestrator**.
 
 Кодовая база готова к итеративному доведению **без архитектурного перелома**.
 
 ### Топ-5 сильных сторон
 
-1. **Evidence-first дисциплина** — confirmed claims только с `SourceSpan`; candidate layer с reason codes; 53 Pydantic-модели в `shared/contracts`.
-2. **Зрелый model service** — 13 v1 endpoints, prompt/schema registry, eval dataset (4 official + 12 corpus questions), Yandex routing с explicit degraded fallback.
-3. **Реальные хранилища** — Neo4jKnowledgeAdapter (write/read subgraph, conflicts, gaps), Qdrant `st_evidence_v1` с `mode=live`.
-4. **Production-oriented infra** — DB-per-service, Alembic, Docker secrets для JWT, Prometheus/Grafana, nginx, `scripts/audit_repo.py`.
-5. **Auth slice** — полный login/register/refresh/JWKS/RBAC/audit; 35 unit/integration тестов.
+1. **Evidence-first дисциплина** — confirmed claims только с `SourceSpan`; candidate layer с reason codes; Pydantic-контракты в `shared/contracts`.
+2. **Зрелый model service** — 13 v1 endpoints, prompt/schema registry, eval dataset, Yandex routing с explicit degraded fallback.
+3. **Реальные хранилища** — Neo4jKnowledgeAdapter, Qdrant `st_evidence_v1` с `mode=live`.
+4. **Production-oriented infra** — DB-per-service, Alembic, Docker secrets для JWT, `INTERNAL_SERVICE_TOKEN` для межсервисных вызовов, Prometheus/Grafana, nginx, `scripts/audit_repo.py`.
+5. **Auth slice** — RS256 JWT, JWKS, refresh, RBAC, audit; internal service auth на export/notification internal routes.
 
 ### Топ-5 рисков
 
-1. **Export и notification не подключены** — сервисы отдают только `/health`; post-MVP фичи (JSON-LD, уведомления) недоступны через HTTP.
-2. **UI зависит от mock catalog** — 10 компонентов импортируют `ui/src/api/mock/` для source refs даже в real-режиме.
-3. **Doc drift** — устранён в domain docs и audit_report (2026-07-04); поддерживать при изменениях
-4. **Orchestrator god-service** — `service.py` (~940 строк) концентрирует ingestion, query, export proxy; сложно эволюционировать.
-5. **Качество не зафиксировано метриками** — нет pinned live eval artifact, pytest-cov, E2E в обязательном CI.
+1. **Post-ingestion notifications** — `ingestion_complete` / `interest_match` есть в seed и i18n, но runtime hook из orchestrator не подключён.
+2. **PDF export** — формат не в `ExportService`; UI может показывать disabled state.
+3. **Внешний периметр** — нет rate limiting в gateway/nginx; compose secrets требуют hardening для публичного стенда.
+4. **Orchestrator god-service** — ingestion + query + export + audit в одном модуле.
+5. **Качество ответов не зафиксировано live artifact** — offline gates есть; pinned live eval report — backlog.
 
 ---
 
 ## 2. Технологический стек
 
-| Слой | Технологии | Версии / детали | Оценка |
-|------|------------|-----------------|--------|
-| Backend runtime | Python, FastAPI, uvicorn | 3.12 | Зрелый, единообразный across 9 сервисов |
-| Validation / settings | Pydantic v2, pydantic-settings | — | Контракты в `shared/contracts` |
-| HTTP client | httpx (async) | — | Межсервисные вызовы |
-| Logging | structlog (JSON) | — | Единый `shared/logging` |
-| ORM / migrations | SQLAlchemy 2 async, Alembic | — | 13 migration-файлов |
-| Graph DB | Neo4j 5 Community | Cypher, query compiler | Live adapter в knowledge |
-| Vector DB | Qdrant | Collection `st_evidence_v1`, 256-dim cosine | Live adapter в retrieval |
-| Object storage | MinIO | Bucket `source-files` | Ingestion + planned export |
-| Cache / queue | Redis 7 | — | Подключён в compose |
-| RDBMS | PostgreSQL 16 | DB-per-service (5 баз) | auth_audit, orchestrator, chat_ui, export, notification |
-| ML provider | Yandex AI Studio | Embeddings, chat, extraction | Optional via `.env` |
-| ML fallback | Deterministic rules | Без скрытых demo-ответов | Явный degraded mode |
-| Auth | RS256 JWT, JWKS, refresh cookies | Docker secrets | auth_audit |
-| Frontend | React 19, Vite 7, Tailwind 3 | — | i18n ru/en |
-| State | Zustand 5 | authStore, theme, locale | — |
-| Graph viz | react-force-graph-2d | — | LocalGraph в UI |
-| Charts | Recharts 3 | Strategic/lab dashboards | — |
-| Edge | nginx | `/api/auth/` → auth_audit, rest → gateway | Basic auth на Grafana |
-| Observability | Prometheus, Grafana | `/metrics` на всех сервисах | RED-метрики через `shared/metrics` |
-| CI | GitHub Actions | ruff + pytest + vitest | Нет coverage / E2E gate |
-| Eval | `eval/run_eval.py` | 16 gold questions | Markdown/JSON reports |
-
-### Архитектура потоков данных
-
-```mermaid
-flowchart TB
-  subgraph client [Client]
-    UI[React_UI]
-  end
-  subgraph edge [Edge]
-    Nginx[nginx]
-  end
-  subgraph api [API_Layer]
-    GW[gateway_8000]
-    Auth[auth_audit_8001]
-  end
-  subgraph core [Core_Pipeline]
-    Orch[orchestrator_8002]
-    Ingest[ingestion_8003]
-    Know[knowledge_8004]
-    Retr[retrieval_8005]
-    Model[model_8006]
-  end
-  subgraph storage [Storage]
-    PG[(PostgreSQL)]
-    Neo4j[(Neo4j)]
-    Qdrant[(Qdrant)]
-    MinIO[(MinIO)]
-    Redis[(Redis)]
-  end
-  subgraph stubs [Stubs]
-    Export[export_8007]
-    Notif[notification_8008]
-  end
-
-  UI --> Nginx
-  Nginx --> GW
-  Nginx --> Auth
-  GW --> Orch
-  Orch --> Ingest
-  Orch --> Know
-  Orch --> Retr
-  Orch --> Model
-  Ingest --> MinIO
-  Know --> Neo4j
-  Retr --> Qdrant
-  Model --> Redis
-  Auth --> PG
-  Orch --> PG
-  GW --> PG
-  Export -.->|not_wired| Orch
-  Notif -.->|not_wired| Model
-```
-
-Детальный query path: [`query_pipeline.md`](query_pipeline.md).
+| Слой | Технологии | Оценка |
+|------|------------|--------|
+| Backend | Python 3.12, FastAPI, httpx, SQLAlchemy 2 async | Зрелый, единообразный |
+| Validation | Pydantic v2, `shared/contracts` | Контракты централизованы |
+| Graph / Vector | Neo4j 5, Qdrant `st_evidence_v1` | Live adapters |
+| Object storage | MinIO (`source-files`, `exports`) | Ingestion + export artifacts |
+| Auth | RS256 JWT, JWKS, `X-Internal-Service-Token` | User JWT + service-to-service |
+| Frontend | React 19, Vite 7, Tailwind, Zustand | Real API по умолчанию |
+| Edge | nginx → auth_audit / gateway | Basic auth на Grafana |
+| Observability | Prometheus, Grafana, structlog JSON | RED-метрики |
+| CI | ruff, pytest + cov ≥60%, vitest, compose e2e | Обязательный pipeline на PR |
 
 ---
 
@@ -177,108 +113,71 @@ flowchart TB
 
 ---
 
-## 5. MVP vs фактическое состояние
+## 4. MVP vs фактическое состояние
 
-| Требование MVP | Статус | Доказательство |
-|----------------|--------|----------------|
+| Требование MVP | Статус | Комментарий |
+|----------------|--------|-------------|
 | Полный ingestion pipeline | ✅ | orchestrator → ingestion → knowledge → retrieval |
-| NormalizedDocument + SourceSpan | ✅ | shared/contracts, ingestion parsers |
-| Claims в Neo4j | ✅ | Neo4jKnowledgeAdapter |
-| Chunks в Qdrant | ✅ | `st_evidence_v1`, seed_demo |
-| Query IR + hybrid search | ⚠️ | vector + rerank; graph/table/lexical fusion — backlog |
-| Ответ в UI | ✅ | ChatPage, AnswerRenderer |
-| ≥4 официальных вопроса | ⚠️ | eval runner есть; pinned artifact нет |
-| RBAC + access policy | ✅ backend / ⚠️ UI | RoleSwitcher + env auto-login |
-| Audit log | ✅ | auth_audit + orchestrator audit |
-| Export MD/JSON | ✅ MVP via orchestrator/gateway | backend export includes evidence/sources/graph/gaps/conflicts/QueryIR/retrieval_trace; export service reserved boundary |
-| Docker reproducibility | ✅ | compose + Makefile + seed |
+| NormalizedDocument + SourceSpan | ✅ | parsers + MinIO |
+| Claims в Neo4j, chunks в Qdrant | ✅ | live adapters |
+| Query IR + hybrid retrieval + fusion | ✅ | dense + lexical + table + graph |
+| Ответ в UI | ✅ | ChatPage, evidence, LocalGraph |
+| RBAC + access policy | ✅ backend / ⚠️ UI | RoleSwitcher только при `VITE_USE_MOCK=true` |
+| Audit log | ✅ | auth_audit + orchestrator |
+| Export Markdown/JSON/JSON-LD | ✅ | orchestrator → export → MinIO |
+| Export PDF | ❌ | backlog |
+| Docker reproducibility + CI | ✅ | compose, seed, e2e job |
+| ≥4 official questions + quality proof | ⚠️ | dataset и offline gate; live artifact — нет |
+| Post-ingestion notifications | ❌ | conflict events есть; ingestion_complete runtime — нет |
 
-**MVP checklist: ~85% закрыт.**
+**MVP checklist: ~90%.**
 
 ---
 
-## 6. Что доделать (приоритетный backlog)
-
-Без привязки к срокам — всё в текущем цикле разработки.
+## 5. Приоритетный backlog
 
 ### P0 — продуктовые дыры
 
 | # | Задача | Размер |
 |---|--------|--------|
-| 1 | Export service wiring — HTTP API, orchestrator proxy, JSON-LD из model | M |
-| 2 | Notification service wiring — interests CRUD, model `/notifications/match` | M |
-| 3 | Live eval artifact — pin `eval/reports/` на demo corpus | S |
-| 4 | UI source catalog — заменить mock refs на gateway/source API | M |
+| 1 | Runtime `ingestion_complete` / `interest_match` из orchestrator | M |
+| 2 | PDF export (server-side renderer → MinIO) | M |
+| 3 | UI: исключить риск mock sources в prod-сборке (fail-fast или убрать mockAdapter из default bundle) | S |
+| 4 | Pinned live eval artifact на demo corpus | S |
 
-### P1 — качество и доверие
+### P1 — production hardening
 
 | # | Задача | Размер |
 |---|--------|--------|
-| 5 | E2E в CI — compose job: stack health + 1 official question | M |
-| 6 | Access filtering live gate — eval метрика в CI | S |
-| 7 | p50/p95 benchmarks — расширить `scripts/perf_smoke.py` | S |
-| 8 | pytest-cov threshold — минимум 60% на core services | S |
+| 5 | Rate limiting (gateway и/или nginx) | M |
+| 6 | Prod perimeter: TLS, secrets rotation, CORS, WAF decision | M |
+| 7 | Search endpoint parity с hybrid query path | S |
+| 8 | Pre-release checklist (health, seed, official smoke, export, audit) | S |
 
 ### P2 — архитектура и polish
 
 | # | Задача | Размер |
 |---|--------|--------|
-| 9 | Разбить OrchestratorService на runners | L |
-| 10 | Синхронизировать docs при изменениях сервисов | S |
-| 11 | UI auth UX — RoleSwitcher только dev; prod — JWT session | M |
-| 12 | Review console / versioning facts (top-1) | L |
-
-### P3 — опционально
-
-- Server-side PDF export
-- Cloud deploy / HTTPS / submission artifacts
-- Evaluation dashboard UI
+| 9 | Декомпозиция `OrchestratorService` (ingestion/query/export runners) | L |
+| 10 | MinIO purge при delete document | S |
+| 11 | Review console / fact versioning (top-1) | L |
 
 ---
 
-## 7. Тестирование и observability
+## 6. Безопасность
 
-### Backend-тесты
+**Реализовано:** RS256 JWT, JWKS, refresh, RBAC, access filter до synthesis/export, Docker secrets, audit events, **`require_internal_service`** на `export POST /v1/jobs` и `notification /internal/v1/*` (`shared/web/auth.py`, заголовок `X-Internal-Service-Token`, `.env.example` → `INTERNAL_SERVICE_TOKEN`).
 
-| Suite | Тестов |
-|-------|--------|
-| shared | 20 |
-| auth_audit | 35 |
-| gateway | 12 |
-| orchestrator | 14 |
-| ingestion | 13 |
-| knowledge | 20 |
-| retrieval | 14 |
-| model | 31 |
-| export | 2 |
-| notification | 2 |
-| integration | 10 |
-| e2e | 10 |
-| performance | 1 |
-| **Итого** | **184** |
-
-`python scripts/run_tests.py` (2026-07-04): all backend test suites passed.
-
-### Observability
-
-- structlog JSON, Prometheus `/metrics`, Grafana dashboards
-- `X-Request-ID` сквозной; `QueryRun.latency_ms`, `retrieval_trace`
+**Риски:** нет rate limiting; env auto-login в compose для demo; публичный стенд требует отдельного perimeter hardening.
 
 ---
 
-## 8. Безопасность
+## 7. Тестирование и CI
 
-**Реализовано:** RS256 JWT, JWKS, refresh, RBAC, access filter до synthesis, Docker secrets, audit events.
-
-**Риски:** env auto-login (`VITE_AUTH_USERNAME/PASSWORD`), RoleSwitcher в prod UI, admin без persist, нет rate limiting в gateway.
-
----
-
-## 9. Инфраструктура и CI
-
-- Docker Compose: PostgreSQL, Neo4j, Qdrant, MinIO, Redis, 9 backend + UI + nginx + Prometheus + Grafana
-- CI: ruff + pytest (`run_tests.py`) + vitest
-- Gaps: coverage gate, E2E compose job
+- **Backend:** `python scripts/run_tests.py` — suites по всем сервисам + integration + e2e (opt-in локально, **обязателен в CI** с `RUN_E2E=1`).
+- **Coverage:** `COVERAGE_FAIL_UNDER=60` в `.github/workflows/ci.yml`.
+- **UI:** vitest в CI; Playwright offline scenarios в `ui/e2e/`.
+- **Repo audit:** `python scripts/audit_repo.py` → all checks passed.
 
 ---
 
@@ -290,67 +189,26 @@ flowchart TB
 | `domains/notification.md` | `wired` | Актуально |
 | `docs/tz/mvp.md` | Только DoD без статуса | Обновлён чеклист vs код |
 
----
-
-## 11. Матрица зрелости
-
-| Домен | Итог (1–5) |
-|-------|------------|
-| Ingestion | 4 |
-| Knowledge / Neo4j | 4 |
-| Retrieval / Qdrant | 4 |
-| ML / Model | 5 |
-| Auth / Audit | 5 |
-| Gateway / BFF | 4 |
-| Orchestrator | 4 |
-| UI | 3.5 |
-| Export | 2 |
-| Notification | 2 |
-| Ops / Infra | 4 |
-| Tests / CI | 3.5 |
-| Eval / Quality gates | 3 |
-
-```mermaid
-flowchart TB
-  subgraph mature [Зрелое ядро]
-    Auth[auth_audit]
-    Model[model]
-    Orch[orchestrator]
-    Ingest[ingestion]
-    Know[knowledge_Neo4j]
-    Retr[retrieval_Qdrant]
-    GW[gateway]
-  end
-  subgraph partial [Частично]
-    UI[UI_mock_refs]
-    Eval[eval_no_pin]
-    Hybrid[hybrid_retrieval_gaps]
-  end
-  subgraph stubs [Заглушки]
-    Export[export]
-    Notif[notification]
-  end
-  UI --> GW
-  GW --> Orch
-  Orch --> Ingest
-  Orch --> Know
-  Orch --> Retr
-  Orch --> Model
-  Export -.->|not_wired| Orch
-  Notif -.->|not_wired| Model
-```
+| Было в docs | Факт в коде (2026-07-04) |
+|-------------|--------------------------|
+| Internal endpoints export/notification без auth | **Закрыто:** `Depends(require_internal_service)` |
+| Export microservice «только health» | **Устарело:** полный job API + MinIO |
+| Notification microservice «заглушка» | **Устарело:** владеет `notification_db`, CRUD + internal events |
+| UI: 10 компонентов импортируют `api/mock/` | **Устарело:** mock catalog только в `sourceResolver/mockAdapter.js` (dev/mock path) |
+| CI без coverage / e2e | **Устарело:** coverage ≥60%, compose e2e job |
 
 ---
 
-## 12. Связанные документы
+## 9. Связанные документы
 
 | Документ | Назначение |
 |----------|------------|
-| [`query_pipeline.md`](query_pipeline.md) | Полный пайплайн запроса user → answer |
-| [`docs/tz/mvp.md`](../tz/mvp.md) | Definition of Done MVP |
+| [`feature_readiness_matrix.md`](feature_readiness_matrix.md) | Детальная матрица фич и MVP 100% план |
+| [`mvp.md`](../tz/mvp.md) | Definition of Done MVP |
 | [`audit_report.md`](audit_report.md) | P0/P1 аудит репозитория |
 | [`ml_mvp_status.md`](ml_mvp_status.md) | Статус ML MVP |
-| [`docs/02_architecture.md`](../02_architecture.md) | Архитектурная карта |
+| [`prod_readiness_gap_analysis.md`](prod_readiness_gap_analysis.md) | Production gaps |
+| [`domains/`](domains/) | Контекст по сервисам |
 
 ---
 
@@ -358,16 +216,10 @@ flowchart TB
 
 ```
 python scripts/audit_repo.py          → all checks passed
-python scripts/run_tests.py           → all backend test suites passed
-ruff check                            → 7 fixable import errors
-pytest --collect-only                 → 184 tests
-Alembic migrations                    → 13 files
-shared/contracts Pydantic classes     → 53
-model v1 HTTP endpoints               → 13
-knowledge graph HTTP endpoints        → 15
-orchestrator service.py lines         → 940
-UI pages                              → 15
-UI vitest files                       → 15
-eval gold questions                   → 16 (4 official MVP)
-UI files importing api/mock           → 10
+.github/workflows/ci.yml              → ruff, pytest cov≥60%, vitest, compose e2e
+orchestrator app/service/service.py   → ~1240 строк
+export formats                        → markdown, json, jsonld (pdf — нет)
+INTERNAL_SERVICE_TOKEN                → shared/web/auth.py, .env.example
+UI default                            → VITE_USE_MOCK=false (docker-compose, vite.config)
+sourceResolver                        → liveAdapter при !useMock; mockAdapter при VITE_USE_MOCK=true
 ```

@@ -5,7 +5,12 @@ from fastapi import FastAPI
 from infra.postgres.auth_audit_db import AuthRepository, create_database
 from shared.contracts import ApiError
 from shared.metrics import build_metrics_router, setup_metrics
-from shared.web import install_error_handlers, request_id_middleware
+from shared.web import (
+    RateLimitRule,
+    install_error_handlers,
+    install_rate_limit_middleware,
+    request_id_middleware,
+)
 
 from ..core.audit import AuthAuditSink, LoggingAuthAuditSink
 from ..core.config import Settings
@@ -32,6 +37,9 @@ def create_app(
             app.state.engine = engine
             app.state.session_factory = session_factory
         yield
+        rate_limiter = getattr(app.state, "rate_limiter", None)
+        if rate_limiter is not None:
+            await rate_limiter.aclose()
         if repository is None:
             await app.state.engine.dispose()
 
@@ -53,6 +61,32 @@ def create_app(
     app.state.key_store = key_store
     app.state.password_manager = password_manager
     app.state.token_manager = token_manager
+    install_rate_limit_middleware(
+        app,
+        enabled=resolved_settings.rate_limit_enabled,
+        redis_url=resolved_settings.redis_url,
+        service_name=resolved_settings.service_name,
+        rules=(
+            RateLimitRule(
+                name="auth_sensitive",
+                limit=resolved_settings.rate_limit_auth_per_minute,
+                path_prefixes=(
+                    "/api/auth/login",
+                    "/api/auth/register",
+                    "/api/auth/refresh",
+                ),
+                methods=("POST",),
+            ),
+            RateLimitRule(
+                name="auth_default",
+                limit=resolved_settings.rate_limit_default_per_minute,
+                path_prefixes=("/api/auth/",),
+            ),
+        ),
+        excluded_paths=("/health", "/ready", "/metrics", "/.well-known/jwks.json"),
+        trust_proxy_headers=resolved_settings.rate_limit_trust_proxy_headers,
+        use_redis=resolved_settings.rate_limit_use_redis,
+    )
     app.middleware("http")(request_id_middleware)
     setup_metrics(app, resolved_settings.service_name)
     install_error_handlers(app)
