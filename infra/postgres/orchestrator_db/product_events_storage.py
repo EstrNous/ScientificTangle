@@ -97,34 +97,34 @@ class ProductEventsStorageRepository:
         *,
         mark_completed: bool = True,
     ) -> list[ExportArtifact]:
-        async with self._session.begin():
-            job = await self._session.get(ExportJob, export_job_id)
-            if job is None:
-                raise KeyError(str(export_job_id))
-            rows: list[ExportArtifact] = []
-            now = datetime.now(UTC)
-            for item in artifacts:
-                expires_at = now + timedelta(days=item.retention_days)
-                row = ExportArtifact(
-                    id=uuid4(),
-                    export_job_id=export_job_id,
-                    artifact_kind=item.artifact_kind,
-                    bucket_name=item.bucket_name,
-                    storage_key=item.storage_key,
-                    file_url=item.file_url,
-                    content_type=item.content_type,
-                    byte_size=item.byte_size,
-                    expires_at=expires_at,
-                    checksum=item.checksum,
-                )
-                self._session.add(row)
-                rows.append(row)
-            if mark_completed:
-                job.status = ExportJobStatus.COMPLETED.value
-                job.completed_at = now
-                job.updated_at = now
-                if rows and rows[0].file_url:
-                    job.file_url = rows[0].file_url
+        job = await self._session.get(ExportJob, export_job_id)
+        if job is None:
+            raise KeyError(str(export_job_id))
+        rows: list[ExportArtifact] = []
+        now = datetime.now(UTC)
+        for item in artifacts:
+            expires_at = now + timedelta(days=item.retention_days)
+            row = ExportArtifact(
+                id=uuid4(),
+                export_job_id=export_job_id,
+                artifact_kind=item.artifact_kind,
+                bucket_name=item.bucket_name,
+                storage_key=item.storage_key,
+                file_url=item.file_url,
+                content_type=item.content_type,
+                byte_size=item.byte_size,
+                expires_at=expires_at,
+                checksum=item.checksum,
+            )
+            self._session.add(row)
+            rows.append(row)
+        if mark_completed:
+            job.status = ExportJobStatus.COMPLETED.value
+            job.completed_at = now
+            job.updated_at = now
+            if rows and rows[0].file_url:
+                job.file_url = rows[0].file_url
+            await self._session.commit()
         for row in rows:
             await self._session.refresh(row)
         return rows

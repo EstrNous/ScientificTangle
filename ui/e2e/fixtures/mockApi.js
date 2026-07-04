@@ -274,6 +274,21 @@ export async function installProductionApiMocks(page) {
       return;
     }
 
+    if (routeMatch(url, '/api/dictionaries/upload') && method === 'POST') {
+      state.notifications.unshift({
+        id: `notif-dict-upload-${Date.now()}`,
+        type: 'ingestion_complete',
+        title: 'Обработка словаря завершена',
+        reason: 'Словарь загружен.',
+        reference_type: 'ingestion_task',
+        reference_id: state.uploadTask.id,
+        read: false,
+        created_at: new Date().toISOString(),
+      });
+      await route.fulfill(json({ id: state.uploadTask.id }));
+      return;
+    }
+
     if (url.includes('/api/tasks/') && method === 'GET') {
       await route.fulfill(json(state.uploadTask));
       return;

@@ -113,6 +113,30 @@ def test_analytics_service_falls_back_to_gold_questions(monkeypatch, tmp_path: P
     asyncio.run(run())
 
 
+def test_analytics_service_returns_empty_when_eval_files_missing(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    async def run() -> None:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(404))) as client:
+            payload = await AnalyticsService(client).get_strategic_evaluation()
+            assert payload.questions == []
+            assert payload.summary.avg_citation_coverage == 0.0
+
+    asyncio.run(run())
+
+
+def test_get_eval_report_summary_blocked_when_missing(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    async def run() -> None:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(404))) as client:
+            payload = await AnalyticsService(client).get_eval_report_summary()
+            assert payload.status == "blocked_by_data"
+            assert "eval/reports/latest.json is not available" in payload.warnings
+
+    asyncio.run(run())
+
+
 def test_analytics_service_builds_lab_coverage_from_gaps() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path.endswith("/v1/graph/gaps"):
