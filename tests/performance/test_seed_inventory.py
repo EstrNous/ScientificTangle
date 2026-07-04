@@ -1,7 +1,7 @@
 from scripts.seed_inventory import (
+    StoreStatus,
     compute_fixture_expectations,
     validate_offline_counts,
-    StoreStatus,
 )
 
 
