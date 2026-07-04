@@ -152,6 +152,121 @@ env_value() {
   grep -m1 "^${1}=" "$ROOT_DIR/.env" | cut -d= -f2- || true
 }
 
+sql_escape_literal() {
+  printf "%s" "$1" | sed "s/'/''/g"
+}
+
+compose_container_id() {
+  docker compose "${COMPOSE_FILES[@]}" ps -q "$1" 2>/dev/null | head -1
+}
+
+container_config_env() {
+  local service="$1"
+  local key="$2"
+  local container_id
+  container_id="$(compose_container_id "$service")"
+  if [[ -z "$container_id" ]]; then
+    return 1
+  fi
+  docker inspect "$container_id" --format '{{range .Config.Env}}{{println .}}{{end}}' \
+    | grep -m1 "^${key}=" | cut -d= -f2- || true
+}
+
+auth_env_mismatches() {
+  local key expected actual found=0
+  for key in AUTH_ALLOWED_ORIGINS AUTH_DATABASE_URL; do
+    expected="$(env_value "$key")"
+    if [[ -z "$expected" ]]; then
+      continue
+    fi
+    actual="$(container_config_env auth_audit "$key")"
+    if [[ "$actual" != "$expected" ]]; then
+      found=1
+      printf '%s: expected=%s actual=%s\n' "$key" "$expected" "${actual:-<unset>}"
+    fi
+  done
+  return $((found == 0 ? 0 : 1))
+}
+
+verify_postgres_tcp() {
+  local password
+  password="$(env_value POSTGRES_PASSWORD)"
+  if [[ -z "$password" ]]; then
+    return 0
+  fi
+  docker compose "${COMPOSE_FILES[@]}" exec -T -e PGPASSWORD="$password" postgres \
+    psql -h 127.0.0.1 -U st_user -d scientific_tangle -tAc 'SELECT 1' >/dev/null 2>&1
+}
+
+fix_postgres_password_from_env() {
+  local password escaped
+  password="$(env_value POSTGRES_PASSWORD)"
+  if [[ -z "$password" ]]; then
+    return 1
+  fi
+  escaped="$(sql_escape_literal "$password")"
+  docker compose "${COMPOSE_FILES[@]}" exec -T postgres \
+    psql -U st_user -d scientific_tangle -v ON_ERROR_STOP=1 \
+    -c "ALTER USER st_user WITH PASSWORD '${escaped}';" >/dev/null
+}
+
+ensure_postgres_credentials() {
+  if verify_postgres_tcp; then
+    log "PostgreSQL password matches .env (TCP check OK)"
+    return 0
+  fi
+
+  log "PostgreSQL TCP auth failed — syncing st_user password to .env"
+  if ! fix_postgres_password_from_env; then
+    cat >&2 <<'EOF'
+Не удалось выровнять пароль PostgreSQL под .env.
+
+Проверьте вручную:
+  grep '^POSTGRES_PASSWORD=' .env
+  docker compose ... exec -T -e PGPASSWORD=... postgres psql -h 127.0.0.1 -U st_user -d scientific_tangle -c 'SELECT 1'
+
+Если volume не нужен: docker compose ... down -v
+EOF
+    exit 1
+  fi
+
+  if ! verify_postgres_tcp; then
+    echo "PostgreSQL password still mismatched after ALTER USER" >&2
+    exit 1
+  fi
+  log "PostgreSQL password updated to match .env"
+}
+
+sync_auth_facing_services() {
+  local auth_services=(auth_audit orchestrator gateway nginx)
+  local attempt details
+
+  for attempt in 1 2; do
+    if [[ "$attempt" -eq 1 ]]; then
+      log "Applying .env to auth-facing services (force-recreate)"
+    else
+      log "Retry: force-recreate auth-facing services"
+    fi
+    docker compose "${COMPOSE_FILES[@]}" up -d --force-recreate "${auth_services[@]}"
+    docker compose "${COMPOSE_FILES[@]}" up -d --wait --wait-timeout "$WAIT_TIMEOUT" "${auth_services[@]}"
+
+    if auth_env_mismatches; then
+      log "auth_audit env matches .env (AUTH_ALLOWED_ORIGINS, AUTH_DATABASE_URL)"
+      return 0
+    fi
+
+    details="$(auth_env_mismatches 2>&1 || true)"
+    log "auth_audit env mismatch:"
+    while IFS= read -r line; do
+      [[ -n "$line" ]] && log "  $line"
+    done <<< "$details"
+  done
+
+  echo "auth_audit env still mismatched after recreate" >&2
+  auth_env_mismatches >&2 || true
+  exit 1
+}
+
 require_yandex_for_demo() {
   local key folder
   key="$(env_value YANDEX_API_KEY)"
@@ -273,6 +388,9 @@ docker compose "${COMPOSE_FILES[@]}" build
 log "Starting stack (timeout ${WAIT_TIMEOUT}s)"
 docker compose "${COMPOSE_FILES[@]}" up -d --wait --wait-timeout "$WAIT_TIMEOUT"
 
+ensure_postgres_credentials
+sync_auth_facing_services
+
 if [[ "$WITH_DEMO" -eq 1 ]]; then
   log "Recreating model service to apply Yandex credentials"
   docker compose "${COMPOSE_FILES[@]}" up -d --force-recreate model
@@ -294,10 +412,12 @@ if [[ "$WITH_DEMO" -eq 1 ]]; then
     python3 eval/yandex_disk_corpus.py --output-dir "$CORPUS_DIR"
   fi
   log "Seeding demo corpus (offline, via gateway)"
+  ADMIN_PASSWORD="$(env_value AUTH_SEED_ADMIN_PASSWORD)"
+  ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin12345}"
   python3 scripts/seed_demo.py \
     --api-url "http://127.0.0.1/api" \
     --username admin \
-    --password admin12345
+    --password "$ADMIN_PASSWORD"
 fi
 
 PUBLIC_URL="$(env_value PUBLIC_URL)"
