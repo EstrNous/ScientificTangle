@@ -17,7 +17,9 @@ import RegisterPage from '../pages/RegisterPage.jsx';
 import LoginPage from '../pages/LoginPage.jsx';
 import ForgotPasswordPage from '../pages/ForgotPasswordPage.jsx';
 import ProfilePage from '../pages/ProfilePage.jsx';
+import ReviewConsolePage from '../pages/ReviewConsolePage.jsx';
 import RoleRoute from '../components/shared/RoleRoute.jsx';
+import ReviewConsoleGate from '../components/review/ReviewConsoleGate.jsx';
 
 export const routes = [
   {
@@ -134,6 +136,16 @@ export const routes = [
           <RoleRoute paths={['profile']}>
             <ProfilePage />
           </RoleRoute>
+        ),
+      },
+      {
+        path: '/review',
+        element: (
+          <ReviewConsoleGate>
+            <RoleRoute paths={['review']}>
+              <ReviewConsolePage />
+            </RoleRoute>
+          </ReviewConsoleGate>
         ),
       },
       { path: '*', element: <Navigate to="/chat" replace /> },

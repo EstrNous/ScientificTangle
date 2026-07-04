@@ -20,6 +20,19 @@ describe('sourceResolver mockAdapter', () => {
     );
     expect(sources).toContain('span-1');
   });
+
+  it('resolves offset highlights for review spans', () => {
+    const resolved = mockAdapter.resolveSourceRef('span-101');
+    const pages = mockAdapter.getDocumentViewPages(resolved);
+    const cited = pages.find((page) => page.isCited);
+    expect(cited?.highlightStart).toBe(11);
+    expect(cited?.highlightEnd).toBe(16);
+  });
+
+  it('returns locked document for restricted span', async () => {
+    const document = await mockAdapter.fetchSourceDocument('span-locked');
+    expect(document?.accessDenied).toBe(true);
+  });
 });
 
 describe('sourceResolver liveAdapter', () => {

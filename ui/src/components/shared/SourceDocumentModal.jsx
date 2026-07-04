@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import SourceDocumentPanel from './SourceDocumentPanel.jsx';
+import SourceLockedPanel from './SourceLockedPanel.jsx';
 
-export default function SourceDocumentModal({ open, source, onClose }) {
+export default function SourceDocumentModal({ open, source, locked = false, onClose }) {
   const { t } = useTranslation();
 
   useEffect(() => {
@@ -15,6 +16,8 @@ export default function SourceDocumentModal({ open, source, onClose }) {
   }, [open, onClose]);
 
   if (!open || !source) return null;
+
+  const isLocked = locked || source.locked || source.accessDenied;
 
   return (
     <div className="fixed inset-0 z-50 flex items-stretch justify-center p-3 sm:items-center sm:p-6">
@@ -40,7 +43,7 @@ export default function SourceDocumentModal({ open, source, onClose }) {
           </button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
-          <SourceDocumentPanel source={source} />
+          {isLocked ? <SourceLockedPanel sourceId={source.id} /> : <SourceDocumentPanel source={source} />}
         </div>
       </div>
     </div>

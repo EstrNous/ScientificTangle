@@ -14,6 +14,14 @@ import {
 async function fetchSourceDocument(ref) {
   const resolved = resolveSourceRef(ref);
   if (!resolved) return null;
+  if (resolved.access_denied || resolved.locked) {
+    return {
+      id: resolved.id,
+      title: resolved.title,
+      locked: true,
+      accessDenied: true,
+    };
+  }
   return mergeSourceSpan(resolved);
 }
 

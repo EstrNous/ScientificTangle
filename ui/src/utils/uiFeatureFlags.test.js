@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   isLiveNotificationsEnabled,
+  isReviewActionsEnabled,
   isReviewConsoleEnabled,
   isServerExportEnabled,
   isSourceLiveModeEnabled,
@@ -33,6 +34,14 @@ describe('uiFeatureFlags', () => {
     expect(isServerExportEnabled()).toBe(false);
     expect(isLiveNotificationsEnabled()).toBe(false);
     expect(isReviewConsoleEnabled()).toBe(false);
+    expect(isReviewActionsEnabled()).toBe(false);
     expect(isSourceLiveModeEnabled()).toBe(true);
+  });
+
+  it('enables review actions only in mock mode', async () => {
+    vi.doMock('../api/client.js', () => ({ useMock: true }));
+    vi.resetModules();
+    const flags = await import('../utils/uiFeatureFlags.js');
+    expect(flags.isReviewActionsEnabled()).toBe(true);
   });
 });

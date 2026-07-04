@@ -9,10 +9,10 @@ export const ROLES = {
 };
 
 const ROLE_PAGES = {
-  [ROLES.DIRECTOR]: ['chat', 'graph', 'strategic', 'lab', 'admin', 'upload', 'search', 'profile'],
-  [ROLES.RESEARCHER]: ['chat', 'graph', 'lab', 'upload', 'search', 'profile'],
-  [ROLES.ANALYST]: ['chat', 'graph', 'lab', 'upload', 'search', 'profile'],
-  [ROLES.ADMIN]: ['admin', 'upload', 'profile'],
+  [ROLES.DIRECTOR]: ['chat', 'graph', 'strategic', 'lab', 'admin', 'upload', 'search', 'profile', 'review'],
+  [ROLES.RESEARCHER]: ['chat', 'graph', 'lab', 'upload', 'search', 'profile', 'review'],
+  [ROLES.ANALYST]: ['chat', 'graph', 'lab', 'upload', 'search', 'profile', 'review'],
+  [ROLES.ADMIN]: ['admin', 'upload', 'profile', 'review'],
   [ROLES.EXTERNAL_PARTNER]: ['chat', 'profile'],
 };
 
