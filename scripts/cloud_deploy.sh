@@ -214,6 +214,36 @@ compose() {
   docker_cli compose "${COMPOSE_FILES[@]}" "$@"
 }
 
+edge_curl() {
+  local url="$1"
+  if [[ "$HTTPS" -eq 1 ]]; then
+    curl -fsSk -o /dev/null -w '%{http_code}' "$url" 2>/dev/null || echo "000"
+  else
+    curl -fsS -o /dev/null -w '%{http_code}' "$url" 2>/dev/null || echo "000"
+  fi
+}
+
+check_public_perimeter() {
+  local base_url="$1"
+  local code
+  log "Public perimeter check"
+  code="$(edge_curl "${base_url}/api/health")"
+  if [[ "$code" != "200" ]]; then
+    echo "Perimeter check failed: ${base_url}/api/health returned ${code}, expected 200" >&2
+    exit 1
+  fi
+  code="$(edge_curl "${base_url}/model/v1/status")"
+  if [[ "$code" != "404" ]]; then
+    echo "Perimeter check failed: ${base_url}/model/v1/status returned ${code}, expected 404" >&2
+    exit 1
+  fi
+  code="$(edge_curl "${base_url}/retrieval/health")"
+  if [[ "$code" != "404" ]]; then
+    echo "Perimeter check failed: ${base_url}/retrieval/health returned ${code}, expected 404" >&2
+    exit 1
+  fi
+}
+
 detect_docker_access() {
   if docker info >/dev/null 2>&1; then
     DOCKER_CMD=(docker)
@@ -363,6 +393,13 @@ for attempt in $(seq 1 30); do
   fi
 done
 
+check_public_perimeter "${PUBLIC_URL}"
+
+if [[ -x "$ROOT_DIR/scripts/cloud_verify.sh" ]]; then
+  log "Running cloud verify (critical checks)"
+  bash "$ROOT_DIR/scripts/cloud_verify.sh" --base-url "${PUBLIC_URL}" --skip-search
+fi
+
 cat <<EOF
 
 ================================================================
@@ -377,6 +414,7 @@ ScientificTangle cloud deploy: SUCCESS
 Полезные команды:
   docker compose ${COMPOSE_FILES[*]} ps
   docker compose ${COMPOSE_FILES[*]} logs -f nginx gateway
+  ./scripts/cloud_verify.sh --base-url ${PUBLIC_URL}
   make cloud-down
 
 ================================================================
