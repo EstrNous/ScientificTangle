@@ -6,7 +6,7 @@ from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from config import settings
-from models import Notification, UserInterest
+from models import ExtractedEntity, Notification, UserInterest
 
 DEMO_USERNAME = "researcher"
 
@@ -15,6 +15,7 @@ DEMO_NOTIFICATIONS = (
         "type": "interest_match",
         "message": "Совпадение с подпиской: никель, католит",
         "reference_id": "nickel_report.pdf",
+        "reference_type": "document",
         "is_read": False,
         "created_at": datetime.now(UTC) - timedelta(hours=2),
     },
@@ -22,6 +23,7 @@ DEMO_NOTIFICATIONS = (
         "type": "ingestion_complete",
         "message": "Извлечено 24 сущности, 3 новых для графа знаний",
         "reference_id": "hydromet_2024.pdf",
+        "reference_type": "document",
         "is_read": False,
         "created_at": datetime.now(UTC) - timedelta(days=1),
     },
@@ -29,6 +31,7 @@ DEMO_NOTIFICATIONS = (
         "type": "conflict_detected",
         "message": "Источники A и B дают разные диапазоны pH католита: 4.2–4.8 и 5.0–5.4",
         "reference_id": None,
+        "reference_type": None,
         "is_read": False,
         "created_at": datetime.now(UTC) - timedelta(days=1, hours=6),
     },
@@ -36,6 +39,7 @@ DEMO_NOTIFICATIONS = (
         "type": "interest_match",
         "message": "Совпадение с подпиской: очистка воды, сорбция",
         "reference_id": "water_treatment_review.pdf",
+        "reference_type": "document",
         "is_read": True,
         "created_at": datetime.now(UTC) - timedelta(days=2),
     },
@@ -69,13 +73,27 @@ async def seed_notifications(username: str = DEMO_USERNAME) -> None:
 
         interest = await session.scalar(select(UserInterest).where(UserInterest.user_id == user_id))
         if interest is None:
-            session.add(
-                UserInterest(
-                    user_id=user_id,
-                    raw_text="Интересуюсь процессами электроэкстракции и очистки воды",
-                    extracted_entities={"topics": ["электроэкстракция", "очистка воды", "никель"]},
-                )
+            interest = UserInterest(
+                user_id=user_id,
+                raw_text="Интересуюсь процессами электроэкстракции и очистки воды",
+                extracted_entities={"topics": ["электроэкстракция", "очистка воды", "никель"]},
             )
+            session.add(interest)
+            await session.flush()
+            for label, entity_type in (
+                ("электроэкстракция", "topic"),
+                ("очистка воды", "topic"),
+                ("никель", "material"),
+            ):
+                session.add(
+                    ExtractedEntity(
+                        user_interest_id=interest.id,
+                        user_id=user_id,
+                        entity_label=label,
+                        entity_type=entity_type,
+                        confidence=0.9,
+                    )
+                )
 
         for item in DEMO_NOTIFICATIONS:
             session.add(Notification(user_id=user_id, **item))

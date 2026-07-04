@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PostgreSQLUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -125,6 +125,8 @@ class AuditEvent(Base):
         Index("ix_audit_events_user_id", "user_id"),
         Index("ix_audit_events_action", "action"),
         Index("ix_audit_events_created_at", "created_at"),
+        Index("ix_audit_events_user_created_id", "user_id", "created_at", "id"),
+        Index("ix_audit_events_resource_type", "resource_type"),
     )
 
     id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4)
@@ -139,6 +141,83 @@ class AuditEvent(Base):
     )
 
 
+class DocumentDeletionStatus(StrEnum):
+    NONE = "none"
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+class ReviewDecisionStatus(StrEnum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+    DEFERRED = "deferred"
+
+
+class IndexedDocument(Base):
+    __tablename__ = "indexed_documents"
+    __table_args__ = (
+        Index("ix_indexed_documents_task_id", "task_id"),
+        Index("ix_indexed_documents_access_level", "access_level"),
+        Index("ix_indexed_documents_deletion_status", "deletion_status"),
+        Index("ix_indexed_documents_deleted_at", "deleted_at"),
+    )
+
+    document_id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    task_id: Mapped[UUID | None] = mapped_column(PostgreSQLUUID(as_uuid=True))
+    title: Mapped[str] = mapped_column(String(512), nullable=False)
+    source_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    source_spans_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    indexed_points_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    access_level: Mapped[str] = mapped_column(String(32), nullable=False)
+    metadata_: Mapped[dict] = mapped_column("metadata", JSONB, nullable=False, server_default="{}")
+    deletion_status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=DocumentDeletionStatus.NONE.value
+    )
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    tombstone_reason: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
+class ReviewDecision(Base):
+    __tablename__ = "review_decisions"
+    __table_args__ = (
+        Index("ix_review_decisions_status", "status"),
+        Index("ix_review_decisions_candidate_type", "candidate_type"),
+        Index("ix_review_decisions_document_id", "document_id"),
+        Index("ix_review_decisions_source_span_id", "source_span_id"),
+        Index("ix_review_decisions_decided_at", "decided_at"),
+        Index("ix_review_decisions_reviewer_user_id", "reviewer_user_id"),
+        Index("ix_review_decisions_status_decided_at", "status", "decided_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4)
+    candidate_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    candidate_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=ReviewDecisionStatus.PENDING.value
+    )
+    reviewer_user_id: Mapped[UUID | None] = mapped_column(PostgreSQLUUID(as_uuid=True))
+    document_id: Mapped[str | None] = mapped_column(String(128))
+    source_span_id: Mapped[str | None] = mapped_column(String(128))
+    claim_id: Mapped[str | None] = mapped_column(String(128))
+    comment: Mapped[str | None] = mapped_column(Text)
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
 class ExportJob(Base):
     __tablename__ = "export_jobs"
     __table_args__ = (
@@ -146,6 +225,7 @@ class ExportJob(Base):
         Index("ix_export_jobs_query_run_id", "query_run_id"),
         Index("ix_export_jobs_status", "status"),
         Index("ix_export_jobs_created_at", "created_at"),
+        Index("ix_export_jobs_user_status_created", "user_id", "status", "created_at"),
     )
 
     id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4)
@@ -161,4 +241,26 @@ class ExportJob(Base):
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+
+class ExportArtifact(Base):
+    __tablename__ = "export_artifacts"
+    __table_args__ = (
+        Index("ix_export_artifacts_export_job_id", "export_job_id"),
+        Index("ix_export_artifacts_artifact_kind", "artifact_kind"),
+    )
+
+    id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4)
+    export_job_id: Mapped[UUID] = mapped_column(
+        PostgreSQLUUID(as_uuid=True),
+        ForeignKey("export_jobs.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    artifact_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    storage_key: Mapped[str | None] = mapped_column(String(512))
+    file_url: Mapped[str | None] = mapped_column(String(1024))
+    content_type: Mapped[str | None] = mapped_column(String(128))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )

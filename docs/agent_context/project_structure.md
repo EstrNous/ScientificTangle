@@ -229,12 +229,13 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 
 База данных оркестратора (база `scientific_tangle`, таблица версий `alembic_version_orchestrator`). Управление задачами ингеста, запусками запросов и экспортом.
 
-- `models.py` — модели: `IngestionTask`, `QueryRun`, `ExportJob`.
+- `models.py` — модели: `IngestionTask`, `QueryRun`, `ExportJob`, `ExportArtifact`, `IndexedDocument`, `ReviewDecision`, `AuditEvent`, RBAC-таблицы.
 - `repository.py` — `IngestionTaskRepository` (create/get/set_report/mark_failed).
 - `database.py` — `create_database()`, `get_session()`.
 - `config.py` — `OrchestratorDbSettings` (env prefix `ORCHESTRATOR_`).
 - Alembic: `services/orchestrator/alembic.ini`, миграции в `services/orchestrator/storage/versions/` (`0001` — ingestion_tasks, `0002` — query_runs/export_jobs, `0003` — совместимость query_runs с прежним init SQL, `0004` — полный сохраняемый результат query run).
 - `0007_add_dictionary_pinning.py` добавляет тип ingestion-задачи и закреплённую версию справочника для задач и query run.
+- `0008_add_core_storage_foundation.py` — `review_decisions`, `export_artifacts`, tombstone `indexed_documents`, cursor-индексы audit/export.
 
 ### infra/postgres/chat_ui_db/
 
@@ -251,12 +252,13 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 
 База данных уведомлений (база `notification_db`). Профили интересов пользователей и уведомления.
 
-- `models.py` — модели: `UserInterest` (unique index на user_id), `Notification` (index на is_read). JSONB для extracted_entities.
+- `models.py` — модели: `UserInterest`, `Notification`, `ExtractedEntity`, `NotificationMatchResult`. JSONB для extracted_entities и match_payload.
 - `database.py` — фабрика `create_database()` (async engine + sessionmaker).
 - `config.py` — `NotificationDbSettings` (env prefix `NOTIFICATION_`).
 - `alembic.ini` — конфигурация Alembic, `script_location = storage`.
 - `storage/env.py` — окружение Alembic (async engine from config).
 - `storage/versions/0001_create_notification_tables.py` — стартовая миграция.
+- `storage/versions/0002_add_core_notification_storage.py` — `reference_type`, `extracted_entities`, `notification_match_results`, индексы poll/unread.
 
 ### services/gateway/
 
