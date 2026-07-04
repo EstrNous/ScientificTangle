@@ -309,18 +309,22 @@ Offline DB fixtures для user workflows E3 (`workflow_state.json`).
 - `storage/env.py` — окружение Alembic (async engine from config).
 - `storage/versions/0001_create_notification_tables.py` — стартовая миграция.
 - `storage/versions/0002_add_core_notification_storage.py` — `reference_type`, `extracted_entities`, `notification_match_results`, индексы poll/unread.
+- `storage/versions/0005_add_notification_dedup_index.py` — dedup `(user_id, type, reference_id)`.
 
 Миграции Alembic запускаются при старте `services/notification` (не gateway).
 
 ### services/notification/
 
-Владелец `notification_db`: interests CRUD, notification list/read, internal events и interest matching через model. JWT через JWKS; gateway проксирует user-facing API.
+Владелец `notification_db`: interests CRUD, notification list/read, internal events, interest matching, Redis pub/sub delivery worker. JWT через JWKS; gateway проксирует user-facing API.
 
-- `app/api/factory.py` — lifespan, DB, JWKS, httpx client.
+- `app/api/factory.py` — lifespan, DB, JWKS, httpx, Redis bus, delivery worker.
 - `app/api/interests.py`, `app/api/notifications.py` — продуктовые routes.
 - `app/api/events.py` — `POST /internal/v1/events`, `POST /internal/v1/match`.
-- `app/service/notification_service.py`, `app/service/matching_service.py` — бизнес-логика.
+- `app/service/notification_service.py`, `matching_service.py` — бизнес-логика.
+- `app/service/redis_bus.py`, `delivery_worker.py`, `delivery_handler.py` — Redis pub/sub.
 - `Dockerfile` — COPY `infra/postgres/notification_db`, Alembic upgrade на старте.
+
+Статус и контракты: `docs/agent_context/domains/notification.md`.
 
 ### services/gateway/
 

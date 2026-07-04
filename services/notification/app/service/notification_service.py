@@ -50,12 +50,20 @@ class NotificationService:
         self,
         principal: AuthenticatedPrincipal,
         since: datetime | None = None,
+        cursor: str | None = None,
     ) -> NotificationListPayload:
-        notes = await self._repository.get_user_notifications(principal.user_id, since=since)
+        notes, next_cursor = await self._repository.list_user_notifications(
+            principal.user_id,
+            since=since,
+            cursor=cursor,
+            limit=settings.notification_list_limit,
+        )
         items = [self._payload(note) for note in notes]
+        unread_count = await self._repository.count_unread(principal.user_id)
         return NotificationListPayload(
             items=items,
-            unread_count=sum(1 for item in items if not item.read),
+            unread_count=unread_count,
+            next_cursor=next_cursor,
         )
 
     async def mark_read(

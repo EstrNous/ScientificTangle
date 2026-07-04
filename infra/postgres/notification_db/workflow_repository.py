@@ -119,6 +119,34 @@ class NotificationWorkflowRepository:
         reference_type: str | None,
         match: NotificationMatchInput,
     ) -> tuple[Notification, NotificationMatchResult]:
+        if reference_id:
+            existing = await self._session.scalar(
+                select(Notification).where(
+                    Notification.user_id == user_id,
+                    Notification.type == type,
+                    Notification.reference_id == reference_id,
+                )
+            )
+            if existing is not None:
+                match_row = await self._session.scalar(
+                    select(NotificationMatchResult)
+                    .where(NotificationMatchResult.notification_id == existing.id)
+                    .order_by(NotificationMatchResult.created_at.desc())
+                )
+                if match_row is None:
+                    match_row = NotificationMatchResult(
+                        id=uuid4(),
+                        user_id=user_id,
+                        notification_id=existing.id,
+                        reference_id=match.reference_id,
+                        reference_type=match.reference_type,
+                        match_score=match.match_score,
+                        match_payload=match.match_payload,
+                    )
+                    self._session.add(match_row)
+                    await self._session.commit()
+                    await self._session.refresh(match_row)
+                return existing, match_row
         async with self._session.begin():
             notification = Notification(
                 id=uuid4(),

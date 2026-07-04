@@ -11,8 +11,8 @@
 | knowledge | `knowledge.md` | 4 — Neo4j live |
 | retrieval | `retrieval.md` | 4 — hybrid live; quality-report gap |
 | model | `model.md` | 5 — 13 v1 endpoints |
-| export | `export.md` | 4 — MD/JSON/JSON-LD; PDF backlog |
-| notification | `notification.md` | 4 — wired; post-ingestion delivery backlog |
+| export | `export.md` | 2 — stub HTTP |
+| notification | `notification.md` | 5 — wired HTTP, runtime delivery, Redis worker |
 
 **Сводка vs ТЗ:** [`implementation_quality_report.md`](../implementation_quality_report.md)  
 **ML статус:** [`ml_mvp_status.md`](../ml_mvp_status.md)  

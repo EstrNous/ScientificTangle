@@ -12,6 +12,7 @@ class Settings(ServiceSettings):
     retrieval_url: str = "http://retrieval:8005"
     model_url: str = "http://model:8006"
     export_url: str = "http://export:8007"
+    notification_url: str = "http://notification:8008"
     auth_jwt_issuer: str = "scientific-tangle-auth"
     auth_jwt_audience: str = "scientific-tangle-api"
     auth_jwks_cache_seconds: int = 300

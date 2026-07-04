@@ -25,6 +25,7 @@ def get_orchestrator_service(
         retrieval_url=settings.retrieval_url,
         model_url=settings.model_url,
         export_url=settings.export_url,
+        notification_url=settings.notification_url,
         query_repository=QueryRunRepository(session),
         internal_service_token=settings.internal_service_token,
     )

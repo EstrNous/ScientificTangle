@@ -1,4 +1,5 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import PageShell from '../components/shared/PageShell.jsx';
 import { ErrorBanner } from '../components/shared/PageState.jsx';
@@ -19,6 +20,7 @@ function fileKey(entry) {
 
 export default function UploadPage() {
   const { t } = useTranslation();
+  const location = useLocation();
   const [files, setFiles] = useState([]);
   const [fileStatuses, setFileStatuses] = useState({});
   const [task, setTask] = useState(null);
@@ -45,6 +47,28 @@ export default function UploadPage() {
     }
     return null;
   }, []);
+
+  useEffect(() => {
+    const taskId = location.state?.ingestionTaskId;
+    if (!taskId) return undefined;
+    let active = true;
+    (async () => {
+      try {
+        const token = await ensureAuth();
+        const payload = await pollTask(taskId, token);
+        if (!active || !payload) return;
+        if (payload.report) {
+          setUploadedDocuments(resolveUploadedDocuments(payload.report));
+          setEntities(deriveEntitiesFromReport(payload.report));
+        }
+      } catch {
+        if (active) setError('upload_failed');
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [location.state?.ingestionTaskId, pollTask]);
 
   const handleFilesSelected = (selected, kind) => {
     setError(null);

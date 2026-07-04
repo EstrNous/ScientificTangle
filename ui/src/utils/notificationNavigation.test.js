@@ -26,6 +26,14 @@ describe('notificationNavigation', () => {
     });
   });
 
+  it('navigates to upload for ingestion task references', () => {
+    expect(resolveNotificationTarget({ referenceType: 'ingestion_task', referenceId: 'task-1' })).toEqual({
+      kind: 'navigate',
+      path: '/upload',
+      state: { ingestionTaskId: 'task-1' },
+    });
+  });
+
   it('returns title key by notification type', () => {
     expect(notificationTitleKey('interest_match')).toBe('notifications.types.interest_match');
     expect(notificationTitleKey(null)).toBeNull();

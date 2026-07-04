@@ -24,11 +24,13 @@ async def list_notifications(
     service: Annotated[NotificationService, Depends(get_notification_service)],
     authorization: Annotated[str, Header()],
     since: datetime | None = Query(default=None),
+    cursor: str | None = Query(default=None),
 ) -> NotificationListPayload:
     try:
         return await service.list_notifications(
             principal,
             since=since,
+            cursor=cursor,
             authorization=authorization,
             request_id=request.state.request_id,
         )

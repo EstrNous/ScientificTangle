@@ -11,6 +11,7 @@ from infra.postgres.notification_db.database import get_session
 
 from ..service.matching_service import MatchingService
 from ..service.notification_service import NotificationService
+from .config import settings
 
 
 def get_notification_service(
@@ -32,4 +33,5 @@ def get_matching_service(
         repository,
         NotificationWorkflowRepository(session),
         client=request.app.state.http_client,
+        match_score_threshold=settings.match_score_threshold,
     )

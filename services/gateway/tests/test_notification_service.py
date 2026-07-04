@@ -37,6 +37,7 @@ def test_proxy_list_notifications() -> None:
             result = await service.list_notifications(
                 principal,
                 since=None,
+                cursor=None,
                 authorization="Bearer token",
                 request_id="req-1",
             )
@@ -81,3 +82,43 @@ def test_create_conflict_event_posts_internal_api() -> None:
             assert captured["body"]["user_id"] == str(user_id)
 
     asyncio.run(run())
+
+
+def test_create_conflict_event_logs_failed_delivery() -> None:
+    captured: list[str] = []
+
+    class Logger:
+        def warning(self, event, **kwargs):
+            captured.append(event)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(503, json={"code": "notification_unavailable", "message": "down"})
+
+    async def run() -> None:
+        import app.service.notification_service as notification_module
+
+        original_logger = notification_module.logger
+        notification_module.logger = Logger()
+        try:
+            async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+                service = NotificationService(
+                    client,
+                    notification_url="http://notification",
+                    internal_service_token="test-internal-token",
+                )
+                await service.create_conflict_event(
+                    user_id=uuid4(),
+                    event_type="conflict_detected",
+                    message="test",
+                    reference_id="run-1",
+                    reference_type="query_run",
+                    match_score=1.0,
+                    match_reason="query_conflict_detected",
+                    match_payload={"conflict_count": 1},
+                    request_id="req-3",
+                )
+        finally:
+            notification_module.logger = original_logger
+
+    asyncio.run(run())
+    assert captured == ["notification_event_delivery_failed"]

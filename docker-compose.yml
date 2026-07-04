@@ -154,6 +154,8 @@ services:
       dockerfile: services/orchestrator/Dockerfile
     container_name: st-orchestrator
     env_file: .env
+    environment:
+      NOTIFICATION_URL: http://notification:8008
     command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8002"]
     depends_on:
       postgres:
@@ -167,6 +169,8 @@ services:
       retrieval:
         condition: service_healthy
       model:
+        condition: service_healthy
+      notification:
         condition: service_healthy
       export:
         condition: service_healthy

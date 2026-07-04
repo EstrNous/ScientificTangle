@@ -25,7 +25,7 @@
 | 5 | Live eval и качество ответов | **25%** | 30% | 40% | 15% |
 | 6 | Full-corpus gold dataset (`SourceSpan`) | **30%** | 10% | 45% | 20% |
 | 7 | Backup/restore Qdrant + MinIO | **40%** | 0% | 50% | 30% |
-| 8 | Runtime-уведомления (`ingestion_complete`, `interest_match`) | **55%** | 70% | 50% | 45% |
+| 8 | Runtime-уведомления (`ingestion_complete`, `interest_match`) | **98%** | 100% | 96% | 95% |
 | 9 | Удаление документа (полный cascade) | **65%** | 80% | 60% | 55% |
 | 10 | Audit CSV (server-side download) | **68%** | 75% | 70% | 60% |
 | 11 | E2E в обязательном CI (stack + Playwright) | **60%** | 65% | 55% | 50% |

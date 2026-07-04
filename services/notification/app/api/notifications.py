@@ -19,8 +19,9 @@ async def list_notifications(
     principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],
     service: Annotated[NotificationService, Depends(get_notification_service)],
     since: datetime | None = Query(default=None),
+    cursor: str | None = Query(default=None),
 ) -> NotificationListPayload:
-    return await service.list_notifications(principal, since=since)
+    return await service.list_notifications(principal, since=since, cursor=cursor)
 
 
 @router.post("/read-all", response_model=NotificationMarkReadPayload)

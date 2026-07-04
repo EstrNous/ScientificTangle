@@ -77,3 +77,43 @@ class BaseService:
                 f"{service_name}_error",
                 f"{service_name} service request failed",
             )
+
+    async def _post_internal_notification_event(
+        self,
+        notification_url: str,
+        payload: dict,
+        request_id: str,
+    ) -> None:
+        if not notification_url:
+            return
+        try:
+            await self._client.post(
+                f"{notification_url.rstrip('/')}/internal/v1/events",
+                json=payload,
+                headers={
+                    "X-Request-ID": request_id,
+                    INTERNAL_SERVICE_TOKEN_HEADER: self._internal_service_token,
+                },
+            )
+        except httpx.HTTPError:
+            return
+
+    async def _post_internal_notification_match(
+        self,
+        notification_url: str,
+        payload: dict,
+        request_id: str,
+    ) -> None:
+        if not notification_url:
+            return
+        try:
+            await self._client.post(
+                f"{notification_url.rstrip('/')}/internal/v1/match",
+                json=payload,
+                headers={
+                    "X-Request-ID": request_id,
+                    INTERNAL_SERVICE_TOKEN_HEADER: self._internal_service_token,
+                },
+            )
+        except httpx.HTTPError:
+            return
