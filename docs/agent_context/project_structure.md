@@ -45,6 +45,7 @@
 - `docs/agent_context/implementation_quality_report.md` — оценка реализации vs ТЗ по сервисам, стеку и gaps.
 - `docs/agent_context/query_pipeline.md` — сквозной пайплайн запроса user → answer.
 - `docs/agent_context/top1_parallel_execution_plan.md` — поэтапный план параллельной работы двух Backend/ML-специалистов и одного Frontend-специалиста.
+- `docs/agent_context/nornikel_parallel_execution_plan.md` — параллельный план закрытия gaps НорСинтез/ScientificTangle по ролям Databases, Backend/ML, Frontend и Validator без live model calls.
 - `docs/agent_context/top1_e0_contract_audit.md` — аудит контрактов query path и freeze points для этапов E1–E4.
 - `docs/agent_context/top1_e1_bm2_ml_policy.md` — E1 policy для классов запросов, retrieval planner rules, verification reason codes и synthesis/AnswerPayloadV2 expectations.
 - `docs/agent_context/top1_e4_bm1_eval_regression.md` — E4 pinned demo artifact, eval suites и comparison gate для regression checks.
