@@ -92,6 +92,13 @@ class ChatService:
                 type="conflict_detected",
                 message="Обнаружено противоречие в ответе на запрос",
                 reference_id=str(run_id) if run_id else None,
+                reference_type="query_run",
+                match_score=1.0,
+                match_reason="query_conflict_detected",
+                match_payload={
+                    "conflict_count": len(conflicts),
+                    "query_run_id": str(run_id) if run_id else "",
+                },
             )
         )
 

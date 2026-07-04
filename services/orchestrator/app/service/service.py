@@ -20,6 +20,7 @@ from shared.contracts import (
     DictionaryPackagePayload,
     DictionaryVersionPayload,
     EvidenceBundle,
+    ExportFormatStatus,
     ExportPayload,
     GraphSubgraph,
     IngestionReport,
@@ -42,6 +43,7 @@ from shared.contracts import (
 from shared.security import AuthenticatedPrincipal
 
 from ..core.config import settings
+from .base import BaseService, OrchestratorServiceError
 from .query_stream import (
     QueryEventEmitter,
     auth_context,
@@ -51,7 +53,6 @@ from .query_stream import (
     terminal_phase,
     wrap_stream_query,
 )
-from .base import BaseService, OrchestratorServiceError
 from .scientific_query import (
     access_levels_for_role,
     apply_conflict_signals,
@@ -715,6 +716,22 @@ class OrchestratorService(BaseService):
                 list(dict.fromkeys(warnings)),
                 latency_ms,
             )
+            await repository.record_audit_event(
+                principal.user_id,
+                "answer_generated",
+                "query_run",
+                str(run.id),
+                {
+                    "role": principal.role.value,
+                    "status": "completed",
+                    "confidence": answer.confidence,
+                    "sources_count": answer.sources_count,
+                    "warnings": list(dict.fromkeys(warnings)),
+                    "has_gaps": evidence_bundle.has_gaps,
+                    "has_conflicts": evidence_bundle.has_conflicts,
+                },
+                request_id,
+            )
             await emit_phase(
                 on_event,
                 terminal_phase(answer.confidence, list(dict.fromkeys(warnings)), evidence_bundle),
@@ -1095,6 +1112,7 @@ class OrchestratorService(BaseService):
             content=content,
             file_url=file_url,
             warnings=payload.warnings,
+            format_status=self._export_format_status(),
             generated_at=generated_at,
         )
 
@@ -1159,6 +1177,25 @@ class OrchestratorService(BaseService):
             "retrieval_trace": payload.retrieval_trace,
             "latency_ms": payload.latency_ms,
         }
+
+    @staticmethod
+    def _export_format_status() -> list[ExportFormatStatus]:
+        return [
+            ExportFormatStatus(format="markdown", available=True, status="available"),
+            ExportFormatStatus(format="json", available=True, status="available"),
+            ExportFormatStatus(
+                format="jsonld",
+                available=False,
+                status="backlog",
+                reason="model_jsonld_enrichment_ready_but_export_wiring_deferred",
+            ),
+            ExportFormatStatus(
+                format="pdf",
+                available=False,
+                status="backlog",
+                reason="server_pdf_renderer_not_wired",
+            ),
+        ]
 
     @staticmethod
     def _render_export_markdown(document: dict) -> str:

@@ -4,10 +4,10 @@ from uuid import UUID, uuid4
 
 import httpx
 import pytest
-from app.service.query import QueryService
 from app.service.audit import AuditService
-from app.service.export import ExportService
 from app.service.base import OrchestratorServiceError
+from app.service.export import ExportService
+from app.service.query import QueryService
 
 from infra.postgres.orchestrator_db import ExportJob, QueryRun
 from shared.contracts import QueryRunStatus, UserRole
@@ -247,6 +247,8 @@ def test_query_run_is_persisted_with_evidence_graph_and_answer() -> None:
     assert result.status == QueryRunStatus.COMPLETED
     assert result.graph_subgraph.nodes[0].id == "entity-1"
     assert repository.transitions == ["pending", "processing", "completed"]
+    assert repository.audit_events[-1]["action"] == "answer_generated"
+    assert repository.audit_events[-1]["details"]["sources_count"] == 1
 
 
 def test_query_failure_is_persisted_and_exposes_run_id() -> None:
@@ -466,6 +468,12 @@ def test_export_query_run_returns_markdown_for_completed_run() -> None:
 
     assert result.format == "markdown"
     assert result.content_type == "text/markdown"
+    assert {item.format: item.status for item in result.format_status} == {
+        "markdown": "available",
+        "json": "available",
+        "jsonld": "backlog",
+        "pdf": "backlog",
+    }
     assert "Подтверждённый ответ" in result.content
     assert repository.export_transitions == ["pending", "processing", "completed"]
     assert repository.audit_events[-1]["action"] == "document_exported"

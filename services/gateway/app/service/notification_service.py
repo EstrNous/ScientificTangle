@@ -151,5 +151,7 @@ class NotificationService:
             reference_id=note.reference_id,
             reference_type=reference_type,
             read=note.is_read,
+            match_score=getattr(note, "match_score", None),
+            match_reason=str((getattr(note, "match_payload", None) or {}).get("reason") or ""),
             created_at=note.created_at,
         )

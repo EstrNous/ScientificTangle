@@ -14,6 +14,8 @@ class FakeNotification:
         self.reference_id = "nickel_report.pdf"
         self.reference_type = "document"
         self.is_read = False
+        self.match_score = 0.86
+        self.match_payload = {"reason": "offline_interest_match"}
         self.created_at = FakeNotification._now()
 
     @staticmethod
@@ -31,6 +33,8 @@ def test_notification_payload_maps_ui_fields() -> None:
     assert payload.reason == note.message
     assert payload.reference_id == "nickel_report.pdf"
     assert payload.reference_type == "document"
+    assert payload.match_score == 0.86
+    assert payload.match_reason == "offline_interest_match"
     assert payload.read is False
     assert payload.created_at.isoformat().startswith("2026-07-04")
 
