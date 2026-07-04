@@ -6,13 +6,10 @@ import { ErrorBanner } from '../components/shared/PageState.jsx';
 import PdfDownloadButton from '../components/shared/PdfDownloadButton.jsx';
 import { EvaluationDashboard, StrategicSubNav } from '../components/strategic/index.js';
 import { ensureAuth } from '../api/auth.js';
+import { getApiErrorMessage } from '../api/errors.js';
 import { fetchStrategicEvaluation } from '../api/strategic.js';
 import { fetchEvalReportSummary } from '../api/eval.js';
 import { exportStrategicQualityPdf } from '../utils/pagePdfExport.js';
-
-function getApiErrorMessage(error, fallback) {
-  return error?.response?.data?.message ?? error?.message ?? fallback;
-}
 
 export default function StrategicQualityPage() {
   const { t, i18n } = useTranslation();
@@ -67,7 +64,7 @@ export default function StrategicQualityPage() {
   if (error) {
     return (
       <PageShell>
-        <ErrorBanner message={error} />
+        <ErrorBanner message={t(`strategic.errors.${error}`, { defaultValue: error })} />
       </PageShell>
     );
   }

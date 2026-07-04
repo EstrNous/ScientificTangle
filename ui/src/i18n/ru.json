@@ -68,7 +68,9 @@
     "refreshing": "Обновление…",
     "newTitle": "Новое уведомление",
     "errors": {
-      "notifications_load_failed": "Не удалось загрузить уведомления"
+      "notifications_load_failed": "Не удалось загрузить уведомления",
+      "notification_read_failed": "Не удалось отметить уведомление прочитанным",
+      "notifications_read_all_failed": "Не удалось отметить все уведомления прочитанными"
     },
     "types": {
       "interest_match": "Совпадение с интересами",
@@ -214,8 +216,18 @@
       "export_still_processing": "Экспорт ещё выполняется",
       "export_empty": "Сервер вернул пустой файл экспорта"
     },
+    "newChat": "Новый чат",
+    "defaultSessionTitle": "Новый запрос",
     "deleteSession": "Удалить запрос",
-    "backendError": "Ошибка связи с сервером: {{message}}",
+    "errors": {
+      "chat_load_failed": "Не удалось загрузить список чатов",
+      "chat_messages_failed": "Не удалось загрузить сообщения",
+      "chat_create_failed": "Не удалось создать чат",
+      "chat_send_failed": "Не удалось отправить сообщение",
+      "chat_delete_failed": "Не удалось удалить чат",
+      "forbidden": "Недостаточно прав для этой операции",
+      "not_found": "Чат не найден"
+    },
     "emptyPrompt": "Задайте вопрос, чтобы начать диалог",
     "retrievalTitle": "Поиск и обработка",
     "evidenceRow": "Строка {{index}}: {{label}}",
@@ -340,6 +352,11 @@
       "verified": "подтверждено",
       "candidate": "кандидат",
       "conflicting": "конфликт"
+    },
+    "errors": {
+      "graph_load_failed": "Не удалось загрузить граф знаний",
+      "forbidden": "Недостаточно прав для этой операции",
+      "not_found": "Данные графа не найдены"
     }
   },
   "strategic": {
@@ -397,6 +414,12 @@
       "unsupported_rate": "Неподтверждённые",
       "entity_f1": "Entity F1",
       "recall_at_5": "Recall@5"
+    },
+    "errors": {
+      "strategic_load_failed": "Не удалось загрузить стратегическую аналитику",
+      "eval_report_load_failed": "Не удалось загрузить отчёт оценки",
+      "forbidden": "Недостаточно прав для этой операции",
+      "not_found": "Данные аналитики не найдены"
     }
   },
   "admin": {
@@ -482,6 +505,7 @@
       "admin_save_failed": "Не удалось сохранить изменения",
       "forbidden": "Недостаточно прав для этой операции",
       "dictionaries_load_failed": "Не удалось загрузить версии словарей",
+      "dictionaries_active_failed": "Не удалось загрузить активный словарь",
       "dictionary_activate_failed": "Не удалось активировать словарь",
       "audit_load_failed": "Не удалось загрузить журнал аудита"
     },
@@ -612,6 +636,11 @@
       "high": "высокий",
       "medium": "средний",
       "low": "низкий"
+    },
+    "errors": {
+      "lab_load_failed": "Не удалось загрузить данные лаборатории",
+      "forbidden": "Недостаточно прав для этой операции",
+      "not_found": "Данные лаборатории не найдены"
     }
   },
   "pages": {

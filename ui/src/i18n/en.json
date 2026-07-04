@@ -68,7 +68,9 @@
     "refreshing": "Refreshing…",
     "newTitle": "New notification",
     "errors": {
-      "notifications_load_failed": "Failed to load notifications"
+      "notifications_load_failed": "Failed to load notifications",
+      "notification_read_failed": "Failed to mark notification as read",
+      "notifications_read_all_failed": "Failed to mark all notifications as read"
     },
     "types": {
       "interest_match": "Interest match",
@@ -214,8 +216,18 @@
       "export_still_processing": "Export is still processing",
       "export_empty": "Server returned an empty export file"
     },
+    "newChat": "New chat",
+    "defaultSessionTitle": "New query",
     "deleteSession": "Delete query",
-    "backendError": "Backend error: {{message}}",
+    "errors": {
+      "chat_load_failed": "Failed to load chat sessions",
+      "chat_messages_failed": "Failed to load messages",
+      "chat_create_failed": "Failed to create chat session",
+      "chat_send_failed": "Failed to send message",
+      "chat_delete_failed": "Failed to delete chat session",
+      "forbidden": "Insufficient permissions for this operation",
+      "not_found": "Chat session not found"
+    },
     "emptyPrompt": "Ask a question to start the conversation",
     "retrievalTitle": "Search and processing",
     "evidenceRow": "Row {{index}}: {{label}}",
@@ -340,6 +352,11 @@
       "verified": "verified",
       "candidate": "candidate",
       "conflicting": "conflicting"
+    },
+    "errors": {
+      "graph_load_failed": "Failed to load knowledge graph",
+      "forbidden": "Insufficient permissions for this operation",
+      "not_found": "Graph data not found"
     }
   },
   "strategic": {
@@ -397,6 +414,12 @@
       "unsupported_rate": "Unsupported rate",
       "entity_f1": "Entity F1",
       "recall_at_5": "Recall@5"
+    },
+    "errors": {
+      "strategic_load_failed": "Failed to load strategic analytics",
+      "eval_report_load_failed": "Failed to load evaluation report",
+      "forbidden": "Insufficient permissions for this operation",
+      "not_found": "Analytics data not found"
     }
   },
   "admin": {
@@ -482,6 +505,7 @@
       "admin_save_failed": "Failed to save changes",
       "forbidden": "Insufficient permissions for this operation",
       "dictionaries_load_failed": "Failed to load dictionary versions",
+      "dictionaries_active_failed": "Failed to load active dictionary",
       "dictionary_activate_failed": "Failed to activate dictionary",
       "audit_load_failed": "Failed to load audit log"
     },
@@ -612,6 +636,11 @@
       "high": "high",
       "medium": "medium",
       "low": "low"
+    },
+    "errors": {
+      "lab_load_failed": "Failed to load lab analytics",
+      "forbidden": "Insufficient permissions for this operation",
+      "not_found": "Lab data not found"
     }
   },
   "pages": {
