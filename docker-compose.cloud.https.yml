@@ -1,0 +1,21 @@
+services:
+  nginx:
+    ports: !reset []
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      NGINX_CONFIG: prod
+      NGINX_SERVER_NAME: ${NGINX_SERVER_NAME:-localhost}
+      TLS_CERT_FILE: ${TLS_CERT_FILE:-/etc/nginx/tls/fullchain.pem}
+      TLS_KEY_FILE: ${TLS_KEY_FILE:-/etc/nginx/tls/privkey.pem}
+      GRAFANA_NGINX_BASIC_USER: ${GRAFANA_NGINX_BASIC_USER:-grafana}
+      GRAFANA_NGINX_BASIC_PASSWORD: ${GRAFANA_NGINX_BASIC_PASSWORD:-grafana123}
+    volumes:
+      - ${TLS_CERT_DIR:-./secrets/tls}:/etc/nginx/tls:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --no-check-certificate --spider https://127.0.0.1/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s

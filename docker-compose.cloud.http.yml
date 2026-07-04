@@ -1,0 +1,17 @@
+services:
+  nginx:
+    ports: !reset []
+    ports:
+      - "80:80"
+    environment:
+      NGINX_CONFIG: dev
+      GRAFANA_NGINX_BASIC_USER: ${GRAFANA_NGINX_BASIC_USER:-grafana}
+      GRAFANA_NGINX_BASIC_PASSWORD: ${GRAFANA_NGINX_BASIC_PASSWORD:-grafana123}
+    volumes:
+      - ./infra/nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
