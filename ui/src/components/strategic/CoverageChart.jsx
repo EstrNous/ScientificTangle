@@ -154,7 +154,7 @@ const CoverageChart = forwardRef(function CoverageChart({ directions, fill = fal
           </button>
         </div>
         <div
-          className={`relative min-h-0 ${
+          className={`min-h-0 ${
             detailsExpanded ? 'flex-1' : fill ? 'max-h-[4rem]' : 'max-h-[7.5rem]'
           }`}
         >
@@ -185,18 +185,7 @@ const CoverageChart = forwardRef(function CoverageChart({ directions, fill = fal
               </li>
             ))}
           </ul>
-          {!detailsExpanded && (
-            <div
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-3 bg-gradient-to-t from-white to-transparent dark:from-slate-900"
-              aria-hidden
-            />
-          )}
         </div>
-        {!detailsExpanded && (
-          <p className="mt-0.5 shrink-0 text-center text-[9px] text-nn-gray dark:text-slate-500">
-            {t('strategic.barClickHint')}
-          </p>
-        )}
       </div>
       <SourceRefsPopover state={popover} onClose={closePopover} />
     </div>

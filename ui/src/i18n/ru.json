@@ -7,7 +7,8 @@
     "graph": "Граф знаний",
     "strategic": "Аналитика",
     "lab": "R&D Лаборатория",
-    "admin": "Администрирование"
+    "admin": "Администрирование",
+    "upload": "Загрузка"
   },
   "roles": {
     "director": "Директор",
@@ -54,7 +55,6 @@
     "downloadingPdf": "PDF…",
     "deleteSession": "Удалить запрос",
     "backendError": "Ошибка связи с сервером: {{message}}",
-    "scrollHint": "↕ прокрутка списка",
     "retrievalTitle": "Поиск и обработка",
     "evidenceRow": "Строка {{index}}: {{label}}",
     "evidenceCellHint": "Показать документы-источники строки",
@@ -360,5 +360,51 @@
     "admin": "Безопасность и аудит",
     "upload": "Загрузка документов",
     "search": "Поиск с фильтрами"
+  },
+  "upload": {
+    "subtitle": "Загрузка документов, анализ содержимого и проверка извлечённых сущностей",
+    "dropTitle": "Перетащите файлы сюда",
+    "dropActive": "Отпустите файлы для загрузки",
+    "dropHint": "PDF, DOCX или TXT — до 100 МБ на пакет",
+    "selectFiles": "Выбрать файлы",
+    "filesCount": "Файлов: {{count}}",
+    "startUpload": "Загрузить",
+    "uploading": "Загрузка…",
+    "removeFile": "Убрать",
+    "analysisTitle": "Анализ",
+    "analysisEmpty": "Загрузите документы, чтобы увидеть результаты анализа",
+    "taskStatus": "Статус задачи",
+    "sourcesTitle": "Источники",
+    "warningsTitle": "Предупреждения",
+    "entitiesTitle": "Новые сущности",
+    "entitiesEmpty": "После обработки здесь появятся извлечённые сущности",
+    "addEntity": "Добавить",
+    "saveEntity": "Сохранить",
+    "cancelEntity": "Отмена",
+    "deleteEntity": "Удалить",
+    "entityNamePlaceholder": "Название сущности",
+    "fileStatus": {
+      "queued": "в очереди",
+      "uploading": "загрузка",
+      "completed": "готово",
+      "failed": "ошибка"
+    },
+    "taskStatuses": {
+      "pending": "ожидание",
+      "processing": "обработка",
+      "completed": "завершено",
+      "failed": "ошибка"
+    },
+    "metrics": {
+      "documents": "Документы",
+      "spans": "Фрагменты",
+      "tables": "Таблицы",
+      "claims": "Утверждения",
+      "candidates": "Кандидаты",
+      "indexed": "Индекс"
+    },
+    "errors": {
+      "upload_failed": "Не удалось загрузить файлы"
+    }
   }
 }

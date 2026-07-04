@@ -98,7 +98,7 @@ export const routes = [
   {
     path: '/upload',
     element: (
-      <RoleRoute paths={['graph', 'upload']}>
+      <RoleRoute paths={['upload']}>
         <UploadPage />
       </RoleRoute>
     ),

@@ -9,5 +9,12 @@ describe('useRoleAccess', () => {
     const { result } = renderHook(() => useRoleAccess());
     expect(result.current.canAccess('chat')).toBe(true);
     expect(result.current.canAccess('admin')).toBe(false);
+    expect(result.current.canAccess('upload')).toBe(false);
+  });
+
+  it('allows upload for internal roles', () => {
+    useAuthStore.setState({ role: ROLES.RESEARCHER });
+    const { result } = renderHook(() => useRoleAccess());
+    expect(result.current.canAccess('upload')).toBe(true);
   });
 });

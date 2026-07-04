@@ -7,7 +7,8 @@
     "graph": "Knowledge Graph",
     "strategic": "Strategic Analytics",
     "lab": "R&D Lab",
-    "admin": "Administration"
+    "admin": "Administration",
+    "upload": "Upload"
   },
   "roles": {
     "director": "Director",
@@ -54,7 +55,6 @@
     "downloadingPdf": "PDF…",
     "deleteSession": "Delete query",
     "backendError": "Backend error: {{message}}",
-    "scrollHint": "↕ scroll the list",
     "retrievalTitle": "Search and processing",
     "evidenceRow": "Row {{index}}: {{label}}",
     "evidenceCellHint": "Show source documents for this row",
@@ -360,5 +360,51 @@
     "admin": "Security and audit",
     "upload": "Document upload",
     "search": "Filtered search"
+  },
+  "upload": {
+    "subtitle": "Upload documents, review analysis, and manage extracted entities",
+    "dropTitle": "Drop files here",
+    "dropActive": "Release to upload files",
+    "dropHint": "PDF, DOCX, or TXT — up to 100 MB per batch",
+    "selectFiles": "Select files",
+    "filesCount": "Files: {{count}}",
+    "startUpload": "Upload",
+    "uploading": "Uploading…",
+    "removeFile": "Remove",
+    "analysisTitle": "Analysis",
+    "analysisEmpty": "Upload documents to see analysis results",
+    "taskStatus": "Task status",
+    "sourcesTitle": "Sources",
+    "warningsTitle": "Warnings",
+    "entitiesTitle": "New entities",
+    "entitiesEmpty": "Extracted entities will appear here after processing",
+    "addEntity": "Add",
+    "saveEntity": "Save",
+    "cancelEntity": "Cancel",
+    "deleteEntity": "Delete",
+    "entityNamePlaceholder": "Entity name",
+    "fileStatus": {
+      "queued": "queued",
+      "uploading": "uploading",
+      "completed": "done",
+      "failed": "failed"
+    },
+    "taskStatuses": {
+      "pending": "pending",
+      "processing": "processing",
+      "completed": "completed",
+      "failed": "failed"
+    },
+    "metrics": {
+      "documents": "Documents",
+      "spans": "Spans",
+      "tables": "Tables",
+      "claims": "Claims",
+      "candidates": "Candidates",
+      "indexed": "Indexed"
+    },
+    "errors": {
+      "upload_failed": "Failed to upload files"
+    }
   }
 }
