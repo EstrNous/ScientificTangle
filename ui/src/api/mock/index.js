@@ -88,13 +88,23 @@ export async function mockFetch(resource, options = {}) {
   }
   if (resource === 'review/decisions') {
     const body = options.body ?? {};
+    const itemId = body.item_id ?? body.candidate_id;
+    const decisionStatus = {
+      approve: 'approved',
+      reject: 'rejected',
+      defer: 'deferred',
+      approved: 'approved',
+      rejected: 'rejected',
+      deferred: 'deferred',
+    }[body.decision] ?? body.decision ?? 'approved';
     reviewQueue.items = reviewQueue.items.map((item) =>
-      item.id === body.candidate_id ? { ...item, status: body.decision ?? 'approved' } : item,
+      item.id === itemId ? { ...item, status: decisionStatus } : item,
     );
     return {
-      candidate_id: body.candidate_id,
-      decision: body.decision,
-      status: 'accepted',
+      item_id: itemId,
+      candidate_id: itemId,
+      decision: decisionStatus,
+      status: decisionStatus,
       audit_event_id: 'audit-review-mock-001',
     };
   }

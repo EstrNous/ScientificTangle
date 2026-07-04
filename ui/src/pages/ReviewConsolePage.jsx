@@ -139,10 +139,8 @@ export default function ReviewConsolePage() {
       });
     },
     {
-      onSuccess: (result) => {
-        if (result?.status !== 'accepted') {
-          loadQueue();
-        }
+      onSuccess: () => {
+        loadQueue();
       },
     },
   );

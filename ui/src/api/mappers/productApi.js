@@ -50,15 +50,19 @@ export function mapNotificationList(payload) {
 }
 
 export function mapReviewCandidate(item = {}) {
+  const payload = item.payload ?? {};
+  const sourceSpanId = item.source_span_id ?? item.sourceSpanId ?? null;
+  const sourceSpanIds = item.source_span_ids ?? item.sourceSpanIds ?? (sourceSpanId ? [sourceSpanId] : []);
   return {
     id: item.id,
-    name: item.name ?? '',
-    type: item.type ?? '',
+    name: payload.candidate_id ?? item.document_id ?? item.name ?? String(item.id ?? ''),
+    type: payload.candidate_type ?? item.type ?? '',
     status: item.status ?? 'pending',
-    confidence: item.confidence ?? 0,
-    conflictIds: item.conflict_ids ?? item.conflictIds ?? [],
-    sourceSpanIds: item.source_span_ids ?? item.sourceSpanIds ?? [],
-    updatedAt: item.updated_at ?? item.updatedAt ?? null,
+    confidence: payload.confidence ?? item.confidence ?? 0,
+    conflictIds: item.conflict_ids ?? item.conflictIds ?? payload.conflict_ids ?? [],
+    sourceSpanIds,
+    documentId: item.document_id ?? item.documentId ?? null,
+    updatedAt: item.updated_at ?? item.updatedAt ?? item.created_at ?? item.createdAt ?? null,
   };
 }
 
@@ -92,19 +96,31 @@ export function buildReviewQueueQuery(filters = {}) {
   return query ? `?${query}` : '';
 }
 
+const REVIEW_DECISION_TO_API = {
+  approved: 'approve',
+  rejected: 'reject',
+  deferred: 'defer',
+  approve: 'approve',
+  reject: 'reject',
+  defer: 'defer',
+};
+
 export function serializeReviewDecision(payload = {}) {
+  const itemId = payload.itemId ?? payload.item_id ?? payload.candidateId ?? payload.candidate_id;
+  const decision = payload.decision ?? '';
+  const sourceSpanIds = payload.sourceSpanIds ?? payload.source_span_ids ?? [];
   return {
-    candidate_id: payload.candidateId ?? payload.candidate_id,
-    decision: payload.decision,
-    reason_code: payload.reasonCode ?? payload.reason_code ?? null,
-    comment: payload.comment ?? null,
+    item_id: itemId,
+    decision: REVIEW_DECISION_TO_API[decision] ?? decision,
+    reason: payload.reason ?? payload.comment ?? payload.reasonCode ?? payload.reason_code ?? '',
+    source_span_ids: sourceSpanIds,
   };
 }
 
 export function mapReviewDecisionResult(payload = {}) {
   return {
-    candidateId: payload.candidate_id ?? payload.candidateId ?? null,
-    decision: payload.decision ?? '',
+    candidateId: payload.item_id ?? payload.candidate_id ?? payload.candidateId ?? null,
+    decision: payload.status ?? payload.decision ?? '',
     status: payload.status ?? 'accepted',
     auditEventId: payload.audit_event_id ?? payload.auditEventId ?? null,
   };
