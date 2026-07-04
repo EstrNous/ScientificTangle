@@ -3,7 +3,7 @@ import { extractInterests } from './interestsExtract.js';
 
 describe('extractInterests', () => {
   it('extracts domain terms from text', () => {
-    const interests = extractInterests('Флотация никеля в России');
+    const interests = extractInterests('Флотация никель, отечественный опыт');
     const labels = interests.map((item) => item.label);
     expect(labels).toContain('materials');
     expect(labels).toContain('processes');

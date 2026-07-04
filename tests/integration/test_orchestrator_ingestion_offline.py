@@ -1,6 +1,5 @@
 import asyncio
 import importlib
-import importlib.util
 import sys
 from datetime import UTC, datetime
 from io import BytesIO
@@ -12,14 +11,6 @@ from fastapi import UploadFile
 
 from shared.contracts import IngestionReport, UserRole
 from shared.security import AuthenticatedPrincipal
-
-_ORCHESTRATOR_ROOT = Path(__file__).resolve().parents[2] / "services" / "orchestrator"
-_SERVICE_PATH = _ORCHESTRATOR_ROOT / "app" / "service" / "service.py"
-_spec = importlib.util.spec_from_file_location("orchestrator_service_module", _SERVICE_PATH)
-assert _spec and _spec.loader
-_orchestrator_service = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(_orchestrator_service)
-OrchestratorService = _orchestrator_service.OrchestratorService
 
 
 class FakeRepository:

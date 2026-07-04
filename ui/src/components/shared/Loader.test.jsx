@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import { renderWithProviders } from '../test/renderWithProviders.jsx';
-import Loader from '../components/shared/Loader.jsx';
+import { renderWithProviders } from '../../test/renderWithProviders.jsx';
+import Loader from './Loader.jsx';
 
 describe('Loader', () => {
   it('renders', () => {
