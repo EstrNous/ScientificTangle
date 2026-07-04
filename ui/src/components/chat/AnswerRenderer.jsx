@@ -30,7 +30,7 @@ export default function AnswerRenderer({ message }) {
   const warnings = normalizeWarnings(message.warnings);
 
   return (
-    <div className="space-y-3 text-sm">
+    <div className="min-w-0 space-y-3 text-sm break-words">
       {scientificAnswer ? (
         <ScientificAnswerView answer={scientificAnswer} message={message} />
       ) : (

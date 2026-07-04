@@ -22,11 +22,14 @@ export default function ChatSidebar({
   sessionId,
   sessionTitle,
   messages,
+  className = '',
 }) {
   const { t } = useTranslation();
 
   return (
-    <aside className="flex w-72 shrink-0 flex-col gap-6 border-r border-nn-border pr-4 dark:border-slate-700">
+    <aside
+      className={`w-full shrink-0 flex-col gap-4 border-b border-nn-border pb-4 lg:flex lg:w-72 lg:gap-6 lg:border-b-0 lg:border-r lg:pr-4 dark:border-slate-700 ${className}`}
+    >
       <div className="flex min-h-0 flex-1 flex-col">
         <p className="mb-3 shrink-0 text-xs font-semibold uppercase tracking-wide text-nn-gray dark:text-slate-400">
           {t('chat.history')}

@@ -3,6 +3,7 @@ import AnswerRenderer from './AnswerRenderer.jsx';
 import ChatAnswerStatus from './ChatAnswerStatus.jsx';
 import RetrievalProgress from './RetrievalProgress.jsx';
 import StreamingAnswerDraft from './StreamingAnswerDraft.jsx';
+import { shouldShowRetrievalTrace } from '../../utils/chatAnswerLifecycle.js';
 
 function AttachmentList({ attachments }) {
   if (!attachments?.length) return null;
@@ -30,9 +31,15 @@ export default function ChatWindow({
   streamingUxEnabled = false,
 }) {
   const bottomRef = useRef(null);
+  const showRetrievalTrace = shouldShowRetrievalTrace(
+    retrievalTrace,
+    answerPhase,
+    answerMode,
+    streamingUxEnabled,
+  );
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    bottomRef.current?.scrollIntoView?.({ behavior: 'smooth' });
   }, [messages, retrievalTrace, answerPhase, streamingDraft]);
 
   return (
@@ -45,10 +52,10 @@ export default function ChatWindow({
       {messages.map((m) => (
         <div
           key={m.id}
-          className={`rounded-xl border px-4 py-3 ${
+          className={`rounded-xl border px-3 py-2.5 sm:px-4 sm:py-3 ${
             m.role === 'user'
-              ? 'ml-8 border-nn-blue/20 bg-nn-blue-light dark:bg-slate-800'
-              : 'mr-8 border-nn-border bg-white shadow-card dark:border-slate-700 dark:bg-slate-900 dark:shadow-none'
+              ? `chat-bubble-user border-nn-blue/20 bg-nn-blue-light dark:bg-slate-800`
+              : `chat-bubble-assistant border-nn-border bg-white shadow-card dark:border-slate-700 dark:bg-slate-900 dark:shadow-none`
           }`}
         >
           {m.role === 'assistant' ? (
@@ -69,7 +76,7 @@ export default function ChatWindow({
           complete={streamingComplete}
         />
       )}
-      {retrievalTrace && <RetrievalProgress trace={retrievalTrace} />}
+      {showRetrievalTrace && <RetrievalProgress trace={retrievalTrace} />}
       <div ref={bottomRef} />
     </div>
   );

@@ -24,4 +24,21 @@ body {
     @apply rounded-xl border border-nn-border bg-white shadow-card;
     @apply dark:border-slate-700 dark:bg-slate-900 dark:shadow-none;
   }
+
+  .chat-bubble-user {
+    @apply ml-0 sm:ml-4 md:ml-8;
+  }
+
+  .chat-bubble-assistant {
+    @apply mr-0 sm:mr-4 md:mr-8;
+  }
+
+  .chat-inflight-panel {
+    @apply mr-0 rounded-xl border border-nn-blue/20 bg-nn-blue-light px-3 py-2.5 sm:mr-4 sm:px-4 sm:py-3 md:mr-8;
+    @apply dark:border-slate-600 dark:bg-slate-800;
+  }
+
+  .chat-inflight-title {
+    @apply mb-2 text-xs font-semibold uppercase tracking-wide text-nn-blue;
+  }
 }

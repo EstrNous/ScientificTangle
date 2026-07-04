@@ -13,10 +13,8 @@ export default function StreamingAnswerDraft({ phase, draft, complete }) {
   if (!draft || !STREAMING_PHASES.has(phase)) return null;
 
   return (
-    <div className="mr-8 rounded-xl border border-nn-border bg-white px-4 py-3 shadow-card dark:border-slate-700 dark:bg-slate-900 dark:shadow-none">
-      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-nn-blue">
-        {t('chat.streaming.draftTitle')}
-      </p>
+    <div className="chat-inflight-panel chat-bubble-assistant border-nn-border bg-white shadow-card dark:border-slate-700 dark:bg-slate-900 dark:shadow-none">
+      <p className="chat-inflight-title">{t('chat.streaming.draftTitle')}</p>
       <GrowingMarkdown content={draft} complete={complete} />
     </div>
   );

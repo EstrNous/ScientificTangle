@@ -29,6 +29,7 @@ export default function ChatPage() {
   const [sessions, setSessions] = useState([]);
   const [activeId, setActiveId] = useState(null);
   const [messages, setMessages] = useState([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const {
     phase,
     retrievalTrace,
@@ -153,17 +154,31 @@ export default function ChatPage() {
           {t('chat.backendError', { message: error })}
         </div>
       )}
-      <div className="flex h-full min-h-0">
+      <div className="flex h-full min-h-0 flex-col lg:flex-row">
+        <div className="mb-2 flex shrink-0 items-center gap-2 lg:hidden">
+          <button
+            type="button"
+            onClick={() => setSidebarOpen((open) => !open)}
+            className="rounded-lg border border-nn-border px-3 py-1.5 text-sm text-gray-900 transition-colors hover:bg-nn-gray-light dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800"
+            aria-expanded={sidebarOpen}
+          >
+            {sidebarOpen ? t('chat.hideHistory') : t('chat.showHistory')}
+          </button>
+        </div>
         <ChatSidebar
+          className={sidebarOpen ? 'flex' : 'hidden lg:flex'}
           sessions={sessions}
           activeId={activeId}
-          onSelect={setActiveId}
+          onSelect={(id) => {
+            setActiveId(id);
+            setSidebarOpen(false);
+          }}
           onDelete={handleDeleteSession}
           sessionId={activeId}
           sessionTitle={activeSession?.title}
           messages={messages}
         />
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col pl-4">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:pl-4">
           <ChatWindow
             messages={messages}
             retrievalTrace={retrievalTrace}

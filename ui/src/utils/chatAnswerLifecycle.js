@@ -99,3 +99,17 @@ export function resolveAnswerPhase(message) {
 export function isSimulatedLifecycleEnabled() {
   return import.meta.env.VITE_CHAT_LIFECYCLE_SIMULATION === 'true';
 }
+
+export function shouldShowAnswerPipeline(phase, mode, streamingUxEnabled = false) {
+  if (phase === CHAT_ANSWER_PHASES.IDLE) return false;
+  if (phase === CHAT_ANSWER_PHASES.ERROR || phase === CHAT_ANSWER_PHASES.DEGRADED) return false;
+  if (mode === 'session' && !streamingUxEnabled && phase === CHAT_ANSWER_PHASES.PARSING) {
+    return false;
+  }
+  return CHAT_ANSWER_PIPELINE.includes(phase) && (mode !== 'session' || streamingUxEnabled);
+}
+
+export function shouldShowRetrievalTrace(retrievalTrace, phase, mode, streamingUxEnabled = false) {
+  if (!retrievalTrace?.steps?.length) return false;
+  return !shouldShowAnswerPipeline(phase, mode, streamingUxEnabled);
+}
