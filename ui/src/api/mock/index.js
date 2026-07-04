@@ -2,14 +2,24 @@ import ingestion from './ingestion.json';
 import audit from './audit.json';
 import admin from './admin.json';
 import notificationsSeed from './notifications.json';
+import interestsSeed from './interests.json';
+import reviewSeed from './review.json';
 
 let notificationItems = notificationsSeed.items.map((item) => ({ ...item }));
+let interestsProfile = { ...interestsSeed, interests: [...interestsSeed.interests] };
+let reviewQueue = {
+  items: reviewSeed.items.map((item) => ({ ...item })),
+  total: reviewSeed.total,
+};
+let adminSnapshot = JSON.parse(JSON.stringify(admin));
 
 export const mockData = {
   ingestion,
   audit,
-  admin,
+  admin: adminSnapshot,
   notifications: { items: notificationItems },
+  interests: interestsProfile,
+  review: reviewQueue,
 };
 
 export async function mockFetch(resource, options = {}) {
@@ -37,7 +47,105 @@ export async function mockFetch(resource, options = {}) {
     return audit.events;
   }
   if (resource === 'admin') {
-    return admin;
+    return adminSnapshot;
+  }
+  if (resource === 'interests' && options.method === 'PUT') {
+    const body = options.body ?? {};
+    interestsProfile = {
+      ...interestsProfile,
+      raw_text: body.raw_text ?? interestsProfile.raw_text,
+      interests: body.interests ?? interestsProfile.interests,
+      updated_at: new Date().toISOString(),
+    };
+    return { ...interestsProfile, interests: interestsProfile.interests.map((item) => ({ ...item })) };
+  }
+  if (resource === 'interests') {
+    return {
+      ...interestsProfile,
+      interests: interestsProfile.interests.map((item) => ({ ...item })),
+    };
+  }
+  if (resource === 'review/queue') {
+    const body = options.body ?? {};
+    let items = reviewQueue.items.map((item) => ({ ...item }));
+    if (body.status) {
+      items = items.filter((item) => item.status === body.status);
+    }
+    if (body.type) {
+      items = items.filter((item) => item.type === body.type);
+    }
+    return { items, total: items.length, filters: body };
+  }
+  if (resource === 'review/decisions') {
+    const body = options.body ?? {};
+    reviewQueue.items = reviewQueue.items.map((item) =>
+      item.id === body.candidate_id ? { ...item, status: body.decision ?? 'approved' } : item,
+    );
+    return {
+      candidate_id: body.candidate_id,
+      decision: body.decision,
+      status: 'accepted',
+      audit_event_id: 'audit-review-mock-001',
+    };
+  }
+  if (resource === 'export') {
+    const body = options.body ?? {};
+    const format = body.format ?? 'markdown';
+    return {
+      export_job_id: '00000000-0000-4000-8000-0000000000e1',
+      query_run_id: body.query_run_id,
+      format,
+      status: 'completed',
+      content_type: format === 'json' ? 'application/json' : 'text/markdown',
+      content: format === 'json' ? { query_run_id: body.query_run_id } : '# Mock export',
+      file_url: '',
+      warnings: [],
+      generated_at: new Date().toISOString(),
+    };
+  }
+  if (resource.startsWith('admin/users/') && options.method === 'PATCH') {
+    const userId = resource.slice('admin/users/'.length);
+    const body = options.body ?? {};
+    adminSnapshot.users = adminSnapshot.users.map((user) =>
+      user.id === userId
+        ? {
+            ...user,
+            role: body.role ?? user.role,
+            active: body.active ?? body.is_active ?? user.active,
+          }
+        : user,
+    );
+    return adminSnapshot.users.find((user) => user.id === userId);
+  }
+  if (resource.startsWith('admin/policies/') && options.method === 'PATCH') {
+    const documentId = resource.slice('admin/policies/'.length);
+    const policyPatch = options.body?.access_policy ?? {};
+    adminSnapshot.access_policies = adminSnapshot.access_policies.map((policy) =>
+      policy.id === documentId
+        ? {
+            ...policy,
+            level: policyPatch.level ?? policy.level,
+            export_allowed: policyPatch.export_allowed ?? policy.export_allowed,
+            roles: policyPatch.roles ?? policy.roles,
+          }
+        : policy,
+    );
+    return adminSnapshot.access_policies.find((policy) => policy.id === documentId);
+  }
+  if (resource.startsWith('documents/') && options.method === 'DELETE') {
+    const documentId = resource.slice('documents/'.length);
+    return {
+      document_id: documentId,
+      status: 'deleted',
+      tombstone_id: `tombstone-${documentId}`,
+      warnings: [],
+    };
+  }
+  if (resource.startsWith('notifications') && resource.includes('?since=')) {
+    const since = decodeURIComponent(resource.split('?since=')[1] ?? '');
+    return notificationItems
+      .filter((item) => item.created_at > since)
+      .map((item) => ({ ...item }));
   }
   if (resource === 'notifications') {
     return notificationItems.map((item) => ({ ...item }));

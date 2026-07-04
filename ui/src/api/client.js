@@ -38,6 +38,28 @@ export async function apiPost(path, body, options = {}) {
   return response.data;
 }
 
+export async function apiPut(path, body, options = {}) {
+  if (useMock && !options.real) {
+    return mockFetch(path.replace(/^\//, ''), { ...options, method: 'PUT', body });
+  }
+  const response = await http.put(path, body, await authorizedConfig(options));
+  if (response.status === 204) {
+    return null;
+  }
+  return response.data;
+}
+
+export async function apiPatch(path, body, options = {}) {
+  if (useMock && !options.real) {
+    return mockFetch(path.replace(/^\//, ''), { ...options, method: 'PATCH', body });
+  }
+  const response = await http.patch(path, body, await authorizedConfig(options));
+  if (response.status === 204) {
+    return null;
+  }
+  return response.data;
+}
+
 export async function apiDelete(path, options = {}) {
   if (useMock && !options.real) {
     return mockFetch(path.replace(/^\//, ''), { ...options, method: 'DELETE' });
@@ -100,3 +122,7 @@ export async function submitChatQuery({ text, files }, { onStep, onEvent, t } = 
 }
 
 export { useMock };
+
+export function apiOptions() {
+  return useMock ? {} : { real: true };
+}

@@ -1,0 +1,25 @@
+{
+  "items": [
+    {
+      "id": "cand-001",
+      "name": "NiSO4",
+      "type": "substance",
+      "status": "pending",
+      "confidence": 0.82,
+      "conflict_ids": ["conflict-003"],
+      "source_span_ids": ["span-101"],
+      "updated_at": "2026-07-04T07:30:00Z"
+    },
+    {
+      "id": "cand-002",
+      "name": "католит",
+      "type": "process_term",
+      "status": "pending",
+      "confidence": 0.74,
+      "conflict_ids": [],
+      "source_span_ids": ["span-205"],
+      "updated_at": "2026-07-03T19:10:00Z"
+    }
+  ],
+  "total": 2
+}

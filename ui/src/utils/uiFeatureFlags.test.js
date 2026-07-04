@@ -1,8 +1,38 @@
-import { describe, expect, it } from 'vitest';
-import { isDevRoleSwitcherEnabled } from './uiFeatureFlags.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  isLiveNotificationsEnabled,
+  isReviewConsoleEnabled,
+  isServerExportEnabled,
+  isSourceLiveModeEnabled,
+} from '../utils/uiFeatureFlags.js';
+
+vi.mock('../api/client.js', () => ({
+  useMock: false,
+}));
 
 describe('uiFeatureFlags', () => {
-  it('exposes dev role switcher gate', () => {
-    expect(typeof isDevRoleSwitcherEnabled()).toBe('boolean');
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    vi.resetModules();
+  });
+
+  it('enables product flags from env', async () => {
+    vi.stubEnv('VITE_SERVER_EXPORT_ENABLED', 'true');
+    vi.stubEnv('VITE_LIVE_NOTIFICATIONS_ENABLED', 'true');
+    vi.stubEnv('VITE_REVIEW_CONSOLE_ENABLED', 'true');
+    vi.stubEnv('VITE_SOURCE_LIVE_MODE', 'true');
+    vi.resetModules();
+    const flags = await import('../utils/uiFeatureFlags.js');
+    expect(flags.isServerExportEnabled()).toBe(true);
+    expect(flags.isLiveNotificationsEnabled()).toBe(true);
+    expect(flags.isReviewConsoleEnabled()).toBe(true);
+    expect(flags.isSourceLiveModeEnabled()).toBe(true);
+  });
+
+  it('defaults product flags to false', () => {
+    expect(isServerExportEnabled()).toBe(false);
+    expect(isLiveNotificationsEnabled()).toBe(false);
+    expect(isReviewConsoleEnabled()).toBe(false);
+    expect(isSourceLiveModeEnabled()).toBe(true);
   });
 });
