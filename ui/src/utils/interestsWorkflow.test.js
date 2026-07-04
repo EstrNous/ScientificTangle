@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('../api/client.js', () => ({
-  useMock: false,
+vi.mock('./runtimeMode.js', () => ({
+  resolveUseMock: () => false,
 }));
 
 vi.mock('../api/interests.js', () => ({
