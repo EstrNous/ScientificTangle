@@ -312,6 +312,125 @@ class ExportPayload(BaseModel):
     generated_at: datetime
 
 
+class ExportJobPayload(BaseModel):
+    id: UUID
+    query_run_id: UUID
+    owner_user_id: UUID | None = None
+    format: Literal["markdown", "json", "jsonld", "pdf"]
+    status: QueryRunStatus
+    content_type: str = ""
+    file_url: str = ""
+    warnings: list[str] = Field(default_factory=list)
+    error_message: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class DeleteDocumentResult(BaseModel):
+    document_id: str
+    status: Literal["deleted", "not_found", "accepted", "failed"]
+    deleted_source_spans: int = Field(default=0, ge=0)
+    deleted_vectors: int = Field(default=0, ge=0)
+    deleted_graph_nodes: int = Field(default=0, ge=0)
+    tombstone_id: UUID | None = None
+    warnings: list[str] = Field(default_factory=list)
+
+
+class UserInterestItem(BaseModel):
+    label: str
+    weight: float = Field(default=1.0, ge=0.0, le=1.0)
+    source_terms: list[str] = Field(default_factory=list)
+
+
+class UserInterestsPayload(BaseModel):
+    user_id: UUID
+    raw_text: str = ""
+    interests: list[UserInterestItem] = Field(default_factory=list)
+    extracted_entities: dict = Field(default_factory=dict)
+    updated_at: datetime | None = None
+    warnings: list[str] = Field(default_factory=list)
+
+
+class UserInterestsUpdatePayload(BaseModel):
+    raw_text: str = ""
+    interests: list[UserInterestItem] = Field(default_factory=list)
+
+
+class NotificationReference(BaseModel):
+    reference_id: str
+    reference_type: Literal["document", "source_span", "query_run", "review_item", "external"] = "document"
+    source_span_id: str | None = None
+    document_id: str | None = None
+
+
+class NotificationPayload(BaseModel):
+    id: UUID
+    title: str
+    reason: str
+    type: str
+    reference_id: str | None = None
+    reference_type: Literal["document", "source_span", "query_run", "review_item", "external"] = "document"
+    read: bool = False
+    match_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    match_reason: str = ""
+    created_at: datetime
+
+
+class NotificationListPayload(BaseModel):
+    items: list[NotificationPayload] = Field(default_factory=list)
+    unread_count: int = 0
+    warnings: list[str] = Field(default_factory=list)
+
+
+class NotificationMarkReadPayload(BaseModel):
+    updated_count: int = Field(default=0, ge=0)
+
+
+class NotificationMatchResultPayload(BaseModel):
+    interest_label: str
+    artifact_id: str
+    score: float = Field(ge=0.0, le=1.0)
+    reason: str = ""
+    reference: NotificationReference | None = None
+
+
+class NotificationMatchPayload(BaseModel):
+    matches: list[NotificationMatchResultPayload] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class ReviewQueueItem(BaseModel):
+    id: UUID
+    document_id: str
+    source_span_id: str | None = None
+    claim_id: str | None = None
+    status: Literal["pending", "approved", "rejected", "deferred"] = "pending"
+    priority: Literal["low", "medium", "high"] = "medium"
+    payload: dict = Field(default_factory=dict)
+    created_at: datetime
+
+
+class ReviewQueuePayload(BaseModel):
+    items: list[ReviewQueueItem] = Field(default_factory=list)
+    total_found: int = 0
+    warnings: list[str] = Field(default_factory=list)
+
+
+class ReviewDecisionPayload(BaseModel):
+    item_id: UUID
+    decision: Literal["approve", "reject", "defer"]
+    reason: str = ""
+    source_span_ids: list[str] = Field(default_factory=list)
+
+
+class ReviewDecisionResult(BaseModel):
+    item_id: UUID
+    status: Literal["approved", "rejected", "deferred"]
+    decided_by: UUID
+    decided_at: datetime
+    warnings: list[str] = Field(default_factory=list)
+
+
 class GraphNode(BaseModel):
     id: str
     label: str
@@ -335,6 +454,10 @@ class SourcePayload(BaseModel):
     source_type: str
     metadata: dict = Field(default_factory=dict)
     access_policy: AccessPolicy
+    highlight_start: int | None = None
+    highlight_end: int | None = None
+    highlight_text: str = ""
+    highlight_fragments: list[str] = Field(default_factory=list)
 
 
 class SearchResult(BaseModel):
@@ -476,6 +599,16 @@ class StrategicEvaluationSummary(BaseModel):
 class StrategicEvaluationPayload(BaseModel):
     summary: StrategicEvaluationSummary = Field(default_factory=StrategicEvaluationSummary)
     questions: list[StrategicEvaluationQuestion] = Field(default_factory=list)
+
+
+class EvalReportSummaryPayload(BaseModel):
+    report_id: str = ""
+    status: Literal["pass", "warn", "fail", "blocked_by_policy", "blocked_by_data"] = "warn"
+    generated_at: datetime | None = None
+    suites: dict = Field(default_factory=dict)
+    metrics: dict = Field(default_factory=dict)
+    warnings: list[str] = Field(default_factory=list)
+    blocked_checks: list[str] = Field(default_factory=list)
 
 
 class LabGap(BaseModel):

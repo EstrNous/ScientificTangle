@@ -50,6 +50,7 @@
 - `docs/agent_context/nornikel_e0_bml_contract_api_eval_baseline.md` — E0 baseline контрактов, API, eval inputs и dataset checklist для E2.
 - `docs/agent_context/nornikel_e0_fe_ui_audit.md` — E0 UI audit: routes, stores, mock/live boundaries, frontend gaps E1–E7.
 - `docs/agent_context/nornikel_e0_validation_report.md` — E0 validation report: merge gate, unified gaps, blockers перед E1.
+- `docs/agent_context/nornikel_e1_bml_no_live_policy.md` — E1 Backend/ML policy: no-live ограничения, контрактные skeleton routes и storage dependencies.
 - `docs/agent_context/top1_e0_contract_audit.md` — аудит контрактов query path и freeze points для этапов E1–E4.
 - `docs/agent_context/top1_e1_bm2_ml_policy.md` — E1 policy для классов запросов, retrieval planner rules, verification reason codes и synthesis/AnswerPayloadV2 expectations.
 - `docs/agent_context/top1_e4_bm1_eval_regression.md` — E4 pinned demo artifact, eval suites и comparison gate для regression checks.
@@ -61,7 +62,7 @@
 ### Общий код (`shared/`)
 
 - `shared/pyproject.toml` — пакет `scientific-tangle-shared`, подключается как path dependency из каждого сервиса.
-- `shared/contracts/` — Pydantic-модели DTO, включая стабильный SourceSpan ID, QueryIR, EvidenceBundle, QueryRunPayload, SourcePayload, GraphSubgraph, SearchResultPayload и результаты записи Neo4j/Qdrant.
+- `shared/contracts/` — Pydantic-модели DTO, включая стабильный SourceSpan ID, QueryIR, EvidenceBundle, QueryRunPayload, SourcePayload, GraphSubgraph, SearchResultPayload, interests/notifications/review/export/delete/eval payloads и результаты записи Neo4j/Qdrant.
 - `shared/utils/` — утилиты (generate_request_id).
 - `shared/logging/` — единая конфигурация structlog (JSON, контекст сервиса).
 - `shared/config/` — базовый класс ServiceSettings с подключениями ко всем хранилищам.

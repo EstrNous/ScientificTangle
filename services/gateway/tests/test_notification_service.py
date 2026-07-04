@@ -1,6 +1,6 @@
 from uuid import uuid4
 
-from app.service.notification_service import NotificationService, TYPE_TITLES
+from app.service.notification_service import TYPE_TITLES, NotificationService
 
 
 class FakeNotification:
@@ -23,8 +23,8 @@ def test_notification_payload_maps_ui_fields() -> None:
     note = FakeNotification()
     payload = NotificationService._payload(note)
 
-    assert payload["title"] == TYPE_TITLES["interest_match"]
-    assert payload["reason"] == note.message
-    assert payload["reference_id"] == "nickel_report.pdf"
-    assert payload["read"] is False
-    assert payload["created_at"].startswith("2026-07-04")
+    assert payload.title == TYPE_TITLES["interest_match"]
+    assert payload.reason == note.message
+    assert payload.reference_id == "nickel_report.pdf"
+    assert payload.read is False
+    assert payload.created_at.isoformat().startswith("2026-07-04")

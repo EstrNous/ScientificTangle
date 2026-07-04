@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, Header, Request, UploadFile, status
 
-from shared.contracts import IngestionTaskPayload
+from shared.contracts import DeleteDocumentResult, IngestionTaskPayload
 from shared.security import AuthenticatedPrincipal
 from shared.web import ServiceError, require_principal
 
@@ -51,3 +51,15 @@ async def get_ingestion_task(
         )
     except GatewayServiceError as error:
         raise ServiceError(error.status_code, error.code, error.message) from error
+
+
+@router.delete("/documents/{document_id}", response_model=DeleteDocumentResult)
+async def delete_document(
+    document_id: str,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],
+) -> DeleteDocumentResult:
+    raise ServiceError(
+        status.HTTP_501_NOT_IMPLEMENTED,
+        "document_delete_not_implemented",
+        "Document deletion API contract is available, storage purge wiring is not implemented in E1",
+    )
