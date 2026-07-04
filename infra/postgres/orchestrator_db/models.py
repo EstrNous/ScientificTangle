@@ -2,9 +2,9 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, Text, func
+from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PostgreSQLUUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from shared.contracts import IngestionTaskStatus, QueryRunStatus, TaskKind
 
@@ -14,6 +14,16 @@ class ExportJobStatus(StrEnum):
     PROCESSING = "processing"
     COMPLETED = "completed"
     FAILED = "failed"
+
+
+class AuditCsvExportStatus(StrEnum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+EXPORTS_BUCKET_NAME = "exports"
 
 
 class ExportFormat(StrEnum):
@@ -238,6 +248,7 @@ class ExportJob(Base):
         Index("ix_export_jobs_status", "status"),
         Index("ix_export_jobs_created_at", "created_at"),
         Index("ix_export_jobs_user_status_created", "user_id", "status", "created_at"),
+        Index("ix_export_jobs_user_created_id", "user_id", "created_at", "id"),
     )
 
     id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4)
@@ -248,11 +259,16 @@ class ExportJob(Base):
     file_url: Mapped[str | None] = mapped_column(String(1024))
     payload: Mapped[dict | None] = mapped_column(JSONB)
     error_message: Mapped[str | None] = mapped_column(Text)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+    artifacts: Mapped[list["ExportArtifact"]] = relationship(
+        back_populates="export_job",
+        cascade="all, delete-orphan",
     )
 
 
@@ -311,6 +327,8 @@ class ExportArtifact(Base):
     __table_args__ = (
         Index("ix_export_artifacts_export_job_id", "export_job_id"),
         Index("ix_export_artifacts_artifact_kind", "artifact_kind"),
+        Index("ix_export_artifacts_expires_at", "expires_at"),
+        Index("ix_export_artifacts_bucket_storage_key", "bucket_name", "storage_key"),
     )
 
     id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4)
@@ -320,9 +338,39 @@ class ExportArtifact(Base):
         nullable=False,
     )
     artifact_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    bucket_name: Mapped[str] = mapped_column(String(128), nullable=False, default=EXPORTS_BUCKET_NAME)
     storage_key: Mapped[str | None] = mapped_column(String(512))
     file_url: Mapped[str | None] = mapped_column(String(1024))
     content_type: Mapped[str | None] = mapped_column(String(128))
+    byte_size: Mapped[int | None] = mapped_column(BigInteger)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    checksum: Mapped[str | None] = mapped_column(String(128))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+    export_job: Mapped["ExportJob"] = relationship(back_populates="artifacts")
+
+
+class AuditCsvExport(Base):
+    __tablename__ = "audit_csv_exports"
+    __table_args__ = (
+        Index("ix_audit_csv_exports_user_id", "user_id"),
+        Index("ix_audit_csv_exports_status", "status"),
+        Index("ix_audit_csv_exports_user_created_id", "user_id", "created_at", "id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(PostgreSQLUUID(as_uuid=True), nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=AuditCsvExportStatus.PENDING.value
+    )
+    filter_params: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="{}")
+    bucket_name: Mapped[str] = mapped_column(String(128), nullable=False, default=EXPORTS_BUCKET_NAME)
+    storage_key: Mapped[str | None] = mapped_column(String(512))
+    row_count: Mapped[int | None] = mapped_column(Integer)
+    content_type: Mapped[str] = mapped_column(String(128), nullable=False, default="text/csv")
+    error_message: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
