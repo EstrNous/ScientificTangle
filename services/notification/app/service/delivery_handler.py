@@ -5,7 +5,10 @@ from uuid import UUID
 import httpx
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from infra.postgres.notification_db.repository import NotificationData, SqlAlchemyNotificationRepository
+from infra.postgres.notification_db.repository import (
+    NotificationData,
+    SqlAlchemyNotificationRepository,
+)
 from infra.postgres.notification_db.workflow_repository import NotificationWorkflowRepository
 from shared.contracts import NotificationPayload
 

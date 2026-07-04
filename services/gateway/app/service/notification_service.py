@@ -2,7 +2,6 @@ from datetime import datetime
 from uuid import UUID
 
 import httpx
-
 import structlog
 
 from shared.contracts import (
