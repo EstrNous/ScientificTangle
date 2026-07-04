@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -80,6 +81,8 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    if os.getenv("RUN_MODEL_TESTS") != "1":
+        raise SystemExit("Model scripts are opt-in: set RUN_MODEL_TESTS=1")
     result = asyncio.run(run_eval(parse_args()))
     print(json.dumps(result, ensure_ascii=False, indent=2))
 

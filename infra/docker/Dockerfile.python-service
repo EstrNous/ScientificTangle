@@ -12,7 +12,8 @@ COPY infra/neo4j /app/infra/neo4j
 COPY ontology /app/ontology
 COPY dictionaries /app/dictionaries
 COPY ${SERVICE_DIR} /tmp/service_src
-RUN cp -r /tmp/service_src/app /app/services/service/app && \
+RUN mkdir -p /app/services/service && \
+    cp -r /tmp/service_src/app /app/services/service/app && \
     cp /tmp/service_src/pyproject.toml /app/services/service/pyproject.toml && \
     if [ -d /tmp/service_src/adapters ]; then cp -r /tmp/service_src/adapters /app/services/service/adapters; else mkdir -p /app/services/service/adapters && touch /app/services/service/adapters/__init__.py; fi
 WORKDIR /app/services/service

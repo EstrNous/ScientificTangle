@@ -40,18 +40,30 @@ SUITES: list[tuple[str, list[str], list[str]]] = [
 ]
 
 
-def run_suite(name: str, testpaths: list[str], pythonpath_parts: list[str], *, coverage: bool) -> int:
+def run_suite(
+    name: str,
+    testpaths: list[str],
+    pythonpath_parts: list[str],
+    *,
+    coverage: bool,
+    model_coverage: bool,
+) -> int:
     env = os.environ.copy()
     env["PYTHONPATH"] = os.pathsep.join(str(ROOT / part) for part in pythonpath_parts)
     cmd = [sys.executable, "-m", "pytest", "-q", *testpaths]
     if coverage:
         for package in COVERAGE_PACKAGES.get(name, []):
+            if name == "model" and not model_coverage:
+                continue
             cmd.extend(["--cov", package, "--cov-append"])
     print(f"\n=== {name} ===", flush=True)
     return subprocess.run(cmd, cwd=ROOT, env=env, check=False).returncode
 
 
-def report_coverage(fail_under: int) -> int:
+def report_coverage(fail_under: int, *, include_model: bool) -> int:
+    omit = "*/tests/*,*/__pycache__/*"
+    if not include_model:
+        omit += ",services/model/*"
     cmd = [
         sys.executable,
         "-m",
@@ -60,7 +72,7 @@ def report_coverage(fail_under: int) -> int:
         "--fail-under",
         str(fail_under),
         "--omit",
-        "*/tests/*,*/__pycache__/*",
+        omit,
     ]
     print("\n=== coverage ===", flush=True)
     return subprocess.run(cmd, cwd=ROOT, check=False).returncode
@@ -73,10 +85,14 @@ def main() -> int:
         coverage_data = ROOT / ".coverage"
         if coverage_data.exists():
             coverage_data.unlink()
+    model_coverage = os.getenv("RUN_MODEL_TESTS") == "1"
 
     failures = 0
     for name, paths, pypath in SUITES:
         if name == "e2e" and os.getenv("RUN_E2E") != "1":
+            continue
+        if name == "model" and os.getenv("RUN_MODEL_TESTS") != "1":
+            print("\n=== model (skipped, set RUN_MODEL_TESTS=1) ===", flush=True)
             continue
         rel_paths = [str(ROOT / p) for p in paths]
         if not any(Path(p).exists() and any(Path(p).glob("test_*.py")) for p in rel_paths):
@@ -99,18 +115,18 @@ def main() -> int:
                 ),
             ]
             for testpaths, pythonpath_parts in suites:
-                code = run_suite(f"{name}", testpaths, pythonpath_parts, coverage=coverage)
+                code = run_suite(f"{name}", testpaths, pythonpath_parts, coverage=coverage, model_coverage=model_coverage)
                 if code != 0:
                     failures += 1
             continue
-        code = run_suite(name, rel_paths, pypath, coverage=coverage)
+        code = run_suite(name, rel_paths, pypath, coverage=coverage, model_coverage=model_coverage)
         if code != 0:
             failures += 1
     if failures:
         print(f"\n{failures} test suite(s) failed", file=sys.stderr)
         return 1
     if coverage:
-        coverage_code = report_coverage(coverage_threshold)
+        coverage_code = report_coverage(coverage_threshold, include_model=model_coverage)
         if coverage_code != 0:
             print("\ncoverage threshold failed", file=sys.stderr)
             return coverage_code
