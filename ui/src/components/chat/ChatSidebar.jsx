@@ -28,13 +28,20 @@ export default function ChatSidebar({
   onSelect,
   onDelete,
   onNewChat,
-  creatingChat = false,
+  newChatLoading = false,
+  newChatDisabled = false,
   sessionId,
   sessionTitle,
   messages,
   className = '',
 }) {
   const { t } = useTranslation();
+  const isMac =
+    typeof navigator !== 'undefined' && /Mac|iPhone|iPod|iPad/.test(navigator.platform);
+  const newChatLabel = newChatLoading ? t('chat.creatingChat') : t('chat.newChat');
+  const newChatShortcut = t('chat.newChatShortcut', {
+    shortcut: isMac ? '⌘N' : 'Ctrl+N',
+  });
 
   return (
     <aside
@@ -48,11 +55,14 @@ export default function ChatSidebar({
           <button
             type="button"
             onClick={onNewChat}
-            disabled={creatingChat || !onNewChat}
+            disabled={newChatDisabled || !onNewChat}
+            aria-busy={newChatLoading}
+            aria-label={newChatLabel}
+            title={newChatLoading ? undefined : newChatShortcut}
             className="inline-flex items-center gap-1.5 rounded-lg border border-nn-border px-2.5 py-1 text-xs font-medium text-gray-900 transition-colors hover:bg-nn-gray-light disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-100 dark:hover:bg-slate-800"
           >
             <PlusIcon />
-            {t('chat.newChat')}
+            {newChatLabel}
           </button>
         </div>
         <ul className="scrollbar-thin scrollbar-thumb-nn-border dark:scrollbar-thumb-slate-600 min-h-0 flex-1 space-y-2 overflow-y-auto pr-1">

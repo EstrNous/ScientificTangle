@@ -217,6 +217,8 @@
       "export_empty": "Server returned an empty export file"
     },
     "newChat": "New chat",
+    "creatingChat": "Creating…",
+    "newChatShortcut": "New chat ({{shortcut}})",
     "defaultSessionTitle": "New query",
     "deleteSession": "Delete query",
     "errors": {
