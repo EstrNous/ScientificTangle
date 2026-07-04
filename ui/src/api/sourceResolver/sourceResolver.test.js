@@ -58,16 +58,19 @@ describe('sourceResolver facade', () => {
   });
 
   it('selects mock adapter when source live mode is disabled', async () => {
+    vi.resetModules();
     vi.stubEnv('VITE_USE_MOCK', 'true');
     vi.doMock('../../utils/uiFeatureFlags.js', () => ({
       isSourceLiveModeEnabled: () => false,
     }));
-    const { getSourceMode, sourceRefLabel } = await import('./index.js');
+    const { ensureMockSourceResolver, getSourceMode, sourceRefLabel } = await import('./index.js');
+    await ensureMockSourceResolver();
     expect(getSourceMode()).toBe('mock');
     expect(sourceRefLabel('span-1')).toBe('nickel_report.pdf');
   });
 
   it('selects live adapter when source live mode is enabled', async () => {
+    vi.resetModules();
     vi.stubEnv('VITE_USE_MOCK', 'false');
     vi.doMock('../../utils/uiFeatureFlags.js', () => ({
       isSourceLiveModeEnabled: () => true,
@@ -78,6 +81,7 @@ describe('sourceResolver facade', () => {
   });
 
   it('rejects mock adapter when mock bundle is disabled', async () => {
+    vi.resetModules();
     vi.stubEnv('VITE_USE_MOCK', 'false');
     vi.doMock('../../utils/uiFeatureFlags.js', () => ({
       isSourceLiveModeEnabled: () => false,
