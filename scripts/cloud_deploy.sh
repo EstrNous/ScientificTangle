@@ -225,23 +225,28 @@ edge_curl() {
 
 check_public_perimeter() {
   local base_url="$1"
-  local code
+  local code path
+  local blocked_paths=(
+    "/model/v1/status"
+    "/model/health"
+    "/retrieval/health"
+    "/orchestrator/health"
+    "/ingestion/health"
+    "/knowledge/health"
+  )
   log "Public perimeter check"
   code="$(edge_curl "${base_url}/api/health")"
   if [[ "$code" != "200" ]]; then
     echo "Perimeter check failed: ${base_url}/api/health returned ${code}, expected 200" >&2
     exit 1
   fi
-  code="$(edge_curl "${base_url}/model/v1/status")"
-  if [[ "$code" != "404" ]]; then
-    echo "Perimeter check failed: ${base_url}/model/v1/status returned ${code}, expected 404" >&2
-    exit 1
-  fi
-  code="$(edge_curl "${base_url}/retrieval/health")"
-  if [[ "$code" != "404" ]]; then
-    echo "Perimeter check failed: ${base_url}/retrieval/health returned ${code}, expected 404" >&2
-    exit 1
-  fi
+  for path in "${blocked_paths[@]}"; do
+    code="$(edge_curl "${base_url}${path}")"
+    if [[ "$code" != "404" ]]; then
+      echo "Perimeter check failed: ${base_url}${path} returned ${code}, expected 404" >&2
+      exit 1
+    fi
+  done
 }
 
 detect_docker_access() {

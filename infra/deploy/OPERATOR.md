@@ -128,7 +128,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compos
 |----------|-------|
 | `/api/health` | HTTP 200 |
 | `/api/health/all` | `status: ok` |
-| `/model/v1/status`, `/retrieval/health` снаружи | HTTP 404 |
+| `/model/v1/status`, `/model/health`, `/retrieval/health`, `/orchestrator/health`, `/ingestion/health`, `/knowledge/health` снаружи | HTTP 404 |
 | `indexed_documents` | > 0 после загрузки корпуса |
 | `source_span_lookup` | > 0 |
 | Qdrant `points_count` | > 0 |
@@ -172,6 +172,7 @@ make cloud-ps
 make cloud-logs SERVICE=nginx
 make cloud-verify
 make cloud-down
+make cloud-down-v
 ```
 
 ## 8. Загрузка корпуса batch-ами
@@ -235,6 +236,8 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compos
 Полный сброс с удалением данных:
 
 ```bash
-make down
-./scripts/cloud_deploy.sh ВАШ_IP
+make cloud-down-v
+./scripts/cloud_deploy.sh ВАШ_IP --install-docker
 ```
+
+`make down` останавливает только dev-стек; для cloud используйте `make cloud-down-v`.

@@ -258,25 +258,29 @@ else:
 
 check_public_perimeter() {
   section "Public perimeter"
-  local code
+  local code path
+  local blocked_paths=(
+    "/model/v1/status"
+    "/model/health"
+    "/retrieval/health"
+    "/orchestrator/health"
+    "/ingestion/health"
+    "/knowledge/health"
+  )
   code="$(edge_curl "${BASE_URL}/api/health")"
   if [[ "$code" == "200" ]]; then
     ok "/api/health -> 200"
   else
     fail "/api/health -> ${code} (expected 200)"
   fi
-  code="$(edge_curl "${BASE_URL}/model/v1/status")"
-  if [[ "$code" == "404" ]]; then
-    ok "/model/v1/status -> 404"
-  else
-    fail "/model/v1/status -> ${code} (expected 404)"
-  fi
-  code="$(edge_curl "${BASE_URL}/retrieval/health")"
-  if [[ "$code" == "404" ]]; then
-    ok "/retrieval/health -> 404"
-  else
-    fail "/retrieval/health -> ${code} (expected 404)"
-  fi
+  for path in "${blocked_paths[@]}"; do
+    code="$(edge_curl "${BASE_URL}${path}")"
+    if [[ "$code" == "404" ]]; then
+      ok "${path} -> 404"
+    else
+      fail "${path} -> ${code} (expected 404)"
+    fi
+  done
 }
 
 auth_login() {
