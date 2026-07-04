@@ -4,7 +4,6 @@ from fastapi import Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from infra.postgres.chat_ui_db import ChatRepository, get_session
-from infra.postgres.notification_db import SqlAlchemyNotificationRepository
 
 from ..service.analytics_service import AdminService, AnalyticsService
 from ..service.chat_service import ChatService
@@ -36,15 +35,9 @@ def get_chat_service(
     return ChatService(
         repository=ChatRepository(session),
         gateway_service=request.app.state.gateway_service,
-        notification_repository=SqlAlchemyNotificationRepository(session),
+        notification_service=request.app.state.notification_service,
     )
 
 
-def get_notification_service(
-    request: Request,
-    session: Annotated[AsyncSession, Depends(get_session)],
-) -> NotificationService:
-    return NotificationService(
-        SqlAlchemyNotificationRepository(session),
-        client=request.app.state.http_client,
-    )
+def get_notification_service(request: Request) -> NotificationService:
+    return request.app.state.notification_service
