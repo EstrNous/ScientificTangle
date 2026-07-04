@@ -54,6 +54,37 @@ async def test_invalid_login_is_generic_and_does_not_leak_credentials(client: As
     assert response.headers["www-authenticate"] == "Bearer"
 
 
+async def test_login_is_rate_limited(
+    settings, repository: FakeAuthRepository
+) -> None:
+    app = create_app(
+        settings=settings.model_copy(
+            update={
+                "rate_limit_enabled": True,
+                "rate_limit_auth_per_minute": 1,
+                "rate_limit_use_redis": False,
+            }
+        ),
+        repository=repository,
+    )
+    async with AsyncClient(
+        transport=ASGITransport(app=app, raise_app_exceptions=False),
+        base_url="https://testserver",
+    ) as local_client:
+        first = await local_client.post(
+            "/api/auth/login",
+            json={"identifier": "missing", "password": "wrong-password"},
+        )
+        second = await local_client.post(
+            "/api/auth/login",
+            json={"identifier": "missing", "password": "wrong-password"},
+        )
+
+    assert first.status_code == 401
+    assert second.status_code == 429
+    assert second.json()["code"] == "rate_limited"
+
+
 async def test_inactive_user_cannot_login(client: AsyncClient) -> None:
     response = await client.post(
         "/api/auth/login",

@@ -23,7 +23,7 @@
 - `docker-compose.yml` — полная локальная среда (сервисы + PostgreSQL + Neo4j + Qdrant + MinIO + Redis + nginx), включая запуск миграций `auth_audit` и `orchestrator`, а также подключение внешних RSA-секретов.
 - `docker-compose.prod.yml` — production-оверрайды (ресурсы, логирование, реплики).
 - `Makefile` — цели сборки и управления: bootstrap, up, up-auth, down, build, logs, seed, ingest-demo, eval, eval-yandex-live, perf-smoke, test, test-yandex-live и др.
-- `.env.example` — шаблон переменных окружения для копирования в `.env`, включая `INTERNAL_SERVICE_TOKEN` для межсервисных вызовов export/notification.
+- `.env.example` — шаблон переменных окружения для копирования в `.env`, включая `INTERNAL_SERVICE_TOKEN` для межсервисных вызовов export/notification и настройки rate limiting.
 
 ### Документация
 
@@ -84,7 +84,7 @@
 - `shared/logging/` — единая конфигурация structlog (JSON, контекст сервиса).
 - `shared/config/` — базовый класс ServiceSettings с подключениями ко всем хранилищам.
 - `shared/security/` — повторно используемая проверка access token через RS256/JWKS.
-- `shared/web/` — единый request_id, зависимости аутентификации (JWT principal, `require_internal_service`), нормализованные API-ошибки.
+- `shared/web/` — единый request_id, rate limiting middleware, зависимости аутентификации (JWT principal, `require_internal_service`), нормализованные API-ошибки.
 - `shared/metrics/` — Prometheus RED-метрики и `/metrics` для всех сервисов.
 
 ### Микросервисы (`services/`)
