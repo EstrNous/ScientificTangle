@@ -94,9 +94,7 @@ def _retrieval_payload():
 
 def test_stream_query_emits_phase_and_done_events(monkeypatch) -> None:
     monkeypatch.setattr(settings, "top1_scientific_query_enabled", False)
-    # Отключаем падение из-за отсутствия словарей, если в QueryService встроена эта проверка
-    monkeypatch.setattr(settings, "enforce_active_dictionary", False)
-    
+
     repository = FakeQueryRepository()
     principal = AuthenticatedPrincipal(user_id=uuid4(), role=UserRole.RESEARCHER, token_id=uuid4())
 

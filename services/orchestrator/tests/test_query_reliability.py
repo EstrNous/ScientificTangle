@@ -70,7 +70,7 @@ def _principal() -> AuthenticatedPrincipal:
 
 
 def _service(client: httpx.AsyncClient, repository: FakeQueryRepository) -> QueryService:
-    return QueryService(client=client)
+    return QueryService(client=client, query_repository=repository)
 
 
 def _retrieval_payload(*, planner_profiles: list[dict] | None = None) -> dict:

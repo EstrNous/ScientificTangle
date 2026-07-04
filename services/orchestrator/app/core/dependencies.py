@@ -9,7 +9,7 @@ from infra.postgres.orchestrator_db import (
     get_session,
 )
 
-from ..service.service import OrchestratorService
+from ..service.orchestrator import OrchestratorService
 from .config import settings
 
 

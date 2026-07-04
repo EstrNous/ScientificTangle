@@ -129,7 +129,11 @@ def document_payload() -> dict[str, object]:
 
 
 def service(repository: FakeRepository, client: httpx.AsyncClient) -> IngestionService:
-    return IngestionService(client=client)
+    return IngestionService(
+        repository=repository,
+        client=client,
+        enforce_active_dictionary=False,
+    )
 
 
 def test_create_task_runs_complete_ingestion_pipeline() -> None:
@@ -248,8 +252,9 @@ def test_empty_normalization_marks_task_failed() -> None:
 
     async def run() -> None:
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            service = OrchestratorService(
-                repository, client, "http://ingestion", "http://knowledge", "http://retrieval", "http://model",
+            service = IngestionService(
+                repository=repository,
+                client=client,
                 enforce_active_dictionary=False,
             )
             with pytest.raises(OrchestratorServiceError) as error:

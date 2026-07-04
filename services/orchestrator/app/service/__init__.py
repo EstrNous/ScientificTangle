@@ -4,6 +4,7 @@ from .query import QueryService
 from .audit import AuditService
 from .dictionaries import DictionaryService
 from .ingestion import IngestionService
+from .export import ExportService
 
 __all__ = [
     "OrchestratorService",
@@ -13,4 +14,5 @@ __all__ = [
     "AuditService",
     "DictionaryService",
     "IngestionService",
+    "ExportService",
 ]

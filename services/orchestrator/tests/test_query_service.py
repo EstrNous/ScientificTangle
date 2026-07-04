@@ -287,7 +287,11 @@ def test_query_requires_active_dictionary_before_creating_run() -> None:
 
     async def execute():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            service = QueryService(client=client, query_repository=repository)
+            service = QueryService(
+                client=client,
+                query_repository=repository,
+                enforce_active_dictionary=True,
+            )
             with pytest.raises(OrchestratorServiceError) as error:
                 await service.run_query(principal(), "никель", {}, "request-1", 20)
             assert error.value.code == "active_dictionary_required"
