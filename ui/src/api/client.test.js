@@ -1,5 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
-import { apiGet } from '../api/client.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('../api/mock/index.js', () => ({
   mockFetch: vi.fn(async (resource) => {
@@ -9,8 +8,15 @@ vi.mock('../api/mock/index.js', () => ({
 }));
 
 describe('api client', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   it('uses mock fetch when VITE_USE_MOCK is not false', async () => {
-    const data = await apiGet('/chat/sessions');
+    vi.stubEnv('VITE_USE_MOCK', 'true');
+    vi.resetModules();
+    const { apiGet: get } = await import('../api/client.js');
+    const data = await get('/chat/sessions');
     expect(Array.isArray(data)).toBe(true);
   });
 });

@@ -122,6 +122,7 @@ services:
     env_file: .env
     environment:
       GATEWAY_DATABASE_URL: postgresql+asyncpg://st_user:st_pass@postgres:5432/scientific_tangle
+      POSTGRES_URL: postgresql+asyncpg://st_user:st_pass@postgres:5432/scientific_tangle
     depends_on:
       postgres:
         condition: service_healthy

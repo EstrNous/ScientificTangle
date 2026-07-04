@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "Научный Клубок"
+    "title": "НорСинтез"
   },
   "nav": {
     "chat": "AI R&D Ассистент",
@@ -29,6 +29,13 @@
     "downloadPdf": "Скачать PDF",
     "downloadingPdf": "PDF…",
     "exportedAt": "Экспорт: {{date}}"
+  },
+  "notifications": {
+    "bell": "Уведомления",
+    "title": "Уведомления",
+    "empty": "Нет уведомлений",
+    "loading": "Загрузка…",
+    "markAllRead": "Прочитать все"
   },
   "auth": {
     "loginTitle": "Вход",

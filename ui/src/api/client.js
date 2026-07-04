@@ -31,8 +31,11 @@ export async function apiPost(path, body, options = {}) {
   if (useMock && !options.real) {
     return mockFetch(path.replace(/^\//, ''), { ...options, method: 'POST', body });
   }
-  const { data } = await http.post(path, body, await authorizedConfig(options));
-  return data;
+  const response = await http.post(path, body, await authorizedConfig(options));
+  if (response.status === 204) {
+    return null;
+  }
+  return response.data;
 }
 
 export async function apiDelete(path, options = {}) {

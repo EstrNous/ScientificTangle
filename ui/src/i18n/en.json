@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "Scientific Tangle"
+    "title": "NorSintez"
   },
   "nav": {
     "chat": "AI R&D Assistant",
@@ -29,6 +29,13 @@
     "downloadPdf": "Download PDF",
     "downloadingPdf": "PDF…",
     "exportedAt": "Exported: {{date}}"
+  },
+  "notifications": {
+    "bell": "Notifications",
+    "title": "Notifications",
+    "empty": "No notifications",
+    "loading": "Loading…",
+    "markAllRead": "Mark all read"
   },
   "auth": {
     "loginTitle": "Sign in",

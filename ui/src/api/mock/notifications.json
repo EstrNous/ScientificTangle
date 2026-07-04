@@ -4,8 +4,37 @@
       "id": "n1",
       "title": "Новый документ по электроэкстракции",
       "reason": "Совпадение с подпиской: никель, католит",
+      "type": "interest_match",
+      "reference_id": "nickel_report.pdf",
       "read": false,
-      "created_at": "2026-07-03T11:00:00Z"
+      "created_at": "2026-07-04T05:10:00Z"
+    },
+    {
+      "id": "n2",
+      "title": "Обработан документ «Гидрометаллургия 2024»",
+      "reason": "Извлечено 24 сущности, 3 новых для графа знаний",
+      "type": "ingestion_complete",
+      "reference_id": "hydromet_2024.pdf",
+      "read": false,
+      "created_at": "2026-07-03T18:40:00Z"
+    },
+    {
+      "id": "n3",
+      "title": "Противоречие в данных по pH католита",
+      "reason": "Источники A и B дают разные диапазоны: 4.2–4.8 и 5.0–5.4",
+      "type": "conflict_detected",
+      "reference_id": null,
+      "read": false,
+      "created_at": "2026-07-03T12:15:00Z"
+    },
+    {
+      "id": "n4",
+      "title": "Новый документ по очистке сточных вод",
+      "reason": "Совпадение с подпиской: очистка воды, сорбция",
+      "type": "interest_match",
+      "reference_id": "water_treatment_review.pdf",
+      "read": true,
+      "created_at": "2026-07-02T09:00:00Z"
     }
   ]
 }

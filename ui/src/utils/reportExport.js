@@ -39,7 +39,7 @@ function buildReportHtml(payload) {
 
   return `
     <div style="font-family:'Segoe UI',sans-serif;padding:32px;color:#111827;">
-      <p style="margin:0 0 4px;font-size:12px;color:#6B7280;">Научный Клубок</p>
+      <p style="margin:0 0 4px;font-size:12px;color:#6B7280;">НорСинтез</p>
       <h1 style="margin:0 0 8px;font-size:22px;color:#0057B8;">${escapeHtml(payload.sessionTitle)}</h1>
       <p style="margin:0 0 24px;font-size:12px;color:#6B7280;">Экспорт: ${escapeHtml(new Date(payload.exportedAt).toLocaleString('ru-RU'))}</p>
       ${messageBlocks || '<p style="color:#6B7280;">Нет сообщений в сессии</p>'}
