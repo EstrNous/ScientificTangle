@@ -1,9 +1,41 @@
 import { isSourceLiveModeEnabled } from '../../utils/uiFeatureFlags.js';
+import { resolveUseMock } from '../../utils/runtimeMode.js';
 import * as liveAdapter from './liveAdapter.js';
-import * as mockAdapter from './mockAdapter.js';
+
+let mockAdapterModule = null;
+let mockAdapterPromise = null;
+
+export async function ensureMockSourceResolver() {
+  if (!resolveUseMock()) {
+    return null;
+  }
+  if (mockAdapterModule) {
+    return mockAdapterModule;
+  }
+  if (!mockAdapterPromise) {
+    mockAdapterPromise = import('./mockAdapter.js').then((module) => {
+      mockAdapterModule = module;
+      return module;
+    });
+  }
+  return mockAdapterPromise;
+}
+
+if (import.meta.env.VITE_USE_MOCK === 'true') {
+  void ensureMockSourceResolver();
+}
 
 function getAdapter() {
-  return isSourceLiveModeEnabled() ? liveAdapter : mockAdapter;
+  if (isSourceLiveModeEnabled()) {
+    return liveAdapter;
+  }
+  if (!resolveUseMock()) {
+    throw new Error('source_mock_unavailable');
+  }
+  if (!mockAdapterModule) {
+    throw new Error('source_mock_adapter_not_ready');
+  }
+  return mockAdapterModule;
 }
 
 export function getSourceMode() {
@@ -43,5 +75,8 @@ export function getFullDocumentPages(entry) {
 }
 
 export async function fetchSourceDocument(ref) {
+  if (!isSourceLiveModeEnabled() && resolveUseMock()) {
+    await ensureMockSourceResolver();
+  }
   return getAdapter().fetchSourceDocument(ref);
 }

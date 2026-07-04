@@ -1,4 +1,4 @@
-import { useMock } from '../api/client.js';
+import { useMock } from './runtimeMode.js';
 
 function readFlag(name, defaultValue = false) {
   const raw = import.meta.env[name];
