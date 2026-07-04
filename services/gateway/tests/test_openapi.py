@@ -47,5 +47,6 @@ def test_e1_backend_contract_routes_are_in_openapi() -> None:
     assert paths["/notifications"]["get"]["responses"]["200"]
     assert paths["/notifications/{notification_id}/read"]["post"]["responses"]["200"]
     assert paths["/review/queue"]["get"]["responses"]["200"]
+    assert paths["/review/queue"]["post"]["responses"]["200"]
     assert paths["/review/decisions"]["post"]["responses"]["200"]
     assert paths["/eval/report/summary"]["get"]["responses"]["200"]

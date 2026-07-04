@@ -45,8 +45,8 @@ Seed включает E2 review/source/delete fixtures и добавляет int
 
 | ID | Статус | Комментарий |
 |----|--------|-------------|
-| Workflow API wiring | E3 BML | Storage готов; endpoints — BML |
-| Workflow UI | E3 FE | Seed/fixtures для e2e smoke |
-| Cross-store delete execution | E3 BML | PG cascade metadata + status; MinIO/Qdrant/Neo4j purge — BML |
+| Workflow API wiring | **closed (E3 BML)** | `workflow.py`, gateway proxy |
+| Workflow UI | **closed (E3 FE)** | Profile, notifications, delete, admin, review console |
+| Cross-store delete execution | **closed (E3 BML)** | retrieval/knowledge purge + PG tombstone |
 
 **blocked_by_policy:** live models не вызывались.

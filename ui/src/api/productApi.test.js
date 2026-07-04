@@ -108,7 +108,7 @@ describe('product api clients (mock mode)', () => {
       candidateId: queue.items[0].id,
       decision: 'approved',
     });
-    expect(decision.status).toBe('accepted');
+    expect(decision.status).toBe('approved');
   });
 
   it('requests export and deletes document in mock mode', async () => {
