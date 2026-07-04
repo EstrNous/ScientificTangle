@@ -143,6 +143,13 @@ class FakeQueryRepository:
         self.export_transitions.append("failed")
         return job
 
+    async def complete_export_with_artifacts(self, job, payload, artifacts):
+        job.status = "completed"
+        job.payload = payload.model_dump(mode="json")
+        job.file_url = artifacts[0].file_url if artifacts else None
+        self.export_transitions.append("completed")
+        return job
+
     async def list_audit_events(
         self,
         limit: int = 200,
@@ -434,25 +441,49 @@ def test_export_query_run_returns_markdown_for_completed_run() -> None:
     )
 
     def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url.path.endswith("/resolve")
-        return httpx.Response(
-            200,
-            json={
-                "source_span": {
-                    "id": "span-1",
-                    "document_id": "doc-1",
-                    "page": 1,
-                    "start_offset": 0,
-                    "end_offset": 11,
-                    "text": "Никель 82 %",
-                    "source_type": "text",
+        if request.url.path.endswith("/resolve"):
+            return httpx.Response(
+                200,
+                json={
+                    "source_span": {
+                        "id": "span-1",
+                        "document_id": "doc-1",
+                        "page": 1,
+                        "start_offset": 0,
+                        "end_offset": 11,
+                        "text": "Никель 82 %",
+                        "source_type": "text",
+                    },
+                    "document_title": "doc-1.pdf",
+                    "source_type": "pdf",
+                    "metadata": {"year": 2024},
+                    "access_policy": {"level": "internal", "allowed_roles": ["researcher"]},
                 },
-                "document_title": "doc-1.pdf",
-                "source_type": "pdf",
-                "metadata": {"year": 2024},
-                "access_policy": {"level": "internal", "allowed_roles": ["researcher"]},
-            },
-        )
+            )
+        if request.url.path.endswith("/v1/jobs"):
+            return httpx.Response(
+                201,
+                json={
+                    "job_id": str(repository.export_job.id if repository.export_job else uuid4()),
+                    "status": "completed",
+                    "format": "markdown",
+                    "content_type": "text/markdown",
+                    "content": "# Export for query run\n\nПодтверждённый ответ",
+                    "warnings": ["gap_checked"],
+                    "artifacts": [
+                        {
+                            "artifact_kind": "markdown",
+                            "bucket_name": "exports",
+                            "storage_key": "exports/demo/report.md",
+                            "content_type": "text/markdown",
+                            "byte_size": 128,
+                            "checksum": "sha256:demo",
+                            "file_url": "/api/export/jobs/demo/artifact",
+                        }
+                    ],
+                },
+            )
+        raise AssertionError(f"unexpected request: {request.method} {request.url}")
 
     async def execute():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
@@ -471,7 +502,7 @@ def test_export_query_run_returns_markdown_for_completed_run() -> None:
     assert {item.format: item.status for item in result.format_status} == {
         "markdown": "available",
         "json": "available",
-        "jsonld": "backlog",
+        "jsonld": "available",
         "pdf": "backlog",
     }
     assert "Подтверждённый ответ" in result.content

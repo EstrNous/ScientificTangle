@@ -30,7 +30,7 @@ class QueryRunRequest(BaseModel):
 
 class ExportRunRequest(BaseModel):
     query_run_id: UUID
-    format: str = Field(pattern="^(markdown|json)$")
+    format: str = Field(pattern="^(markdown|json|jsonld)$")
 
 
 def raise_service_error(error: OrchestratorServiceError) -> None:

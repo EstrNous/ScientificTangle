@@ -31,9 +31,11 @@ class GatewayService:
         client: httpx.AsyncClient,
         orchestrator_url: str,
         upload_limit_bytes: int,
+        export_url: str = "http://export",
     ) -> None:
         self._client = client
         self._orchestrator_url = orchestrator_url.rstrip("/")
+        self._export_url = export_url.rstrip("/")
         self._upload_limit_bytes = upload_limit_bytes
 
     async def upload_documents(
@@ -275,6 +277,23 @@ class GatewayService:
         if response.status_code != status.HTTP_200_OK:
             raise self._downstream_error(response)
         return self._json_payload(response)
+
+    async def download_export_artifact(
+        self,
+        job_id: UUID,
+        authorization: str,
+        request_id: str,
+    ) -> httpx.Response:
+        response = await self._client.get(
+            f"{self._export_url}/v1/jobs/{job_id}/artifact",
+            headers={
+                "Authorization": authorization,
+                "X-Request-ID": request_id,
+            },
+        )
+        if response.status_code != status.HTTP_200_OK:
+            raise self._downstream_error(response)
+        return response
 
     async def get_subgraph(
         self,

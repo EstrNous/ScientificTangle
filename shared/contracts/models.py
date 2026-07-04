@@ -297,7 +297,7 @@ class QueryRunResponse(BaseModel):
 
 class ExportRequest(BaseModel):
     query_run_id: UUID
-    format: Literal["markdown", "json"]
+    format: Literal["markdown", "json", "jsonld"]
 
 
 class ExportFormatStatus(BaseModel):
@@ -310,7 +310,7 @@ class ExportFormatStatus(BaseModel):
 class ExportPayload(BaseModel):
     export_job_id: UUID
     query_run_id: UUID
-    format: Literal["markdown", "json"]
+    format: Literal["markdown", "json", "jsonld"]
     status: QueryRunStatus
     content_type: str
     content: str | dict

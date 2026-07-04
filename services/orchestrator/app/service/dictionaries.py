@@ -26,6 +26,7 @@ class DictionaryService:
             knowledge_url,
             "http://retrieval",
             "http://model",
+            "http://export",
             query_repository=query_repository,
         )
 

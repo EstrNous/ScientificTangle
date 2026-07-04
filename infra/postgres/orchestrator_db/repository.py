@@ -19,6 +19,7 @@ from shared.contracts import (
 )
 
 from .models import ExportJob, ExportJobStatus, IngestionTask, QueryRun, QueryRunStatus
+from .product_events_storage import ExportArtifactInput, ProductEventsStorageRepository
 
 
 class IngestionTaskRepository:
@@ -277,6 +278,23 @@ class QueryRunRepository:
     async def mark_export_failed(self, job: ExportJob, message: str) -> ExportJob:
         job.status = ExportJobStatus.FAILED.value
         job.error_message = message
+        job.updated_at = datetime.now(UTC)
+        await self._save_export_job(job)
+        return job
+
+    async def complete_export_with_artifacts(
+        self,
+        job: ExportJob,
+        payload: ExportPayload,
+        artifacts: list[ExportArtifactInput],
+    ) -> ExportJob:
+        product_repository = ProductEventsStorageRepository(self._session)
+        await product_repository.attach_export_artifacts(job.id, artifacts, mark_completed=False)
+        job.status = ExportJobStatus.COMPLETED.value
+        job.file_url = artifacts[0].file_url if artifacts else None
+        job.payload = payload.model_dump(mode="json")
+        job.error_message = None
+        job.completed_at = datetime.now(UTC)
         job.updated_at = datetime.now(UTC)
         await self._save_export_job(job)
         return job

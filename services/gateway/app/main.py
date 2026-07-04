@@ -46,6 +46,7 @@ async def lifespan(app: FastAPI):
         client=http_client,
         orchestrator_url=settings.orchestrator_url,
         upload_limit_bytes=settings.upload_limit_bytes,
+        export_url=settings.export_url,
     )
     app.state.notification_service = NotificationService(http_client)
     app.state.jwt_validator = jwt_validator
