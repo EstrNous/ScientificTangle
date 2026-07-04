@@ -301,3 +301,65 @@ E1 план добавляет: `outside_time_range`, `geo_mismatch`, `unit_mism
 | DTO | Поля | Freeze |
 |-----|------|--------|
 | `QueryRequest` / `QueryRunRequest` | `question`, `filters`, `limit` | **freeze** — eval runner, UI |
+
+---
+
+## 8. Contract freeze matrix для E1–E4
+
+| Контракт / поле | E0 | E1 | E2 | E3 | E4 |
+|-----------------|----|----|----|----|-----|
+| `SourceSpan.*` | freeze | freeze | freeze | freeze | freeze |
+| `QueryIR.raw_query`, `limit` | freeze | freeze | freeze | freeze | freeze |
+| `QueryIR.filters` keys | extension doc | policy spec | planner adds keys | verification filters | wiring merge |
+| `QueryIR.intent` | loose | taxonomy doc | planner uses | — | — |
+| `EvidenceItem.source_span` | freeze | freeze | freeze | freeze | freeze |
+| `EvidenceItem.extraction_method` | unused diversity | — | set by planner | — | — |
+| `EvidenceBundle.gaps/conflicts` | extension | — | trace gaps | populate verified split | wiring |
+| `AnswerPayload.answer_text/confidence` | freeze | — | — | V2 decision | feature flag |
+| `QueryRunPayload` top-level | freeze | freeze | +trace keys | +warnings shape | full wiring |
+| `shared/contracts` new classes | **no** | minimal BC only | RetrievalPlan TBD | AnswerPayloadV2 TBD | — |
+| Model `CandidateReasonCode` | audit | extend list | — | apply in synthesis | — |
+
+### Merge gates (из parallel plan)
+
+- **E1 start:** E0 audit PRs merged (этот документ + bm1 eval + fe ui audit).
+- **E2 start:** E1 contract/spec merged — planner не меняет frozen SourceSpan/QueryIR core.
+- **E3 start:** E2 retrieval base merged — synthesis может расширять evidence semantics.
+- **E4 start:** E3 evidence/answer merged — orchestrator wiring только после stable E3 payloads.
+
+---
+
+## 9. Выявленные drift и рекомендации
+
+| ID | Drift | Severity | Рекомендация | Этап |
+|----|-------|----------|--------------|------|
+| D-01 | `filters.source_types` (search) vs `source_type_constraints` (QueryIR) | medium | E2 planner: normalize keys | E2 |
+| D-02 | `extraction_method` always `semantic` | low | E2 set from planner profile | E2 |
+| D-03 | `has_conflicts` / `conflicts` never populated in retrieval | medium | E3 verification layer | E3 |
+| D-04 | No verified/candidate in shared EvidenceBundle | high | E1 decision doc; E3 implementation | E1/E3 |
+| D-05 | `QueryRunResponse` unused vs `QueryRunPayload` | low | Document only; no delete in E1–E4 | E0 |
+| D-06 | Chat UI mapping ad-hoc, not shared DTO | medium | Frontend E0/E3; backend keeps QueryRunPayload stable | E0/E3 |
+| D-07 | `unsupported_warnings` flattened to strings in orchestrator | low | E3 preserve structure in warnings or new field | E3 |
+| D-08 | GraphSubgraph uses `links` in code but contract says `GraphLink` list | low | Verify OpenAPI; no rename in E1 | E0 note |
+
+---
+
+## 10. Обязательные проверки для E4/E6 (из аудита)
+
+После wiring (E4) и demo hardening (E6) regression должен включать:
+
+1. `shared/tests/test_contracts.py` — frozen field lists для ingestion + SourceSpan id stability.
+2. `services/model/tests/test_model_v1.py` — QueryIR build, synthesis, evidence-first.
+3. `services/retrieval/tests/test_query.py` — access filter, evidence bundle shape.
+4. `services/orchestrator/tests/test_query_service.py` — end-to-end payload assembly.
+5. `services/gateway/tests/test_chat_service.py` — `_map_query_response` не ломается при BC extensions.
+6. Contract drift check: `QueryRunPayload` JSON schema vs gateway OpenAPI.
+
+---
+
+## 11. Итог E0
+
+- Shared query-path DTO (**SourceSpan**, **QueryIR** core, **EvidenceItem**, **AnswerPayload** text fields, **QueryRunPayload** API) — **frozen** per Sync 1.
+- **Extension zones:** `QueryIR.filters`, `retrieval_trace`, model-local reason codes, EvidenceBundle gap/conflict flags, synthesis wrappers.
+- **E1 blocker input:** решение по verified/candidate representation (D-04) без изменения shared до review.
+- Новые shared DTO в E0 **не требуются**; E2 `RetrievalPlan` и E3 `AnswerPayloadV2` — отдельные PR с BC strategy после соответствующих merge gates.
