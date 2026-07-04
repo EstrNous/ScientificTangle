@@ -20,7 +20,7 @@ jobs:
       - name: Bootstrap compose env
         run: |
           python scripts/ensure_env.py
-          pip install cryptography
+          pip install cryptography pyyaml
           python scripts/generate_auth_keys.py
           python scripts/generate_tls_certs.py
       - name: Ruff check
