@@ -9,6 +9,7 @@ from shared.metrics import build_metrics_router, setup_metrics
 from shared.security import JWKSValidator
 from shared.web import install_error_handlers, request_id_middleware
 
+from .api.admin import router as admin_router
 from .api.chat import router as chat_router
 from .api.documents import router as documents_router
 from .api.graph import router as graph_router
@@ -65,3 +66,4 @@ app.include_router(documents_router)
 app.include_router(query_router)
 app.include_router(chat_router)
 app.include_router(graph_router)
+app.include_router(admin_router)

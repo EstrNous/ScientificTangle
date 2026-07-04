@@ -8,6 +8,8 @@ class Settings(ServiceSettings):
     port: int = 8000
     auth_url: str = "http://auth_audit:8001"
     orchestrator_url: str = "http://orchestrator:8002"
+    knowledge_url: str = "http://knowledge:8004"
+    retrieval_url: str = "http://retrieval:8005"
     auth_jwt_issuer: str = "scientific-tangle-auth"
     auth_jwt_audience: str = "scientific-tangle-api"
     auth_jwks_cache_seconds: int = 300

@@ -13,6 +13,8 @@ import { apiGet } from '../api/client.js';
 import { captureElementImage, waitForPaint } from '../utils/captureElement.js';
 import { exportAdminStatsPdf } from '../utils/pagePdfExport.js';
 
+const real = { real: true };
+
 export default function AdminStatsPage() {
   const { t, i18n } = useTranslation();
   const [loading, setLoading] = useState(true);
@@ -21,7 +23,7 @@ export default function AdminStatsPage() {
   const statsVisualRef = useRef(null);
 
   useEffect(() => {
-    apiGet('/admin')
+    apiGet('/admin/stats', real)
       .then(setAdminData)
       .finally(() => setLoading(false));
   }, []);

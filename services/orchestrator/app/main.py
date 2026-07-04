@@ -9,6 +9,7 @@ from shared.metrics import build_metrics_router, setup_metrics
 from shared.security import JWKSValidator
 from shared.web import install_error_handlers, request_id_middleware
 
+from .api.audit import router as audit_router
 from .api.health import router as health_router
 from .api.ingestion import router as ingestion_router
 from .api.query import router as query_router
@@ -53,3 +54,4 @@ app.include_router(build_metrics_router())
 app.include_router(health_router)
 app.include_router(ingestion_router)
 app.include_router(query_router)
+app.include_router(audit_router)

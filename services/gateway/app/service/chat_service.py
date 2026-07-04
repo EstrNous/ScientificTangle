@@ -51,7 +51,7 @@ class ChatService:
 
         try:
             query_response = await self._gateway_service.run_query(
-                {"query": content.strip(), "documents": [], "limit": 20},
+                {"question": content.strip(), "filters": {}, "limit": 20},
                 authorization,
                 request_id,
             )
@@ -110,6 +110,7 @@ class ChatService:
         rows = []
         for item in evidence_items:
             span = item.get("source_span") or {}
+            span_id = span.get("id") or span.get("document_id") or "source"
             document_id = span.get("document_id") or "source"
             snippet = (span.get("text") or "").strip()
             sources.append(
@@ -118,7 +119,7 @@ class ChatService:
                     "author": document_id,
                     "date": "",
                     "confidence_level": "verified",
-                    "source_span_id": document_id,
+                    "source_span_id": span_id,
                 }
             )
             if snippet:
@@ -126,7 +127,7 @@ class ChatService:
                     [
                         f"Стр. {span.get('page', '—')}",
                         snippet[:160],
-                        document_id,
+                        span_id,
                     ]
                 )
 

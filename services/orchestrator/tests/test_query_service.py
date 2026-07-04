@@ -16,33 +16,33 @@ class FakeQueryRepository:
         self.transitions = []
 
     async def create(self, user_id, question, request_id):
-            now = datetime.now(UTC)
-            self.run = QueryRun(
-                id=uuid4(),
-                user_id=user_id,
-                status=QueryRunStatus.PENDING.value,
-                raw_question=question,
-                request_id=request_id,
-                warnings=[],
-                graph_subgraph={},
-                created_at=now,
-                updated_at=now,
-            )
-            self.transitions.append("pending")
-            return self.run
+        now = datetime.now(UTC)
+        self.run = QueryRun(
+            id=uuid4(),
+            user_id=user_id,
+            status=QueryRunStatus.PENDING.value,
+            raw_question=question,
+            request_id=request_id,
+            warnings=[],
+            graph_subgraph={},
+            created_at=now,
+            updated_at=now,
+        )
+        self.transitions.append("pending")
+        return self.run
 
     async def get(self, run_id):
         return self.run if self.run and self.run.id == run_id else None
 
     async def set_report(self, task, report):
         return task
-      
+
     async def mark_processing(self, run):
         run.status = QueryRunStatus.PROCESSING.value
         self.transitions.append("processing")
         return run
-      
-      async def mark_completed(
+
+    async def mark_completed(
         self,
         run,
         query_ir,
@@ -63,7 +63,6 @@ class FakeQueryRepository:
         run.latency_ms = latency_ms
         self.transitions.append("completed")
         return run
-      
     async def create_query_run(self, user_id, raw_query: str) -> QueryRun:
         now = datetime.now(UTC)
         return QueryRun(

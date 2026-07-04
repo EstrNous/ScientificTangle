@@ -5,6 +5,8 @@ import Loader from '../components/shared/Loader.jsx';
 import { AccessPolicyTable, AdminSubNav, UserRoleTable } from '../components/admin/index.js';
 import PdfDownloadButton from '../components/shared/PdfDownloadButton.jsx';
 import { apiGet } from '../api/client.js';
+
+const real = { real: true };
 import { captureElementImage, waitForPaint } from '../utils/captureElement.js';
 import { exportAdminManagementPdf } from '../utils/pagePdfExport.js';
 
@@ -23,7 +25,7 @@ export default function AdminPage() {
   const exportRef = useRef(null);
 
   useEffect(() => {
-    apiGet('/admin')
+    apiGet('/admin', real)
       .then((admin) => {
         setAdminData(admin);
         setUsers(admin.users ?? []);

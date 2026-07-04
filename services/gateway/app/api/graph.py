@@ -20,9 +20,9 @@ async def get_graph(
     return await service.get_graph()
 
 
-@router.get("/search", response_model_by_alias=True)
-async def search(
+@router.get("/graph/catalog", response_model_by_alias=True)
+async def get_graph_catalog(
     principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],
     service: Annotated[GraphService, Depends(get_graph_service)],
 ) -> SearchResultsPayload:
-    return await service.search()
+    return await service.get_catalog()

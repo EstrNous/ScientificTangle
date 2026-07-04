@@ -199,7 +199,7 @@ def test_create_task_runs_complete_ingestion_pipeline() -> None:
             assert result.status.value == "completed"
             assert result.report is not None
             assert result.report.warnings == ["parser_warning"]
-            assert repository.audit_events[0]["action"] == "ingestion.completed"
+            assert repository.audit_events[0]["action"] == "ingestion_upload"
 
     asyncio.run(run())
     assert repository.transitions == ["pending", "processing", "completed"]
@@ -329,7 +329,7 @@ def test_task_is_visible_only_to_owner_or_admin() -> None:
             admin = principal(UserRole.ADMIN)
             assert (await orchestrator.get_task(task.id, admin)).id == task.id
             with pytest.raises(OrchestratorServiceError) as error:
-                await service.get_task(task.id, principal())
+                await orchestrator.get_task(task.id, principal())
             assert error.value.status_code == 404
 
     asyncio.run(run())

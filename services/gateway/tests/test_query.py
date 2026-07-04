@@ -17,7 +17,7 @@ def test_run_query_forwards_to_orchestrator() -> None:
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
             service = GatewayService(client, "http://orchestrator", 1024)
             result = await service.run_query(
-                {"query": "никель", "documents": [], "limit": 10},
+                {"question": "никель", "filters": {}, "limit": 10},
                 "Bearer token",
                 "req-1",
             )
@@ -40,7 +40,7 @@ def test_run_query_maps_downstream_error() -> None:
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
             service = GatewayService(client, "http://orchestrator", 1024)
             with pytest.raises(GatewayServiceError) as exc:
-                await service.run_query({"query": "x", "documents": []}, "Bearer t", "req")
+                await service.run_query({"question": "x", "filters": {}, "limit": 20}, "Bearer t", "req")
             assert exc.value.status_code == 502
 
     import asyncio

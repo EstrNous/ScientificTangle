@@ -23,8 +23,9 @@ async def run_evaluation(
     ingestion_normalize_url: str | None,
     auth_token: str | None,
     output_base: str,
+    official_only: bool = False,
 ) -> None:
-    gold = load_gold_questions(gold_questions_path)
+    gold = load_gold_questions(gold_questions_path, official_only=official_only)
     results = []
     async with httpx.AsyncClient(timeout=30.0) as client:
         for question in gold:
@@ -50,9 +51,12 @@ async def run_evaluation(
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
 
-def load_gold_questions(path: str) -> list[dict[str, Any]]:
+def load_gold_questions(path: str, official_only: bool = False) -> list[dict[str, Any]]:
     data = json.loads(Path(path).read_text(encoding="utf-8"))
-    return [*data.get("questions", []), *data.get("corpus_regression_questions", [])]
+    questions = [*data.get("questions", []), *data.get("corpus_regression_questions", [])]
+    if official_only:
+        return [item for item in questions if str(item.get("id", "")).startswith("official-")]
+    return questions
 
 
 async def load_eval_documents(client: httpx.AsyncClient, documents_path: str | None, ingestion_normalize_url: str | None) -> list[dict[str, Any]]:
@@ -410,6 +414,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--auth-token")
     parser.add_argument("--auth-token-env", default="EVAL_AUTH_TOKEN")
     parser.add_argument("--output-base", default=DEFAULT_REPORT_BASE)
+    parser.add_argument("--official-only", action="store_true")
     return parser.parse_args()
 
 
@@ -423,5 +428,6 @@ if __name__ == "__main__":
             args.ingestion_normalize_url,
             resolve_auth_token(args.auth_token, args.auth_token_env),
             args.output_base,
+            args.official_only,
         )
     )

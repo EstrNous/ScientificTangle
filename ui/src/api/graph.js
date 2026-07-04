@@ -7,5 +7,5 @@ export function fetchGraphData() {
 }
 
 export function fetchSearchCatalog() {
-  return apiGet('/search', real);
+  return apiGet('/graph/catalog', real);
 }

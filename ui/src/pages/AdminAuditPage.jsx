@@ -5,22 +5,22 @@ import Loader from '../components/shared/Loader.jsx';
 import { AdminSubNav, AuditLogTable, SourceViewer } from '../components/admin/index.js';
 import PdfDownloadButton from '../components/shared/PdfDownloadButton.jsx';
 import { apiGet } from '../api/client.js';
-import { mergeSourceSpan } from '../api/mock/sourceCatalog.js';
 import { captureElementImage } from '../utils/captureElement.js';
 import { exportAdminAuditPdf } from '../utils/pagePdfExport.js';
+
+const real = { real: true };
 
 export default function AdminAuditPage() {
   const { t, i18n } = useTranslation();
   const [loading, setLoading] = useState(true);
-  const [adminData, setAdminData] = useState(null);
   const [auditEvents, setAuditEvents] = useState([]);
   const [selectedEventId, setSelectedEventId] = useState(null);
+  const [selectedSpan, setSelectedSpan] = useState(null);
   const auditExportRef = useRef(null);
 
   useEffect(() => {
-    Promise.all([apiGet('/admin'), apiGet('/audit/events')])
-      .then(([admin, events]) => {
-        setAdminData(admin);
+    Promise.all([apiGet('/audit/events', real)])
+      .then(([events]) => {
         setAuditEvents(events);
         const withSource = events.find((event) => event.source_span_id);
         setSelectedEventId(withSource?.id ?? events[0]?.id ?? null);
@@ -28,12 +28,25 @@ export default function AdminAuditPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const selectedSpan = useMemo(() => {
+  useEffect(() => {
     const event = auditEvents.find((item) => item.id === selectedEventId);
-    if (!event?.source_span_id) return null;
-    const span = adminData?.source_spans?.[event.source_span_id] ?? null;
-    return mergeSourceSpan(span);
-  }, [auditEvents, selectedEventId, adminData]);
+    if (!event?.source_span_id) {
+      setSelectedSpan(null);
+      return;
+    }
+    apiGet(`/source/${encodeURIComponent(event.source_span_id)}`, real)
+      .then((payload) => {
+        const span = payload?.source_span ?? {};
+        setSelectedSpan({
+          id: span.id,
+          title: payload?.document_title ?? span.document_id,
+          page: span.page,
+          raw_text: span.text,
+          highlight: span.text,
+        });
+      })
+      .catch(() => setSelectedSpan(null));
+  }, [auditEvents, selectedEventId]);
 
   const handleExportPdf = async () => {
     const auditImage = await captureElementImage(auditExportRef.current, { fullContent: true });

@@ -189,6 +189,7 @@ async def index_documents(
     return RetrievalIndexResponse(
         vector_write=StorageWriteResult(
             backend="qdrant",
+            mode="live",
             document_ids=[document.id for document in request.documents],
             records_count=len(points),
             claim_ids=claim_ids,

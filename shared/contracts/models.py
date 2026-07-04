@@ -343,6 +343,100 @@ class SearchResultsPayload(BaseModel):
     items: list[SearchResultItem] = Field(default_factory=list)
 
 
+class AuditEvent(BaseModel):
+    id: str
+    user: str = ""
+    role: str = ""
+    action: str
+    object: str = ""
+    timestamp: str = ""
+    source_span_id: str | None = None
+
+
+class StrategicDirection(BaseModel):
+    id: str
+    name: str
+    coverage: float = Field(ge=0.0, le=1.0)
+    documents: int = 0
+
+
+class StrategicMetricsPayload(BaseModel):
+    updated_at: str = ""
+    directions: list[StrategicDirection] = Field(default_factory=list)
+    totals: dict[str, int] = Field(default_factory=dict)
+    low_coverage_topics: list[str] = Field(default_factory=list)
+    high_conflict_topics: list[str] = Field(default_factory=list)
+    metric_sources: dict[str, list[str]] = Field(default_factory=dict)
+
+
+class StrategicEvaluationQuestion(BaseModel):
+    id: str
+    text: str
+    status: str = "warn"
+    expected_sources: int = 0
+    actual_sources: int = 0
+    missing_evidence: int = 0
+    unsupported_claims: int = 0
+    latency_ms: int = 0
+    citation_coverage: float = 0.0
+    numeric_correctness: float = 0.0
+    sources: list[str] = Field(default_factory=list)
+
+
+class StrategicEvaluationSummary(BaseModel):
+    avg_citation_coverage: float = 0.0
+    avg_numeric_correctness: float = 0.0
+    avg_latency_ms: int = 0
+    unsupported_claim_rate: float = 0.0
+    entity_linking_f1: float = 0.0
+    evidence_recall_at_5: float = 0.0
+
+
+class StrategicEvaluationPayload(BaseModel):
+    summary: StrategicEvaluationSummary = Field(default_factory=StrategicEvaluationSummary)
+    questions: list[StrategicEvaluationQuestion] = Field(default_factory=list)
+
+
+class LabGap(BaseModel):
+    id: str
+    title: str
+    description: str
+    constraints: list[str] = Field(default_factory=list)
+    related_cases: list[dict] = Field(default_factory=list)
+    experts: list[str] = Field(default_factory=list)
+
+
+class LabContradiction(BaseModel):
+    id: str
+    process: str
+    claim_a: str
+    claim_b: str
+    condition_a: str
+    condition_b: str
+    source_a: str
+    source_b: str
+    risk: Literal["high", "medium", "low"] = "medium"
+
+
+class LabMatrixView(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+
+    row_type: str = Field(alias="rowType")
+    col_type: str = Field(alias="colType")
+    rows: list[str] = Field(default_factory=list)
+    cols: list[str] = Field(default_factory=list)
+    matrix: list[list[int]] = Field(default_factory=list)
+    cell_sources: list[list[list[str]]] = Field(default_factory=list, alias="cellSources")
+
+
+class LabCoveragePayload(BaseModel):
+    summary: dict[str, int] = Field(default_factory=dict)
+    matrices: dict[str, LabMatrixView] = Field(default_factory=dict)
+    gaps: list[LabGap] = Field(default_factory=list)
+    contradictions: list[LabContradiction] = Field(default_factory=list)
+    coverage: dict | None = None
+
+
 class ServiceInfo(BaseModel):
     service_name: str
     version: str = "0.1.0"

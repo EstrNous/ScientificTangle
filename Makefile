@@ -20,13 +20,13 @@ seed:
 	python scripts/seed_demo.py
 
 ingest-demo:
-	python scripts/seed_demo.py
+	python scripts/seed_demo.py --no-reset
 
 e2e:
 	RUN_E2E=1 python scripts/run_tests.py
 
 eval:
-	python eval/run_eval.py --service-url $${EVAL_SERVICE_URL:-http://localhost:8000/api/query} --gold $${EVAL_GOLD:-eval/gold_questions.json} --auth-token-env EVAL_AUTH_TOKEN
+	python eval/run_eval.py --service-url $${EVAL_SERVICE_URL:-http://localhost:8000/api/query} --gold $${EVAL_GOLD:-eval/gold_questions.json} --auth-token-env EVAL_AUTH_TOKEN --official-only
 
 eval-yandex-live:
 	python scripts/yandex_live_smoke.py
@@ -44,11 +44,7 @@ lint:
 	cd ui && npm run lint
 
 test:
-	python -m pytest services/knowledge/tests
-	python -m pytest services/retrieval/tests
-	python -m pytest services/ingestion/tests
-	python -m pytest services/orchestrator/tests
-	python -m pytest tests/integration/test_eval_runner.py
+	python scripts/run_tests.py
 
 test-neo4j-integration:
 	cd tests/integration && RUN_NEO4J_INTEGRATION=1 python -m pytest test_neo4j_smoke.py -v

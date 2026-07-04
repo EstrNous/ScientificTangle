@@ -1,6 +1,7 @@
 import asyncio
 from datetime import UTC, datetime
 from io import BytesIO
+from pathlib import Path
 from uuid import UUID, uuid4
 
 import httpx
@@ -8,6 +9,16 @@ from fastapi import UploadFile
 
 from shared.contracts import IngestionReport, UserRole
 from shared.security import AuthenticatedPrincipal
+
+import importlib.util
+
+_ORCHESTRATOR_ROOT = Path(__file__).resolve().parents[2] / "services" / "orchestrator"
+_SERVICE_PATH = _ORCHESTRATOR_ROOT / "app" / "service" / "service.py"
+_spec = importlib.util.spec_from_file_location("orchestrator_service_module", _SERVICE_PATH)
+assert _spec and _spec.loader
+_orchestrator_service = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(_orchestrator_service)
+OrchestratorService = _orchestrator_service.OrchestratorService
 
 
 class FakeRepository:
@@ -93,8 +104,6 @@ def report_payload() -> dict:
 
 
 def test_orchestrator_ingestion_pipeline_offline() -> None:
-    from app.service.service import OrchestratorService
-
     repository = FakeRepository()
     calls: list[str] = []
 
@@ -127,7 +136,7 @@ def test_orchestrator_ingestion_pipeline_offline() -> None:
                     "extraction": {"confirmed": [], "candidates": []},
                     "graph_write": {
                         "backend": "neo4j",
-                        "mode": "mock",
+                        "mode": "live",
                         "document_ids": ["document-1"],
                         "records_count": 0,
                         "warnings": ["neo4j_adapter_pending"],
@@ -140,7 +149,7 @@ def test_orchestrator_ingestion_pipeline_offline() -> None:
             json={
                 "vector_write": {
                     "backend": "qdrant",
-                    "mode": "mock",
+                    "mode": "live",
                     "document_ids": ["document-1"],
                     "records_count": 1,
                     "warnings": ["qdrant_adapter_pending"],

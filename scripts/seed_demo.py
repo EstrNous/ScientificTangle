@@ -56,7 +56,7 @@ async def seed_demo(
             bootstrap_response.raise_for_status()
         index_response = await client.post(
             f"{retrieval_url.rstrip('/')}/v1/documents/index",
-            json={"documents": documents},
+            json={"documents": documents, "knowledge_results": knowledge_results},
         )
         index_response.raise_for_status()
         result = index_response.json()

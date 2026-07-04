@@ -19,7 +19,7 @@ SUITES: list[tuple[str, list[str], list[str]]] = [
     ("model", ["services/model/tests"], ["services/model", "."]),
     ("export", ["services/export/tests"], ["services/export", "."]),
     ("notification", ["services/notification/tests"], ["services/notification", "."]),
-    ("integration", ["tests/integration"], ["services/orchestrator", "services/retrieval", "."]),
+    ("integration", ["tests/integration"], ["services/orchestrator", "services/retrieval", "services/knowledge", "."]),
     ("e2e", ["tests/e2e"], ["."]),
 ]
 
@@ -43,6 +43,25 @@ def main() -> int:
                 pass
             elif name == "e2e" and os.getenv("RUN_E2E") != "1":
                 continue
+        if name == "integration":
+            suites = [
+                (
+                    [str(ROOT / "tests/integration/test_orchestrator_ingestion_offline.py")],
+                    ["services/orchestrator", "."],
+                ),
+                (
+                    [
+                        str(ROOT / "tests/integration"),
+                        "--ignore=tests/integration/test_orchestrator_ingestion_offline.py",
+                    ],
+                    ["services/orchestrator", "services/retrieval", "services/knowledge", "."],
+                ),
+            ]
+            for testpaths, pythonpath_parts in suites:
+                code = run_suite(f"{name}", testpaths, pythonpath_parts)
+                if code != 0:
+                    failures += 1
+            continue
         code = run_suite(name, rel_paths, pypath)
         if code != 0:
             failures += 1

@@ -26,7 +26,7 @@ async def run_queries(client: httpx.AsyncClient, gateway_url: str, token: str, q
     for _ in range(repeat):
         for question in questions:
             started_at = time.perf_counter()
-            response = await client.post(f"{gateway_url.rstrip('/')}/api/query", json={"query": question["text"], "limit": 10}, headers=headers)
+            response = await client.post(f"{gateway_url.rstrip('/')}/api/query", json={"question": question["text"], "limit": 10}, headers=headers)
             latency_ms = round((time.perf_counter() - started_at) * 1000, 2)
             results.append(
                 {

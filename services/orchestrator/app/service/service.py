@@ -1,3 +1,4 @@
+import json
 import time
 from time import perf_counter
 from uuid import UUID
@@ -9,6 +10,7 @@ from infra.postgres.orchestrator_db import IngestionTaskRepository, QueryRunRepo
 from shared.contracts import (
     AnswerPayload,
     ApiError,
+    AuditEvent,
     EvidenceBundle,
     GraphSubgraph,
     IngestionReport,
@@ -64,13 +66,13 @@ class OrchestratorService:
         self._model_url = model_url.rstrip("/")
         self._query_repository = query_repository
 
-    async def create_task(
+    async def start_ingestion_task(
         self,
         principal: AuthenticatedPrincipal,
         files: list[UploadFile],
         authorization: str,
         request_id: str,
-    ) -> IngestionTaskPayload:
+    ) -> tuple[IngestionTaskPayload, UUID]:
         task = await self._repository.create(principal.user_id)
         try:
             report = await self._store_sources(
@@ -79,119 +81,69 @@ class OrchestratorService:
                 authorization,
                 request_id,
             )
-            await self._repository.mark_processing(task, report)
-            normalized = NormalizeStoredSourcesResponse.model_validate(
-                await self._request_downstream(
-                    "POST",
-                    self._ingestion_url,
-                    f"/ingestion/tasks/{task.id}/normalize",
-                    NormalizeStoredSourcesRequest(sources=report.sources).model_dump(mode="json"),
-                    request_id,
-                    "ingestion",
-                    authorization,
-                )
-            )
-            if not normalized.documents:
-                raise OrchestratorServiceError(
-                    422,
-                    "normalization_empty",
-                    "No supported documents were normalized",
-                )
-            knowledge_results = []
-            for document in normalized.documents:
-                knowledge_results.append(
-                    KnowledgeIngestionResponse.model_validate(
-                        await self._request_downstream(
-                            "POST",
-                            self._knowledge_url,
-                            "/v1/documents/extract",
-                            KnowledgeIngestionRequest(document=document).model_dump(mode="json"),
-                            request_id,
-                            "knowledge",
-                        )
-                    )
-                )
-            if any(result.graph_write.mode != "real" for result in knowledge_results):
-                raise OrchestratorServiceError(
-                    503,
-                    "storage_adapter_not_ready",
-                    "Neo4j storage adapter is not ready",
-                )
-            retrieval_result = RetrievalIndexResponse.model_validate(
-                await self._request_downstream(
-                    "POST",
-                    self._retrieval_url,
-                    "/v1/documents/index",
-                    RetrievalIndexRequest(
-                        documents=normalized.documents,
-                        knowledge_results=knowledge_results,
-                    ).model_dump(mode="json"),
-                    request_id,
-                    "retrieval",
-                )
-            )
-            if retrieval_result.vector_write.mode != "real":
-                raise OrchestratorServiceError(
-                    503,
-                    "storage_adapter_not_ready",
-                    "Qdrant storage adapter is not ready",
-                )
-            warnings = [*report.warnings, *normalized.warnings]
-            for result in knowledge_results:
-                warnings.extend(result.warnings)
-                warnings.extend(result.graph_write.warnings)
-            warnings.extend(retrieval_result.warnings)
-            warnings.extend(retrieval_result.vector_write.warnings)
-            completed_report = IngestionReport(
-                sources=report.sources,
-                warnings=list(dict.fromkeys(warnings)),
-                normalized_documents=normalized.documents,
-                documents_count=len(normalized.documents),
-                source_spans_count=sum(
-                    len(document.source_spans)
-                    for document in normalized.documents
-                ),
-                tables_count=sum(
-                    len(document.table_blocks)
-                    for document in normalized.documents
-                ),
-                indexed_points_count=retrieval_result.vector_write.records_count,
-                extracted_claims_count=sum(
-                    len(result.extraction.get("confirmed", []))
-                    for result in knowledge_results
-                    if isinstance(result.extraction, dict)
-                ),
-                candidates_count=sum(
-                    len(result.extraction.get("candidates", []))
-                    for result in knowledge_results
-                    if isinstance(result.extraction, dict)
-                ),
-            )
-            completed_task = await self._repository.mark_completed(task, completed_report)
-            await self._repository.record_audit_event(
-                principal.user_id,
-                "ingestion.completed",
-                "ingestion_task",
-                str(task.id),
-                {
-                    "documents_count": completed_report.documents_count,
-                    "source_spans_count": completed_report.source_spans_count,
-                    "indexed_points_count": completed_report.indexed_points_count,
-                },
-                request_id,
-            )
-            return self._payload(completed_task)
+            processing_task = await self._repository.mark_processing(task, report)
+            return self._payload(processing_task), task.id
         except OrchestratorServiceError as error:
             await self._repository.mark_failed(task, error.message)
             raise
-        except (KeyError, TypeError, ValueError) as error:
-            message = "Ingestion pipeline returned invalid data"
-            await self._repository.mark_failed(task, message)
-            raise OrchestratorServiceError(
-                502,
-                "invalid_ingestion_pipeline_response",
-                message,
-            ) from error
+
+    async def continue_ingestion_task(
+        self,
+        task_id: UUID,
+        user_id: UUID,
+        authorization: str,
+        request_id: str,
+        session_factory,
+    ) -> None:
+        async with session_factory() as session:
+            repository = IngestionTaskRepository(session)
+            task = await repository.get(task_id)
+            if task is None:
+                return
+            try:
+                report = IngestionReport.model_validate(task.report or {})
+                await self._run_ingestion_pipeline(
+                    repository,
+                    task,
+                    user_id,
+                    report,
+                    authorization,
+                    request_id,
+                )
+            except OrchestratorServiceError as error:
+                await repository.mark_failed(task, error.message)
+            except (KeyError, TypeError, ValueError):
+                await repository.mark_failed(task, "Ingestion pipeline returned invalid data")
+
+    async def create_task(
+        self,
+        principal: AuthenticatedPrincipal,
+        files: list[UploadFile],
+        authorization: str,
+        request_id: str,
+    ) -> IngestionTaskPayload:
+        payload, task_id = await self.start_ingestion_task(
+            principal, files, authorization, request_id
+        )
+        task = await self._repository.get(task_id)
+        if task is None:
+            return payload
+        report = IngestionReport.model_validate(task.report or {})
+        try:
+            return await self._run_ingestion_pipeline(
+                self._repository,
+                task,
+                principal.user_id,
+                report,
+                authorization,
+                request_id,
+            )
+        except OrchestratorServiceError as error:
+            await self._repository.mark_failed(task, error.message)
+            raise
+        except (KeyError, TypeError, ValueError):
+            await self._repository.mark_failed(task, "Ingestion pipeline returned invalid data")
+            raise
 
     async def _store_sources(
         self,
@@ -240,6 +192,117 @@ class OrchestratorService:
                 "Ingestion service returned invalid data",
             ) from error
 
+    async def _run_ingestion_pipeline(
+        self,
+        repository: IngestionTaskRepository,
+        task: IngestionTask,
+        user_id: UUID,
+        report: IngestionReport,
+        authorization: str,
+        request_id: str,
+    ) -> IngestionTaskPayload:
+        normalized = NormalizeStoredSourcesResponse.model_validate(
+            await self._request_downstream(
+                "POST",
+                self._ingestion_url,
+                f"/ingestion/tasks/{task.id}/normalize",
+                NormalizeStoredSourcesRequest(sources=report.sources).model_dump(mode="json"),
+                request_id,
+                "ingestion",
+                authorization,
+            )
+        )
+        if not normalized.documents:
+            raise OrchestratorServiceError(
+                422,
+                "normalization_empty",
+                "No supported documents were normalized",
+            )
+        knowledge_results = []
+        for document in normalized.documents:
+            knowledge_results.append(
+                KnowledgeIngestionResponse.model_validate(
+                    await self._request_downstream(
+                        "POST",
+                        self._knowledge_url,
+                        "/v1/documents/extract",
+                        KnowledgeIngestionRequest(document=document).model_dump(mode="json"),
+                        request_id,
+                        "knowledge",
+                    )
+                )
+            )
+        if any(result.graph_write.mode != "live" for result in knowledge_results):
+            raise OrchestratorServiceError(
+                503,
+                "storage_adapter_not_ready",
+                "Neo4j storage adapter is not ready",
+            )
+        retrieval_result = RetrievalIndexResponse.model_validate(
+            await self._request_downstream(
+                "POST",
+                self._retrieval_url,
+                "/v1/documents/index",
+                RetrievalIndexRequest(
+                    documents=normalized.documents,
+                    knowledge_results=knowledge_results,
+                ).model_dump(mode="json"),
+                request_id,
+                "retrieval",
+            )
+        )
+        if retrieval_result.vector_write.mode != "live":
+            raise OrchestratorServiceError(
+                503,
+                "storage_adapter_not_ready",
+                "Qdrant storage adapter is not ready",
+            )
+        warnings = [*report.warnings, *normalized.warnings]
+        for result in knowledge_results:
+            warnings.extend(result.warnings)
+            warnings.extend(result.graph_write.warnings)
+        warnings.extend(retrieval_result.warnings)
+        warnings.extend(retrieval_result.vector_write.warnings)
+        completed_report = IngestionReport(
+            sources=report.sources,
+            warnings=list(dict.fromkeys(warnings)),
+            normalized_documents=normalized.documents,
+            documents_count=len(normalized.documents),
+            source_spans_count=sum(
+                len(document.source_spans)
+                for document in normalized.documents
+            ),
+            tables_count=sum(
+                len(document.table_blocks)
+                for document in normalized.documents
+            ),
+            indexed_points_count=retrieval_result.vector_write.records_count,
+            extracted_claims_count=sum(
+                len(result.extraction.get("confirmed", []))
+                for result in knowledge_results
+                if isinstance(result.extraction, dict)
+            ),
+            candidates_count=sum(
+                len(result.extraction.get("candidates", []))
+                for result in knowledge_results
+                if isinstance(result.extraction, dict)
+            ),
+        )
+        completed_task = await repository.mark_completed(task, completed_report)
+        await repository.record_audit_event(
+            user_id,
+            "ingestion_upload",
+            "ingestion_task",
+            str(task.id),
+            {
+                "documents_count": completed_report.documents_count,
+                "source_spans_count": completed_report.source_spans_count,
+                "indexed_points_count": completed_report.indexed_points_count,
+            },
+            request_id,
+        )
+        return self._payload(completed_task)
+
     async def get_task(
         self,
         task_id: UUID,
@@ -262,6 +325,14 @@ class OrchestratorService:
     ) -> QueryRunPayload:
         repository = self._require_query_repository()
         run = await repository.create(principal.user_id, question, request_id)
+        await repository.record_audit_event(
+            principal.user_id,
+            "query_created",
+            "query_run",
+            str(run.id),
+            {"question": question},
+            request_id,
+        )
         started_at = time.perf_counter()
         await repository.mark_processing(run)
         try:
@@ -356,6 +427,14 @@ class OrchestratorService:
                 evidence_bundle.has_gaps = True
                 if warning not in evidence_bundle.gaps:
                     evidence_bundle.gaps.append(warning)
+                await repository.record_audit_event(
+                    principal.user_id,
+                    "filtered_sources",
+                    "query_run",
+                    str(run.id),
+                    {"retrieved": retrieval_trace.get("retrieved", 0), "accessible": 0},
+                    request_id,
+                )
                 answer = AnswerPayload(
                     query_ir=query_ir,
                     evidence_bundle=evidence_bundle,
@@ -406,7 +485,7 @@ class OrchestratorService:
         principal: AuthenticatedPrincipal,
         request_id: str,
     ) -> SourcePayload:
-        return SourcePayload.model_validate(
+        payload = SourcePayload.model_validate(
             await self._request_downstream(
                 "POST",
                 self._retrieval_url,
@@ -416,6 +495,15 @@ class OrchestratorService:
                 "retrieval",
             )
         )
+        await self._require_query_repository().record_audit_event(
+            principal.user_id,
+            "source_viewed",
+            "source_span",
+            source_span_id,
+            {"document_id": payload.source_span.document_id},
+            request_id,
+        )
+        return payload
 
     async def get_subgraph(
         self,
@@ -447,6 +535,29 @@ class OrchestratorService:
                 "retrieval",
             )
         )
+
+    async def list_audit_events(self, limit: int = 200) -> list[AuditEvent]:
+        rows = await self._repository.list_audit_events(limit)
+        events = []
+        for row in rows:
+            details = row.get("details") or {}
+            if isinstance(details, str):
+                try:
+                    details = json.loads(details)
+                except (TypeError, ValueError):
+                    details = {}
+            events.append(
+                AuditEvent(
+                    id=str(row["id"]),
+                    user=str(row.get("user_id") or ""),
+                    role="",
+                    action=str(row["action"]),
+                    object=str(row.get("resource_id") or ""),
+                    timestamp=row["created_at"].isoformat() if row.get("created_at") else "",
+                    source_span_id=details.get("source_span_id"),
+                )
+            )
+        return events
 
     def _require_query_repository(self) -> QueryRunRepository:
         if self._query_repository is None:

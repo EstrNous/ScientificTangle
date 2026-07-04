@@ -4,7 +4,41 @@ import httpx
 from app.main import app
 from fastapi.testclient import TestClient
 
-from shared.contracts import NormalizedDocument, QueryIR, SourceSpan
+from shared.contracts import (
+    AccessPolicy,
+    QueryIR,
+    SearchResult,
+    SearchResultPayload,
+    SourcePayload,
+    SourceSpan,
+)
+
+
+class FakeStorageAdapter:
+    is_ready = True
+
+    async def search(self, question, filters, access_roles, limit):
+        span = SourceSpan(
+            document_id="d1",
+            page=1,
+            start_offset=0,
+            end_offset=10,
+            text="nickel 82 %",
+            source_type="text",
+        )
+        return SearchResultPayload(
+            items=[
+                SearchResult(
+                    source=SourcePayload(
+                        source_span=span,
+                        document_title="T",
+                        source_type="article",
+                        access_policy=AccessPolicy(level="internal"),
+                    ),
+                    relevance_score=0.9,
+                )
+            ]
+        )
 
 
 def test_query_endpoint_with_mock_model() -> None:
@@ -30,28 +64,13 @@ def test_query_endpoint_with_mock_model() -> None:
             )
         return httpx.Response(404, request=httpx.Request("POST", url))
 
-    span = SourceSpan(
-        document_id="d1",
-        page=1,
-        start_offset=0,
-        end_offset=10,
-        text="nickel 82 %",
-        source_type="text",
-    )
-    document = NormalizedDocument(
-        id="d1",
-        source_type="article",
-        title="T",
-        content=span.text,
-        source_spans=[span],
-    )
     with TestClient(app) as client:
         client.app.state.http_client.post = AsyncMock(side_effect=mock_post)
+        client.app.state.storage_adapter = FakeStorageAdapter()
         response = client.post(
             "/v1/query",
             json={
-                "query": "nickel",
-                "documents": [document.model_dump(mode="json")],
+                "question": "nickel",
                 "access_roles": ["researcher"],
                 "limit": 5,
             },

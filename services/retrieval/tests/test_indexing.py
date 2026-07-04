@@ -17,6 +17,7 @@ from shared.contracts import (
     RetrievalIndexRequest,
     SourceSpan,
     StorageWriteResult,
+    TableBlock,
 )
 
 COLLECTION_NAME = "st_evidence_v1"
@@ -28,7 +29,7 @@ class FakeStorageAdapter:
     async def index(self, request: RetrievalIndexRequest) -> StorageWriteResult:
         return StorageWriteResult(
             backend="qdrant",
-            mode="real",
+            mode="live",
             document_ids=[document.id for document in request.documents],
             records_count=sum(len(document.source_spans) for document in request.documents),
         )
@@ -51,7 +52,7 @@ def test_indexing_uses_real_qdrant_adapter() -> None:
 
     result = asyncio.run(index_documents(request, app_request))
 
-    assert result.vector_write.mode == "real"
+    assert result.vector_write.mode == "live"
     assert result.vector_write.document_ids == ["document-1"]
 
 
@@ -77,7 +78,37 @@ def test_indexing_returns_explicit_qdrant_mock_counts() -> None:
         headers=["parameter", "value"],
         rows=[["recovery", "82 %"]],
     )
-    
+    request = RetrievalIndexRequest(
+        documents=[
+            NormalizedDocument(
+                id="document-1",
+                source_type="docx",
+                title="report.docx",
+                content="Nickel recovery 82 %",
+                source_spans=[
+                    SourceSpan(
+                        document_id="document-1",
+                        page=1,
+                        start_offset=0,
+                        end_offset=20,
+                        text="Nickel recovery 82 %",
+                        source_type="text",
+                    )
+                ],
+                table_blocks=[table],
+            )
+        ]
+    )
+    app_request = SimpleNamespace(
+        app=SimpleNamespace(state=SimpleNamespace(storage_adapter=FakeStorageAdapter()))
+    )
+
+    result = asyncio.run(index_documents(request, app_request))
+
+    assert result.vector_write.mode == "live"
+    assert result.vector_write.records_count == 1
+
+
 def test_collect_index_links_from_knowledge_results() -> None:
     document = NormalizedDocument(
         id="document-1",
