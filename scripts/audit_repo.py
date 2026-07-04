@@ -1,34 +1,59 @@
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
+from fnmatch import fnmatch
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def run_rg(pattern: str, path: str, glob: str | None = None) -> list[str]:
-    cmd = ["rg", pattern, path]
-    if glob:
-        cmd.extend(["--glob", glob])
-    result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, check=False)
-    if result.returncode not in (0, 1):
-        raise RuntimeError(result.stderr or result.stdout)
-    return [line for line in result.stdout.splitlines() if line.strip()]
+def iter_scan_paths(base: Path, glob_pattern: str | None = None) -> list[Path]:
+    if not base.exists():
+        return []
+    if base.is_file():
+        return [base]
+    paths: list[Path] = []
+    for candidate in base.rglob("*"):
+        if not candidate.is_file():
+            continue
+        if glob_pattern:
+            rel = candidate.relative_to(base).as_posix()
+            if not fnmatch(rel, glob_pattern):
+                continue
+        paths.append(candidate)
+    return paths
+
+
+def run_search(pattern: str, path: str, glob: str | None = None) -> list[str]:
+    regex = re.compile(pattern)
+    base = ROOT / path
+    matches: list[str] = []
+    for file_path in iter_scan_paths(base, glob):
+        try:
+            lines = file_path.read_text(encoding="utf-8").splitlines()
+        except (OSError, UnicodeDecodeError):
+            continue
+        rel = file_path.relative_to(ROOT).as_posix()
+        for line_no, line in enumerate(lines, start=1):
+            if regex.search(line):
+                matches.append(f"{rel}:{line_no}:{line}")
+    return matches
 
 
 def check_no_app_imports() -> list[str]:
-    matches = run_rg(r"from app\.", "services", glob="*/app/**/*.py")
+    matches = run_search(r"from app\.", "services", glob="*/app/**/*.py")
     return [f"P0-01: from app.* in runtime: {line}" for line in matches]
 
 
 def check_no_up_auth() -> list[str]:
-    matches = run_rg("up-auth", "Makefile")
+    matches = run_search("up-auth", "Makefile")
     return [f"P0-10: up-auth remnant: {line}" for line in matches]
 
 
 def check_no_init_sql_mount() -> list[str]:
-    matches = run_rg(r"init\.sql", "docker-compose.yml")
+    matches = run_search(r"init\.sql", "docker-compose.yml")
     path = ROOT / "infra" / "postgres" / "init.sql"
     issues = [f"P0-03: init.sql file still exists: {path}"] if path.exists() else []
     issues.extend(f"P0-03: init.sql mount: {line}" for line in matches)
@@ -36,7 +61,7 @@ def check_no_init_sql_mount() -> list[str]:
 
 
 def check_no_page_mock_imports() -> list[str]:
-    matches = run_rg(r"from ['\"].*api/mock/", "ui/src/pages")
+    matches = run_search(r"from ['\"].*api/mock/", "ui/src/pages")
     return [f"P0-13: page imports mock directly: {line}" for line in matches]
 
 

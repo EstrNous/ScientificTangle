@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { buildSearchQuery } from '../api/search.js';
 import { resolveUploadTaskStages } from '../utils/uploadTaskStages.js';
 import { collectCandidateConflicts, indexReviewConflicts } from '../utils/reviewConflicts.js';
@@ -90,7 +90,10 @@ describe('uiFeatureFlags role switcher', () => {
   });
 
   it('enables role switcher in mock mode', async () => {
-    vi.doMock('../api/client.js', () => ({ useMock: true }));
+    vi.doMock('./runtimeMode.js', () => ({
+      useMock: true,
+      resolveUseMock: () => true,
+    }));
     vi.resetModules();
     const flags = await import('../utils/uiFeatureFlags.js');
     expect(flags.isDevRoleSwitcherEnabled()).toBe(true);

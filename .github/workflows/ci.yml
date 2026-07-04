@@ -12,10 +12,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - name: Install ruff
         run: uv tool install ruff
       - name: Ruff check
         run: ruff check shared services scripts tests
+      - name: Repo audit
+        run: |
+          pip install pyyaml
+          python scripts/audit_repo.py
+      - name: Validate prod compose config
+        run: docker compose -f docker-compose.yml -f docker-compose.prod.yml config > /dev/null
 
   test-backend:
     runs-on: ubuntu-latest
