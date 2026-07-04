@@ -21,6 +21,7 @@ COVERAGE_PACKAGES: dict[str, list[str]] = {
     "notification": ["services/notification/app"],
     "integration": ["eval"],
     "performance": ["scripts"],
+    "scripts": ["scripts"],
 }
 
 SUITES: list[tuple[str, list[str], list[str]]] = [
@@ -36,6 +37,7 @@ SUITES: list[tuple[str, list[str], list[str]]] = [
     ("notification", ["services/notification/tests"], ["services/notification", "."]),
     ("integration", ["tests/integration"], ["services/orchestrator", "services/retrieval", "services/knowledge", "."]),
     ("performance", ["tests/performance"], ["services/orchestrator", "services/retrieval", "services/knowledge", "."]),
+    ("scripts", ["tests/scripts"], ["."]),
     ("e2e", ["tests/e2e"], ["."]),
 ]
 

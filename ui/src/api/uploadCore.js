@@ -5,11 +5,18 @@ const baseURL = import.meta.env.VITE_API_URL || '/api';
 export async function uploadFiles(files, { kind = 'document' } = {}) {
   const token = await ensureAuth();
   const formData = new FormData();
-  files.forEach((file) => formData.append('files', file));
   const path =
     kind === 'dictionary'
-      ? `${baseURL}/documents/upload/dictionary`
+      ? `${baseURL}/dictionaries/upload`
       : `${baseURL}/documents/upload`;
+  if (kind === 'dictionary') {
+    if (!files.length) {
+      throw new Error('upload_failed');
+    }
+    formData.append('package', files[0]);
+  } else {
+    files.forEach((file) => formData.append('files', file));
+  }
   const response = await fetch(path, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },

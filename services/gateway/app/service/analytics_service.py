@@ -151,7 +151,10 @@ class AnalyticsService:
                 evidence_recall_at_5=float(report.get("evidence_recall_at_k", 0)),
             )
             return StrategicEvaluationPayload(summary=summary, questions=questions)
-        gold = json.loads(Path("eval/gold_questions.json").read_text(encoding="utf-8"))
+        gold_path = Path("eval/gold_questions.json")
+        if not gold_path.is_file():
+            return StrategicEvaluationPayload()
+        gold = json.loads(gold_path.read_text(encoding="utf-8"))
         official = [q for q in gold.get("questions", []) if q.get("split") == "mvp"][:4]
         return StrategicEvaluationPayload(
             questions=[

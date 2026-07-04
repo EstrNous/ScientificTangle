@@ -217,6 +217,8 @@
       "export_empty": "Сервер вернул пустой файл экспорта"
     },
     "newChat": "Новый чат",
+    "creatingChat": "Создание…",
+    "newChatShortcut": "Новый чат ({{shortcut}})",
     "defaultSessionTitle": "Новый запрос",
     "deleteSession": "Удалить запрос",
     "errors": {

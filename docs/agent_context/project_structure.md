@@ -24,12 +24,13 @@
 - `docker-compose.dev.yml` — dev overlay: публикация host ports для локальной разработки и smoke.
 - `docker-compose.prod.yml` — prod overlay: resource limits, TLS nginx edge (только 80/443), закрытый периметр.
 - `docker-compose.cloud.yml` — cloud overlay: без публикации внутренних портов, `GF_SERVER_ROOT_URL` из `PUBLIC_URL`.
-- `docker-compose.cloud.http.yml` — cloud HTTP edge: nginx dev config, только порт 80.
+- `docker-compose.cloud.http.yml` — cloud HTTP edge: `nginx.cloud.http.conf`, только порт 80, закрытый периметр.
 - `docker-compose.cloud.https.yml` — cloud HTTPS edge: self-signed TLS, порты 80/443.
 - `infra/deploy/OPERATOR.md` — пошаговый cloud deploy: `./scripts/cloud_deploy.sh <IP>`.
 - `infra/deploy/yandex-cloud-init.yaml` — cloud-init для Yandex Cloud.
 - `scripts/generate_cloud_env.py` — создание `.env` из `.env.example`, запись публичного IP/домена, Yandex-полей и `infra/deploy/credentials.txt`.
 - `scripts/cloud_deploy.sh` — turnkey deploy: env, keys, cloud compose, seed.
+- `scripts/cloud_verify.sh` — однокомандная диагностика cloud-стенда: health, данные, периметр, smoke.
 - `Makefile` — цели сборки и управления: bootstrap, up, prod, prod-demo, up-prod, deploy-cloud, cloud-up, seed, eval и др.
 - `.env.example` — шаблон переменных окружения для копирования в `.env`, включая `INTERNAL_SERVICE_TOKEN` для межсервисных вызовов export/notification.
 
@@ -157,6 +158,7 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 - `infra/qdrant/` — описание Qdrant collection `st_evidence_v1`, payload indexes и access-aware retrieval.
 - `infra/minio/buckets.txt` — список бакетов MinIO.
 - `infra/nginx/nginx.dev.conf` — dev reverse proxy (порт 80), debug routes к внутренним сервисам.
+- `infra/nginx/nginx.cloud.http.conf` — cloud HTTP edge (порт 80): UI/API без TLS, internal prefixes → 404.
 - `infra/nginx/nginx.prod.conf.template` — prod edge: только `/`, `/api/*`, `/grafana/`, TLS 443.
 - `infra/nginx/nginx.conf` — alias dev-конфига для обратной совместимости.
 - `infra/nginx/Dockerfile` — nginx с basic auth для `/grafana/`, envsubst для prod TLS.

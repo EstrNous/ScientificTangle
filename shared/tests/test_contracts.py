@@ -1,9 +1,12 @@
 import pytest
+from datetime import datetime
 from pydantic import ValidationError
 
 from shared.contracts import (
     AuditEvent,
     DeleteDocumentResult,
+    DocumentCatalogItem,
+    DocumentCatalogResponse,
     EvalReportSummaryPayload,
     ExportPayload,
     ExportRequest,
@@ -173,3 +176,21 @@ def test_e1_payloads_accept_minimal_offline_shapes() -> None:
     assert interest.interests[0].label == "nickel"
     assert delete_result.document_id == "doc-1"
     assert report.blocked_checks == ["live_model_quality"]
+
+
+def test_document_catalog_contract_roundtrip() -> None:
+    created_at = datetime.fromisoformat("2026-07-05T12:00:00+00:00")
+    item = DocumentCatalogItem(
+        document_id="doc-1",
+        title="Quarterly report",
+        source_path="reports/q1.pdf",
+        source_type="application/pdf",
+        status="completed",
+        source_spans_count=4,
+        indexed_points_count=4,
+        created_at=created_at,
+    )
+    payload = DocumentCatalogResponse(items=[item], total=1, filters_applied={"status": "completed"})
+    assert payload.items[0].document_id == "doc-1"
+    assert payload.total == 1
+    assert payload.filters_applied["status"] == "completed"

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 
 const ACCEPT = '.pdf,.doc,.docx,.txt,.md,.xlsx,.csv';
 
@@ -15,9 +15,16 @@ function PaperclipIcon() {
   );
 }
 
-export default function ChatInput({ onSend, disabled }) {
+const ChatInput = forwardRef(function ChatInput({ onSend, disabled }, ref) {
   const fileRef = useRef(null);
+  const messageRef = useRef(null);
   const [files, setFiles] = useState([]);
+
+  useImperativeHandle(ref, () => ({
+    focus() {
+      messageRef.current?.focus();
+    },
+  }));
 
   const addFiles = (incoming) => {
     if (!incoming?.length) return;
@@ -95,6 +102,7 @@ export default function ChatInput({ onSend, disabled }) {
           <PaperclipIcon />
         </button>
         <input
+          ref={messageRef}
           name="message"
           disabled={disabled}
           className="min-w-0 flex-1 rounded-lg border border-nn-border bg-nn-gray-light px-4 py-2.5 text-sm text-gray-900 outline-none focus:border-nn-blue focus:ring-1 focus:ring-nn-blue disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
@@ -107,4 +115,6 @@ export default function ChatInput({ onSend, disabled }) {
       </div>
     </form>
   );
-}
+});
+
+export default ChatInput;
