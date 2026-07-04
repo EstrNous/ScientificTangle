@@ -29,7 +29,16 @@ export default function ChatPage() {
   const [sessions, setSessions] = useState([]);
   const [activeId, setActiveId] = useState(null);
   const [messages, setMessages] = useState([]);
-  const { phase, retrievalTrace, mode, isActive, sendAnswerQuery } = useChatAnswerFlow();
+  const {
+    phase,
+    retrievalTrace,
+    streamingDraft,
+    streamingComplete,
+    mode,
+    isActive,
+    streamingUxEnabled,
+    sendAnswerQuery,
+  } = useChatAnswerFlow();
 
   useEffect(() => {
     let cancelled = false;
@@ -160,6 +169,9 @@ export default function ChatPage() {
             retrievalTrace={retrievalTrace}
             answerPhase={phase}
             answerMode={mode}
+            streamingDraft={streamingDraft}
+            streamingComplete={streamingComplete}
+            streamingUxEnabled={streamingUxEnabled}
           />
           <ChatInput onSend={handleSend} disabled={isActive} />
         </div>

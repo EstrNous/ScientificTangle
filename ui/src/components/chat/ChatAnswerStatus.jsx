@@ -34,12 +34,16 @@ function phaseStatus(phase, currentPhase) {
   return 'pending';
 }
 
-export default function ChatAnswerStatus({ phase, mode }) {
+export default function ChatAnswerStatus({ phase, mode, streamingUxEnabled = false }) {
   const { t } = useTranslation();
 
   if (phase === CHAT_ANSWER_PHASES.IDLE) return null;
 
-  if (mode === 'session' && phase === CHAT_ANSWER_PHASES.PARSING) {
+  const showPipeline =
+    CHAT_ANSWER_PIPELINE.includes(phase) &&
+    (mode !== 'session' || streamingUxEnabled);
+
+  if (mode === 'session' && !streamingUxEnabled && phase === CHAT_ANSWER_PHASES.PARSING) {
     return (
       <div className="mr-8 rounded-xl border border-nn-blue/20 bg-nn-blue-light px-4 py-3 dark:border-slate-600 dark:bg-slate-800">
         <p className="flex items-center gap-2 text-sm text-gray-900 dark:text-slate-100">
@@ -66,10 +70,12 @@ export default function ChatAnswerStatus({ phase, mode }) {
     );
   }
 
-  if (!CHAT_ANSWER_PIPELINE.includes(phase)) return null;
+  if (!showPipeline) return null;
 
   return (
-    <div className="mr-8 rounded-xl border border-nn-blue/20 bg-nn-blue-light px-4 py-3 dark:border-slate-600 dark:bg-slate-800">
+    <div
+      className="mr-8 min-h-[11rem] rounded-xl border border-nn-blue/20 bg-nn-blue-light px-4 py-3 dark:border-slate-600 dark:bg-slate-800"
+    >
       <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-nn-blue">
         {t('chat.lifecycle.title')}
       </p>
