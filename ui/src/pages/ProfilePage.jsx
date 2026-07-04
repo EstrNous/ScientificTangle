@@ -9,8 +9,6 @@ import { authInputClassName, authSubmitClassName } from '../components/auth/auth
 import {
   changePassword,
   deactivateAccount,
-  ensureAuth,
-  fetchCurrentUser,
   logout,
   logoutAll,
   mapAuthError,
@@ -70,13 +68,45 @@ function AccountSummary({ user, role, t }) {
   );
 }
 
-function InterestsSummary({ interests, interestsText, extractedEntities, t }) {
-  if (interests.length > 0) {
+function extractedEntityCount(entities) {
+  if (Array.isArray(entities)) return entities.length;
+  if (entities && typeof entities === 'object' && Array.isArray(entities.interests)) {
+    return entities.interests.length;
+  }
+  return 0;
+}
+
+function interestsWarningMessage(warning, t) {
+  if (warning === 'model_interest_extraction_unavailable') {
+    return t('profile.interestsExtractionUnavailable');
+  }
+  if (warning === 'model_interest_extraction_failed') {
+    return t('profile.interestsExtractionFailed');
+  }
+  if (warning === 'client_interest_extraction_fallback') {
+    return t('profile.interestsExtractionFallback');
+  }
+  return warning;
+}
+
+function InterestsSummary({ interests, interestsText, extractedEntities, warnings, t }) {
+  const trimmedText = interestsText?.trim() ?? '';
+  const hasInterests = interests.length > 0;
+  const hasText = trimmedText.length > 0;
+  const entityCount = extractedEntityCount(extractedEntities);
+
+  if (!hasInterests && !hasText) {
     return (
-      <div className="space-y-2">
-        {interestsText && (
-          <p className="line-clamp-2 text-sm text-gray-700 dark:text-slate-300">{interestsText}</p>
-        )}
+      <p className="text-sm text-nn-gray dark:text-slate-400">{t('profile.interestsEmpty')}</p>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      {hasText && (
+        <p className="line-clamp-3 text-sm text-gray-700 dark:text-slate-300">{trimmedText}</p>
+      )}
+      {hasInterests && (
         <div className="flex max-h-16 flex-wrap gap-1.5 overflow-hidden">
           {interests.map((interest) => (
             <span
@@ -91,17 +121,22 @@ function InterestsSummary({ interests, interestsText, extractedEntities, t }) {
             </span>
           ))}
         </div>
-        {extractedEntities.length > 0 && (
-          <p className="text-xs text-nn-gray dark:text-slate-400">
-            {t('profile.extractedEntities', { count: extractedEntities.length })}
-          </p>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <p className="text-sm text-nn-gray dark:text-slate-400">{t('profile.interestsEmpty')}</p>
+      )}
+      {entityCount > 0 && (
+        <p className="text-xs text-nn-gray dark:text-slate-400">
+          {t('profile.extractedEntities', { count: entityCount })}
+        </p>
+      )}
+      {warnings?.length > 0 && (
+        <div className="space-y-1">
+          {warnings.map((warning) => (
+            <p key={warning} className="text-xs text-amber-700 dark:text-amber-300">
+              {interestsWarningMessage(warning, t)}
+            </p>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -111,12 +146,10 @@ export default function ProfilePage() {
   const user = useAuthStore((s) => s.user);
   const role = useAuthStore((s) => s.role);
 
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('account');
   const [editingProfile, setEditingProfile] = useState(false);
   const [editingPassword, setEditingPassword] = useState(false);
   const [editingInterests, setEditingInterests] = useState(false);
-  const [editingSecurity, setEditingSecurity] = useState(false);
 
   const [profileUsername, setProfileUsername] = useState('');
   const [profileEmail, setProfileEmail] = useState('');
@@ -138,6 +171,8 @@ export default function ProfilePage() {
   const [interests, setInterests] = useState([]);
   const [extractedEntities, setExtractedEntities] = useState([]);
   const [interestsBaseline, setInterestsBaseline] = useState(null);
+  const [interestsWarnings, setInterestsWarnings] = useState([]);
+  const [interestsLoading, setInterestsLoading] = useState(true);
   const [interestsSaving, setInterestsSaving] = useState(false);
   const [interestsSuccess, setInterestsSuccess] = useState(false);
   const [interestsError, setInterestsError] = useState(null);
@@ -178,10 +213,12 @@ export default function ProfilePage() {
       rawText: profile.rawText ?? '',
       interests: profile.interests ?? [],
       extractedEntities: profile.extractedEntities ?? [],
+      warnings: profile.warnings ?? [],
     };
     setInterestsText(normalized.rawText);
     setInterests(normalized.interests);
     setExtractedEntities(normalized.extractedEntities);
+    setInterestsWarnings(normalized.warnings);
     setInterestsBaseline(normalized);
   };
 
@@ -194,7 +231,6 @@ export default function ProfilePage() {
     setEditingProfile(false);
     setEditingPassword(false);
     setEditingInterests(false);
-    setEditingSecurity(false);
   };
 
   const handleTabChange = (tab) => {
@@ -207,39 +243,41 @@ export default function ProfilePage() {
   };
 
   useEffect(() => {
+    if (user) {
+      setProfileUsername(user.username ?? '');
+      setProfileEmail(user.email ?? '');
+    }
+  }, [user]);
+
+  useEffect(() => {
     let active = true;
-    ensureAuth()
-      .then(() => fetchCurrentUser())
-      .then(async (data) => {
-        if (!active) return;
-        setProfileUsername(data.username ?? '');
-        setProfileEmail(data.email ?? '');
-        try {
-          const profile = await loadInterestsProfile(data.id);
-          if (active) applyInterestsProfile(profile);
-        } catch {
-          if (active && useMock) {
-            applyInterestsProfile(loadUserInterests(data.id));
-          }
-        }
+    if (!user?.id) {
+      setInterestsLoading(false);
+      return undefined;
+    }
+
+    setInterestsLoading(true);
+    setInterestsError(null);
+    loadInterestsProfile(user.id)
+      .then((profile) => {
+        if (active) applyInterestsProfile(profile);
       })
       .catch(() => {
         if (!active) return;
-        if (user) {
-          setProfileUsername(user.username ?? '');
-          setProfileEmail(user.email ?? '');
-          if (useMock) {
-            applyInterestsProfile(loadUserInterests(user.id));
-          }
+        if (useMock) {
+          applyInterestsProfile(loadUserInterests(user.id));
+        } else {
+          setInterestsError('interests_load_failed');
         }
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (active) setInterestsLoading(false);
       });
+
     return () => {
       active = false;
     };
-  }, [user]);
+  }, [user?.id]);
 
   const handleProfileSubmit = async (event) => {
     event.preventDefault();
@@ -332,11 +370,11 @@ export default function ProfilePage() {
     setSecurityLoading(true);
     try {
       await logout();
-      navigate('/login', { replace: true });
     } catch (error) {
       setSecurityError(mapAuthError(error));
     } finally {
       setSecurityLoading(false);
+      navigate('/login', { replace: true });
     }
   };
 
@@ -346,11 +384,11 @@ export default function ProfilePage() {
     setSecurityLoading(true);
     try {
       await logoutAll();
-      navigate('/login', { replace: true });
     } catch (error) {
       setSecurityError(mapAuthError(error));
     } finally {
       setSecurityLoading(false);
+      navigate('/login', { replace: true });
     }
   };
 
@@ -372,7 +410,7 @@ export default function ProfilePage() {
     }
   };
 
-  if (loading) {
+  if (!user) {
     return (
       <PageShell title={t('profile.title')} hideHeading>
         <Loader />
@@ -472,12 +510,17 @@ export default function ProfilePage() {
                   setEditingInterests(false);
                 }}
                 summary={
-                  <InterestsSummary
-                    interests={interests}
-                    interestsText={interestsText}
-                    extractedEntities={extractedEntities}
-                    t={t}
-                  />
+                  interestsLoading ? (
+                    <p className="text-sm text-nn-gray dark:text-slate-400">{t('profile.interestsLoading')}</p>
+                  ) : (
+                    <InterestsSummary
+                      interests={interests}
+                      interestsText={interestsText}
+                      extractedEntities={extractedEntities}
+                      warnings={interestsWarnings}
+                      t={t}
+                    />
+                  )
                 }
               >
                 <div className="space-y-3">
@@ -498,6 +541,15 @@ export default function ProfilePage() {
                     <p className="text-sm text-red-600 dark:text-red-400" role="alert">
                       {t(`profile.errors.${interestsError}`, { defaultValue: interestsError })}
                     </p>
+                  )}
+                  {interestsWarnings.length > 0 && (
+                    <div className="space-y-1">
+                      {interestsWarnings.map((warning) => (
+                        <p key={warning} className="text-xs text-amber-700 dark:text-amber-300">
+                          {interestsWarningMessage(warning, t)}
+                        </p>
+                      ))}
+                    </div>
                   )}
                   <button
                     type="button"
@@ -595,17 +647,8 @@ export default function ProfilePage() {
             <ProfileSection
               compact
               className="h-full"
-              editing={editingSecurity}
-              onEdit={() => setEditingSecurity(true)}
-              onCancel={() => {
-                resetSecurityForm();
-                setEditingSecurity(false);
-              }}
-              summary={
-                <p className="text-sm text-nn-gray dark:text-slate-400">
-                  {t('profile.securitySummary')}
-                </p>
-              }
+              editable={false}
+              title={t('profile.securityTitle')}
               danger
             >
               <div className="space-y-4">

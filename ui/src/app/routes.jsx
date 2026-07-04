@@ -18,7 +18,7 @@ import LoginPage from '../pages/LoginPage.jsx';
 import ForgotPasswordPage from '../pages/ForgotPasswordPage.jsx';
 import ProfilePage from '../pages/ProfilePage.jsx';
 import ReviewConsolePage from '../pages/ReviewConsolePage.jsx';
-import RoleRoute from '../components/shared/RoleRoute.jsx';
+import RoleRoute, { RoleLandingRedirect } from '../components/shared/RoleRoute.jsx';
 import ReviewConsoleGate from '../components/review/ReviewConsoleGate.jsx';
 import RequireAuth from '../components/auth/RequireAuth.jsx';
 
@@ -37,7 +37,7 @@ export const routes = [
       {
         element: <DashboardLayout />,
         children: [
-      { path: '/', element: <Navigate to="/chat" replace /> },
+      { path: '/', element: <RoleLandingRedirect /> },
       {
         path: '/chat',
         element: (
@@ -152,7 +152,7 @@ export const routes = [
           </ReviewConsoleGate>
         ),
       },
-      { path: '*', element: <Navigate to="/chat" replace /> },
+      { path: '*', element: <RoleLandingRedirect /> },
         ],
       },
     ],

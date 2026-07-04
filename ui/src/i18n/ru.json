@@ -150,6 +150,10 @@
     "interestsPlaceholder": "Например: электроэкстракция никеля, циркуляция католита, обессоливание шахтных вод",
     "saveInterests": "Сохранить интересы",
     "interestsSaved": "Интересы сохранены",
+    "interestsExtractionUnavailable": "Текст сохранён, но теги не извлечены: сервис анализа недоступен",
+    "interestsExtractionFailed": "Текст сохранён, но теги не извлечены: ошибка анализа",
+    "interestsExtractionFallback": "Теги сформированы локально без ML-сервиса",
+    "interestsLoading": "Загрузка интересов…",
     "extractedEntities": "Извлечено сущностей: {{count}}",
     "errors": {
       "interests_load_failed": "Не удалось загрузить интересы",

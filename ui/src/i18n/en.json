@@ -150,6 +150,10 @@
     "interestsPlaceholder": "For example: nickel electrowinning, catholyte circulation, mine water desalination",
     "saveInterests": "Save interests",
     "interestsSaved": "Interests saved",
+    "interestsExtractionUnavailable": "Text saved, but tags were not extracted: analysis service unavailable",
+    "interestsExtractionFailed": "Text saved, but tags were not extracted: analysis error",
+    "interestsExtractionFallback": "Tags were generated locally without the ML service",
+    "interestsLoading": "Loading interests…",
     "extractedEntities": "Extracted entities: {{count}}",
     "errors": {
       "interests_load_failed": "Failed to load interests",

@@ -4,6 +4,7 @@ import { EmptyState } from './PageState.jsx';
 import Loader from './Loader.jsx';
 import { useRoleAccess } from '../../hooks/useRoleAccess.js';
 import { useAuthStore } from '../../stores/authStore.js';
+import { getDefaultRouteForRole } from '../../utils/authNavigation.js';
 
 export default function RoleRoute({ paths, children }) {
   const { t } = useTranslation();
@@ -30,4 +31,12 @@ export default function RoleRoute({ paths, children }) {
 
 export function RoleRedirect({ to = '/chat' }) {
   return <Navigate to={to} replace />;
+}
+
+export function RoleLandingRedirect() {
+  const role = useAuthStore((s) => s.role);
+  if (role == null) {
+    return <Loader />;
+  }
+  return <Navigate to={getDefaultRouteForRole(role)} replace />;
 }
