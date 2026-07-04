@@ -3,8 +3,10 @@ from datetime import datetime
 from typing import Protocol
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import Select, func, select, tuple_, update
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from infra.postgres.common.cursor import decode_cursor, encode_cursor
 
 from .models import Notification, NotificationMatchResult, UserInterest
 
@@ -22,6 +24,18 @@ class NotificationData:
 
 class NotificationRepository(Protocol):
     async def get_user_notifications(self, user_id: UUID, limit: int = 20, since: datetime | None = None) -> list[Notification]: ...
+    async def list_user_notifications(
+        self,
+        user_id: UUID,
+        *,
+        since: datetime | None = None,
+        cursor: str | None = None,
+        limit: int = 20,
+    ) -> tuple[list[Notification], str | None]: ...
+    async def count_unread(self, user_id: UUID) -> int: ...
+    async def find_notification_by_reference(
+        self, user_id: UUID, type: str, reference_id: str
+    ) -> Notification | None: ...
     async def mark_as_read(self, notification_id: UUID, user_id: UUID) -> bool: ...
     async def mark_all_as_read(self, user_id: UUID) -> int: ...
     async def create_notification(self, data: NotificationData) -> Notification: ...
@@ -50,6 +64,60 @@ class SqlAlchemyNotificationRepository:
         await self._attach_match_results(notifications)
         return notifications
 
+    async def list_user_notifications(
+        self,
+        user_id: UUID,
+        *,
+        since: datetime | None = None,
+        cursor: str | None = None,
+        limit: int = 20,
+    ) -> tuple[list[Notification], str | None]:
+        query: Select[tuple[Notification]] = select(Notification).where(Notification.user_id == user_id)
+        if cursor is not None:
+            cursor_created_at, cursor_id = decode_cursor(cursor)
+            query = query.where(
+                tuple_(Notification.created_at, Notification.id)
+                < tuple_(cursor_created_at, cursor_id)
+            )
+        elif since is not None:
+            query = query.where(Notification.created_at > since)
+        query = query.order_by(Notification.created_at.desc(), Notification.id.desc()).limit(limit + 1)
+        result = await self._session.scalars(query)
+        notifications = list(result)
+        next_cursor = None
+        if len(notifications) > limit:
+            last = notifications[limit - 1]
+            next_cursor = encode_cursor(last.created_at, last.id)
+            notifications = notifications[:limit]
+        await self._attach_match_results(notifications)
+        return notifications, next_cursor
+
+    async def count_unread(self, user_id: UUID) -> int:
+        value = await self._session.scalar(
+            select(func.count())
+            .select_from(Notification)
+            .where(Notification.user_id == user_id, Notification.is_read.is_(False))
+        )
+        return int(value or 0)
+
+    async def find_notification_by_reference(
+        self,
+        user_id: UUID,
+        type: str,
+        reference_id: str,
+    ) -> Notification | None:
+        note = await self._session.scalar(
+            select(Notification).where(
+                Notification.user_id == user_id,
+                Notification.type == type,
+                Notification.reference_id == reference_id,
+            )
+        )
+        if note is None:
+            return None
+        await self._attach_match_results([note])
+        return note
+
     async def mark_as_read(self, notification_id: UUID, user_id: UUID) -> bool:
         result = await self._session.execute(
             update(Notification)
@@ -69,6 +137,14 @@ class SqlAlchemyNotificationRepository:
         return int(result.rowcount or 0)
 
     async def create_notification(self, data: NotificationData) -> Notification:
+        if data.reference_id:
+            existing = await self.find_notification_by_reference(
+                data.user_id,
+                data.type,
+                data.reference_id,
+            )
+            if existing is not None:
+                return existing
         note = Notification(
             user_id=data.user_id,
             type=data.type,

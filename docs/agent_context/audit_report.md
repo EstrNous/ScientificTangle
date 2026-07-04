@@ -50,9 +50,9 @@
 | `chat_ui_db` | **closed** | Gateway: ChatSession, ChatMessage |
 | `orchestrator_db` | **closed** | IngestionTask, QueryRun, ExportJob, audit_events |
 | `export_db` | **not_wired** | Схема есть; export service — заглушка |
-| `notification_db` | **not_wired** | Схема есть; notification service — заглушка |
+| `notification_db` | **closed** | Interests, notifications, match results; runtime delivery из orchestrator/gateway |
 | Export microservice | **not_wired** | Export через orchestrator in-memory + ExportJob в PG |
-| Notification microservice | **not_wired** | ML endpoint `/v1/notifications/match` готов; HTTP-сервис — заглушка |
+| Notification microservice | **closed** | CRUD, internal events/match, dedup, cursor pagination |
 
 ## Граф compose depends_on (целевой)
 

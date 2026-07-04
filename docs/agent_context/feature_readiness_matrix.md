@@ -20,12 +20,12 @@
 |---|------|------:|------:|----:|----------:|
 | 1 | Cloud deploy / HTTPS / prod-хостинг | **0%** | 0% | 0% | 0% |
 | 2 | Export microservice (`services/export`) | **5%** | — | 5% | 0% |
-| 3 | Notification microservice (`services/notification`) | **5%** | — | 5% | 0% |
+| 3 | Notification microservice (`services/notification`) | **100%** | — | 100% | 0% |
 | 4 | JSON-LD / PDF export | **20%** | 15% | 35% | 10% |
 | 5 | Live eval и качество ответов | **25%** | 30% | 40% | 15% |
 | 6 | Full-corpus gold dataset (`SourceSpan`) | **30%** | 10% | 45% | 20% |
 | 7 | Backup/restore Qdrant + MinIO | **40%** | 0% | 50% | 30% |
-| 8 | Runtime-уведомления (`ingestion_complete`, `interest_match`) | **55%** | 70% | 50% | 45% |
+| 8 | Runtime-уведомления (`ingestion_complete`, `interest_match`) | **98%** | 100% | 96% | 95% |
 | 9 | Удаление документа (полный cascade) | **65%** | 80% | 60% | 55% |
 | 10 | Audit CSV (server-side download) | **68%** | 75% | 70% | 60% |
 | 11 | E2E в обязательном CI (stack + Playwright) | **60%** | 65% | 55% | 50% |

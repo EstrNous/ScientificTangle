@@ -1,4 +1,5 @@
 import asyncio
+import json
 from datetime import UTC, datetime
 from io import BytesIO
 from uuid import UUID, uuid4
@@ -132,6 +133,8 @@ def service(repository: FakeRepository, client: httpx.AsyncClient) -> IngestionS
     return IngestionService(
         repository=repository,
         client=client,
+        notification_url="http://notification",
+        internal_service_token="test-internal-token",
         enforce_active_dictionary=False,
     )
 
@@ -170,22 +173,28 @@ def test_create_task_runs_complete_ingestion_pipeline() -> None:
                     "warnings": [],
                 },
             )
-        return httpx.Response(
-            200,
-            json={
-                "vector_write": {
-                    "backend": "qdrant",
-                    "mode": "live",
-                    "document_ids": ["document-1"],
-                    "records_count": 1,
-                    "confirmed_count": 0,
-                    "claim_ids": [],
-                    "graph_entity_ids": [],
+        if request.url.path == "/v1/documents/index":
+            return httpx.Response(
+                200,
+                json={
+                    "vector_write": {
+                        "backend": "qdrant",
+                        "mode": "live",
+                        "document_ids": ["document-1"],
+                        "records_count": 1,
+                        "confirmed_count": 0,
+                        "claim_ids": [],
+                        "graph_entity_ids": [],
+                        "warnings": [],
+                    },
                     "warnings": [],
                 },
-                "warnings": [],
-            },
-        )
+            )
+        if request.url.path == "/internal/v1/events":
+            return httpx.Response(200, json={"id": str(uuid4()), "type": "ingestion_complete"})
+        if request.url.path == "/internal/v1/match":
+            return httpx.Response(200, json=[])
+        return httpx.Response(404, json={"code": "not_found", "message": "unexpected"})
 
     async def run() -> None:
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
@@ -207,7 +216,209 @@ def test_create_task_runs_complete_ingestion_pipeline() -> None:
         f"/ingestion/tasks/{repository.task.id}/normalize",
         "/v1/documents/extract",
         "/v1/documents/index",
+        "/internal/v1/events",
     ]
+
+
+def test_ingestion_complete_notification_payload() -> None:
+    repository = FakeRepository()
+    notification_calls: list[dict[str, object]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/sources"):
+            return httpx.Response(201, json=report_payload())
+        if request.url.path.endswith("/normalize"):
+            return httpx.Response(
+                200,
+                json={"documents": [document_payload()], "warnings": []},
+            )
+        if request.url.path == "/v1/documents/extract":
+            return httpx.Response(
+                200,
+                json={
+                    "document_id": "document-1",
+                    "extraction": {
+                        "confirmed": [{"id": "c1", "kind": "claim", "value": "nickel"}],
+                        "candidates": [],
+                    },
+                    "graph_write": {
+                        "backend": "neo4j",
+                        "mode": "live",
+                        "document_ids": ["document-1"],
+                        "records_count": 2,
+                        "confirmed_count": 1,
+                        "claim_ids": [],
+                        "graph_entity_ids": [],
+                        "warnings": [],
+                    },
+                    "warnings": [],
+                },
+            )
+        if request.url.path == "/v1/documents/index":
+            return httpx.Response(
+                200,
+                json={
+                    "vector_write": {
+                        "backend": "qdrant",
+                        "mode": "live",
+                        "document_ids": ["document-1"],
+                        "records_count": 3,
+                        "confirmed_count": 0,
+                        "claim_ids": [],
+                        "graph_entity_ids": [],
+                        "warnings": [],
+                    },
+                    "warnings": [],
+                },
+            )
+        if request.url.path == "/internal/v1/events":
+            notification_calls.append(
+                {
+                    "kind": "event",
+                    "json": json.loads(request.content.decode()),
+                    "token": request.headers.get("X-Internal-Service-Token"),
+                }
+            )
+            return httpx.Response(
+                200,
+                json={
+                    "id": str(uuid4()),
+                    "title": "Документ обработан",
+                    "reason": "test",
+                    "type": "ingestion_complete",
+                    "reference_id": str(repository.task.id),
+                    "reference_type": "ingestion_task",
+                    "read": False,
+                    "match_reason": "",
+                    "created_at": datetime.now(UTC).isoformat(),
+                },
+            )
+        if request.url.path == "/internal/v1/match":
+            notification_calls.append(
+                {
+                    "kind": "match",
+                    "json": json.loads(request.content.decode()),
+                    "token": request.headers.get("X-Internal-Service-Token"),
+                }
+            )
+            return httpx.Response(
+                200,
+                json=[
+                    {
+                        "id": str(uuid4()),
+                        "title": "Новый документ по интересам",
+                        "reason": "Совпадение с подпиской: materials",
+                        "type": "interest_match",
+                        "reference_id": "document-1",
+                        "reference_type": "document",
+                        "read": False,
+                        "match_score": 0.81,
+                        "match_reason": "никель",
+                        "created_at": datetime.now(UTC).isoformat(),
+                    }
+                ],
+            )
+        return httpx.Response(404, json={"code": "not_found", "message": "unexpected"})
+
+    async def run() -> None:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            user = principal()
+            orchestrator = service(repository, client)
+            await orchestrator.create_task(
+                user,
+                [UploadFile(file=BytesIO(b"data"), filename="file.docx")],
+                "Bearer token",
+                "request-1",
+            )
+
+    asyncio.run(run())
+    event_calls = [item for item in notification_calls if item["kind"] == "event"]
+    match_calls = [item for item in notification_calls if item["kind"] == "match"]
+    assert len(event_calls) == 1
+    payload = event_calls[0]["json"]
+    assert payload["type"] == "ingestion_complete"
+    assert payload["user_id"] == str(repository.task.user_id)
+    assert payload["reference_id"] == str(repository.task.id)
+    assert payload["reference_type"] == "ingestion_task"
+    assert "Обработано документов: 1" in payload["message"]
+    assert "Извлечено сущностей: 1" in payload["message"]
+    assert "Проиндексировано фрагментов: 3" in payload["message"]
+    assert event_calls[0]["token"] == "test-internal-token"
+    assert len(match_calls) == 1
+    match_payload = match_calls[0]["json"]
+    assert match_payload["user_id"] == str(repository.task.user_id)
+    assert match_payload["document_id"] == "document-1"
+    assert len(match_payload["artifacts"]) == 1
+    assert match_payload["artifacts"][0]["id"] == "c1"
+    assert match_calls[0]["token"] == "test-internal-token"
+
+
+def test_ingestion_skips_interest_match_without_artifacts() -> None:
+    repository = FakeRepository()
+    notification_calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/sources"):
+            return httpx.Response(201, json=report_payload())
+        if request.url.path.endswith("/normalize"):
+            return httpx.Response(
+                200,
+                json={"documents": [document_payload()], "warnings": []},
+            )
+        if request.url.path == "/v1/documents/extract":
+            return httpx.Response(
+                200,
+                json={
+                    "document_id": "document-1",
+                    "extraction": {"confirmed": [], "candidates": []},
+                    "graph_write": {
+                        "backend": "neo4j",
+                        "mode": "live",
+                        "document_ids": ["document-1"],
+                        "records_count": 0,
+                        "confirmed_count": 0,
+                        "claim_ids": [],
+                        "graph_entity_ids": [],
+                        "warnings": [],
+                    },
+                    "warnings": [],
+                },
+            )
+        if request.url.path == "/v1/documents/index":
+            return httpx.Response(
+                200,
+                json={
+                    "vector_write": {
+                        "backend": "qdrant",
+                        "mode": "live",
+                        "document_ids": ["document-1"],
+                        "records_count": 1,
+                        "confirmed_count": 0,
+                        "claim_ids": [],
+                        "graph_entity_ids": [],
+                        "warnings": [],
+                    },
+                    "warnings": [],
+                },
+            )
+        if request.url.path == "/internal/v1/events":
+            return httpx.Response(200, json={"id": str(uuid4()), "type": "ingestion_complete"})
+        if request.url.path == "/internal/v1/match":
+            notification_calls.append(request.url.path)
+            return httpx.Response(200, json=[])
+        return httpx.Response(404, json={"code": "not_found", "message": "unexpected"})
+
+    async def run() -> None:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            await service(repository, client).create_task(
+                principal(),
+                [UploadFile(file=BytesIO(b"data"), filename="file.docx")],
+                "Bearer token",
+                "request-1",
+            )
+
+    asyncio.run(run())
+    assert notification_calls == []
 
 
 def test_storage_failure_marks_task_failed() -> None:

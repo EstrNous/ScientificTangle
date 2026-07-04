@@ -3,6 +3,8 @@ from uuid import UUID
 
 import httpx
 
+import structlog
+
 from shared.contracts import (
     ApiError,
     NotificationListPayload,
@@ -14,6 +16,8 @@ from shared.security import AuthenticatedPrincipal
 from shared.web import INTERNAL_SERVICE_TOKEN_HEADER
 
 from ..core.config import settings
+
+logger = structlog.get_logger()
 
 
 class NotificationServiceError(Exception):
@@ -43,12 +47,15 @@ class NotificationService:
         self,
         principal: AuthenticatedPrincipal,
         since: datetime | None,
+        cursor: str | None,
         authorization: str,
         request_id: str,
     ) -> NotificationListPayload:
         params: dict[str, str] = {}
         if since is not None:
             params["since"] = since.isoformat()
+        if cursor is not None:
+            params["cursor"] = cursor
         response = await self._request(
             "GET",
             "/notifications",
@@ -125,7 +132,7 @@ class NotificationService:
         request_id: str,
     ) -> None:
         try:
-            await self._client.post(
+            response = await self._client.post(
                 f"{self._notification_url}/internal/v1/events",
                 json={
                     "user_id": str(user_id),
@@ -142,7 +149,19 @@ class NotificationService:
                     INTERNAL_SERVICE_TOKEN_HEADER: self._internal_service_token,
                 },
             )
+            if response.status_code >= 400:
+                logger.warning(
+                    "notification_event_delivery_failed",
+                    status_code=response.status_code,
+                    event_type=event_type,
+                    request_id=request_id,
+                )
         except httpx.HTTPError:
+            logger.warning(
+                "notification_event_delivery_failed",
+                event_type=event_type,
+                request_id=request_id,
+            )
             return
 
     async def _request(

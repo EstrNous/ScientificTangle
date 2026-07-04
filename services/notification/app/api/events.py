@@ -1,7 +1,7 @@
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 
 from infra.postgres.notification_db.repository import NotificationData
@@ -38,10 +38,11 @@ class InternalMatchRequest(BaseModel):
 
 @router.post("/events", response_model=NotificationPayload)
 async def create_event(
+    request: Request,
     payload: NotificationEventCreate,
     service: Annotated[NotificationService, Depends(get_notification_service)],
 ) -> NotificationPayload:
-    return await service.create_event(
+    created = await service.create_event(
         NotificationData(
             user_id=payload.user_id,
             type=payload.type,
@@ -53,15 +54,26 @@ async def create_event(
             match_payload=payload.match_payload,
         )
     )
+    redis_bus = getattr(request.app.state, "redis_bus", None)
+    if redis_bus is not None:
+        await redis_bus.publish_created(created, request_id=getattr(request.state, "request_id", ""))
+    return created
 
 
 @router.post("/match", response_model=list[NotificationPayload])
 async def match_interests(
+    request: Request,
     payload: InternalMatchRequest,
     service: Annotated[MatchingService, Depends(get_matching_service)],
 ) -> list[NotificationPayload]:
-    return await service.match_and_notify(
+    created = await service.match_and_notify(
         payload.user_id,
         payload.document_id,
         payload.artifacts,
     )
+    redis_bus = getattr(request.app.state, "redis_bus", None)
+    if redis_bus is not None:
+        request_id = getattr(request.state, "request_id", "")
+        for item in created:
+            await redis_bus.publish_created(item, request_id=request_id)
+    return created

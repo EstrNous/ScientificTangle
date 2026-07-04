@@ -45,6 +45,7 @@ from shared.security import AuthenticatedPrincipal
 
 from ..core.config import settings
 from .base import BaseService, OrchestratorServiceError
+from .ingestion_notifications import match_artifacts_from_extraction
 from .query_stream import (
     QueryEventEmitter,
     auth_context,
@@ -80,6 +81,7 @@ class OrchestratorService(BaseService):
         retrieval_url: str,
         model_url: str,
         export_url: str | None = None,
+        notification_url: str | None = None,
         query_repository: QueryRunRepository | None = None,
         enforce_active_dictionary: bool = True,
         internal_service_token: str | None = None,
@@ -94,6 +96,7 @@ class OrchestratorService(BaseService):
         self._retrieval_url = retrieval_url.rstrip("/")
         self._model_url = model_url.rstrip("/")
         self._export_url = (export_url or settings.export_url).rstrip("/")
+        self._notification_url = (notification_url or settings.notification_url).rstrip("/")
         self._query_repository = query_repository
         self._enforce_active_dictionary = enforce_active_dictionary
 
@@ -352,6 +355,8 @@ class OrchestratorService(BaseService):
             },
             request_id,
         )
+        await self._notify_ingestion_complete(user_id, task.id, completed_report, request_id)
+        await self._notify_ingestion_interest_matches(user_id, knowledge_results, request_id)
         return self._payload(completed_task)
 
     async def get_task(
@@ -365,6 +370,54 @@ class OrchestratorService(BaseService):
         ):
             raise OrchestratorServiceError(404, "task_not_found", "Ingestion task not found")
         return self._payload(task)
+
+    @staticmethod
+    def _ingestion_complete_message(report: IngestionReport) -> str:
+        return (
+            f"Обработано документов: {report.documents_count}. "
+            f"Извлечено сущностей: {report.extracted_claims_count}, "
+            f"кандидатов: {report.candidates_count}. "
+            f"Проиндексировано фрагментов: {report.indexed_points_count}."
+        )
+
+    async def _notify_ingestion_complete(
+        self,
+        user_id: UUID,
+        task_id: UUID,
+        report: IngestionReport,
+        request_id: str,
+    ) -> None:
+        await self._post_internal_notification_event(
+            self._notification_url,
+            {
+                "user_id": str(user_id),
+                "type": "ingestion_complete",
+                "message": self._ingestion_complete_message(report),
+                "reference_id": str(task_id),
+                "reference_type": "ingestion_task",
+            },
+            request_id,
+        )
+
+    async def _notify_ingestion_interest_matches(
+        self,
+        user_id: UUID,
+        knowledge_results: list[KnowledgeIngestionResponse],
+        request_id: str,
+    ) -> None:
+        for result in knowledge_results:
+            artifacts = match_artifacts_from_extraction(result.extraction)
+            if not artifacts:
+                continue
+            await self._post_internal_notification_match(
+                self._notification_url,
+                {
+                    "user_id": str(user_id),
+                    "document_id": result.document_id,
+                    "artifacts": artifacts,
+                },
+                request_id,
+            )
 
     async def upload_dictionary(
         self,

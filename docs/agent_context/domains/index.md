@@ -12,7 +12,7 @@
 | retrieval | `retrieval.md` | 4 — Qdrant live; hybrid gaps |
 | model | `model.md` | 5 — 13 v1 endpoints |
 | export | `export.md` | 2 — stub HTTP |
-| notification | `notification.md` | 2 — stub HTTP |
+| notification | `notification.md` | 5 — wired HTTP, runtime delivery, Redis worker |
 
 **Сводка vs ТЗ:** [`implementation_quality_report.md`](../implementation_quality_report.md)  
 **ML статус:** [`ml_mvp_status.md`](../ml_mvp_status.md)  

@@ -18,6 +18,9 @@ export function resolveNotificationTarget(item) {
   if (referenceType === 'query_run') {
     return { kind: 'navigate', path: '/chat', state: { queryRunId: referenceId } };
   }
+  if (referenceType === 'ingestion_task') {
+    return { kind: 'navigate', path: '/upload', state: { ingestionTaskId: referenceId } };
+  }
   if (referenceType === 'review_item') {
     return { kind: 'navigate', path: '/review', state: { candidateId: referenceId } };
   }

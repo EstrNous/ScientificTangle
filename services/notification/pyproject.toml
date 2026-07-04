@@ -12,6 +12,7 @@ dependencies = [
     "asyncpg>=0.30",
     "alembic>=1.14",
     "scientific-tangle-shared",
+    "redis>=5.0",
 ]
 
 [tool.uv.sources]

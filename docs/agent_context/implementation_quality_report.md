@@ -147,7 +147,7 @@ flowchart TB
 | **retrieval** | 8005 | 4 | 14 | `app/qdrant_adapter.py`, `api/query.py` | Hybrid fusion (graph/table/lexical) не реализован; legacy `api/indexing.py` не смонтирован |
 | **model** | 8006 | 5 | 31 | `app/api/v1.py` (13 endpoints), `services.py` | Live eval artifact не pinned |
 | **export** | 8007 | 2 | 2 | `app/main.py` — только health | `not_wired` |
-| **notification** | 8008 | 2 | 2 | `app/main.py` — только health | `not_wired` |
+| **notification** | 8008 | 5 | 5 | interests, internal events, Redis worker | `wired` |
 | **UI** | 3000 | 3.5 | 15 vitest | 15 страниц; `api/client.js`, `auth.js` | Mock source catalog; RoleSwitcher + JWT |
 
 ---
@@ -287,7 +287,7 @@ flowchart TB
 | Документ | Утверждение | Факт в коде |
 |----------|-------------|-------------|
 | `domains/export.md` | `✅ MVP via orchestrator/gateway`; `services/export` reserved | Актуально |
-| `domains/notification.md` | `not_wired` | Актуально |
+| `domains/notification.md` | `wired` | Актуально |
 | `docs/tz/mvp.md` | Только DoD без статуса | Обновлён чеклист vs код |
 
 ---

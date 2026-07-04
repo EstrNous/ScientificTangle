@@ -29,6 +29,20 @@ test.describe('E6 no-live UI scenarios @offline', () => {
     await expect(page.getByText('minor table gap')).toBeVisible();
   });
 
+  test('scenario 2b: upload adds ingestion_complete notification to bell', async ({ page }) => {
+    await page.goto('/upload');
+    const pdf = {
+      name: 'demo.pdf',
+      mimeType: 'application/pdf',
+      buffer: Buffer.from('%PDF-1.4 demo'),
+    };
+    await page.locator('input[type="file"]').first().setInputFiles(pdf);
+    await page.getByRole('button', { name: 'Загрузить' }).click();
+    await expect(page.getByText('Этапы обработки')).toBeVisible({ timeout: 15000 });
+    await page.getByRole('button', { name: 'Уведомления' }).click();
+    await expect(page.getByRole('button', { name: 'Обработка документа завершена' })).toBeVisible();
+  });
+
   test('scenario 3: notification click opens source viewer', async ({ page }) => {
     await page.goto('/chat');
     await page.getByRole('button', { name: 'Уведомления' }).click();

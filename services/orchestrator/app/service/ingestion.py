@@ -7,6 +7,8 @@ from infra.postgres.orchestrator_db import IngestionTaskRepository
 from shared.contracts import IngestionTaskPayload
 from shared.security import AuthenticatedPrincipal
 
+from ..core.config import settings
+
 from .service import OrchestratorService
 
 
@@ -20,7 +22,9 @@ class IngestionService:
         retrieval_url: str = "http://retrieval",
         model_url: str = "http://model",
         export_url: str = "http://export",
+        notification_url: str | None = None,
         enforce_active_dictionary: bool = False,
+        internal_service_token: str | None = None,
     ) -> None:
         self._service = OrchestratorService(
             repository,
@@ -30,7 +34,9 @@ class IngestionService:
             retrieval_url,
             model_url,
             export_url,
+            notification_url=notification_url or settings.notification_url,
             enforce_active_dictionary=enforce_active_dictionary,
+            internal_service_token=internal_service_token or settings.internal_service_token,
         )
 
     async def start_ingestion_task(

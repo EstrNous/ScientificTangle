@@ -195,7 +195,12 @@ export async function installProductionApiMocks(page) {
     }
 
     if (routeMatch(url, '/api/notifications') && method === 'GET') {
-      await route.fulfill(json({ items: state.notifications }));
+      const parsed = new URL(url);
+      const since = parsed.searchParams.get('since');
+      const items = since
+        ? state.notifications.filter((item) => item.created_at > since)
+        : state.notifications;
+      await route.fulfill(json({ items, unread_count: items.filter((item) => !item.read).length }));
       return;
     }
 
@@ -211,6 +216,16 @@ export async function installProductionApiMocks(page) {
     }
 
     if (routeMatch(url, '/api/documents/upload') && method === 'POST') {
+      state.notifications.unshift({
+        id: `notif-upload-${Date.now()}`,
+        type: 'ingestion_complete',
+        title: 'Обработка документа завершена',
+        reason: 'Обработано документов: 1. Извлечено сущностей: 3.',
+        reference_type: 'ingestion_task',
+        reference_id: state.uploadTask.id,
+        read: false,
+        created_at: new Date().toISOString(),
+      });
       await route.fulfill(json({ id: state.uploadTask.id }));
       return;
     }

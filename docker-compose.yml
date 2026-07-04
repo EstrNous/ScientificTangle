@@ -176,6 +176,8 @@ services:
     ports:
       - "8002:8002"
     env_file: .env
+    environment:
+      NOTIFICATION_URL: http://notification:8008
     command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8002"]
     depends_on:
       postgres:
@@ -189,6 +191,8 @@ services:
       retrieval:
         condition: service_healthy
       model:
+        condition: service_healthy
+      notification:
         condition: service_healthy
     restart: unless-stopped
     networks:

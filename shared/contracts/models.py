@@ -366,7 +366,7 @@ class UserInterestsUpdatePayload(BaseModel):
 
 class NotificationReference(BaseModel):
     reference_id: str
-    reference_type: Literal["document", "source_span", "query_run", "review_item", "external"] = "document"
+    reference_type: Literal["document", "source_span", "query_run", "review_item", "ingestion_task", "external"] = "document"
     source_span_id: str | None = None
     document_id: str | None = None
 
@@ -377,7 +377,7 @@ class NotificationPayload(BaseModel):
     reason: str
     type: str
     reference_id: str | None = None
-    reference_type: Literal["document", "source_span", "query_run", "review_item", "external"] = "document"
+    reference_type: Literal["document", "source_span", "query_run", "review_item", "ingestion_task", "external"] = "document"
     read: bool = False
     match_score: float | None = Field(default=None, ge=0.0, le=1.0)
     match_reason: str = ""
@@ -387,6 +387,7 @@ class NotificationPayload(BaseModel):
 class NotificationListPayload(BaseModel):
     items: list[NotificationPayload] = Field(default_factory=list)
     unread_count: int = 0
+    next_cursor: str | None = None
     warnings: list[str] = Field(default_factory=list)
 
 
