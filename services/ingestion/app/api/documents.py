@@ -5,6 +5,8 @@ from pydantic import BaseModel, Field
 
 from shared.contracts import AccessPolicy, NormalizedDocument, SourceSpan, TableBlock
 
+from ..normalization import enrich_normalized_document
+
 router = APIRouter(prefix="/v1/documents", tags=["documents"])
 
 
@@ -45,7 +47,7 @@ def build_normalized_document(request: NormalizeDocumentRequest) -> NormalizedDo
     table_spans = build_table_spans(table_blocks)
     document.source_spans = [*source_spans, *table_spans]
     document.table_blocks = table_blocks
-    return document
+    return enrich_normalized_document(document)
 
 
 def build_text_spans(document_id: str, content: str, page: int) -> list[SourceSpan]:

@@ -641,6 +641,7 @@ def add_span_artifacts(
             warnings.append(UnsupportedWarning(statement=alias_value, reason_codes=reason_codes))
 
     for quantity in extract_numeric_constraints(span.text):
+        quantity = quantity.model_copy(update={"source_span_id": span_id})
         value = format_quantity_value(quantity)
         add_artifact(
             ExtractionArtifact(
@@ -755,6 +756,7 @@ def add_table_artifacts(
                 continue
             if source:
                 span_id, span = source
+                quantities = [quantity.model_copy(update={"source_span_id": span_id}) for quantity in quantities]
                 artifact = ExtractionArtifact(
                     kind="measurement",
                     value=row_text,

@@ -111,7 +111,8 @@ def test_structured_extraction_confirms_only_sourced_measurements() -> None:
     assert response.status_code == 200
     payload = response.json()
     confirmed = payload["confirmed"]
-    assert any(item["kind"] == "measurement" and item["status"] == "confirmed" for item in confirmed)
+    measurement = next(item for item in confirmed if item["kind"] == "measurement" and item["status"] == "confirmed")
+    assert measurement["metadata"]["quantity"]["source_span_id"]
     assert all(item["source_span_ids"] for item in confirmed)
     assert all(item["source_spans"] for item in confirmed)
 
