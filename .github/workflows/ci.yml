@@ -11,9 +11,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - uses: astral-sh/setup-uv@v5
       - name: Install ruff
         run: uv tool install ruff
+      - name: Bootstrap compose env
+        run: |
+          python scripts/ensure_env.py
+          pip install cryptography pyyaml
+          python scripts/generate_auth_keys.py
+          python scripts/generate_tls_certs.py
       - name: Ruff check
         run: ruff check shared services scripts tests
       - name: Repo audit
