@@ -25,10 +25,12 @@ class Neo4jStorageAdapter:
         claim_ids: list[str],
         entity_ids: list[str],
         source_span_ids: list[str],
+        access_levels: list[str],
     ) -> GraphSubgraph:
         subgraph = await self._knowledge.build_subgraph_by_evidence(
             claim_ids=claim_ids,
             entity_ids=entity_ids,
             source_span_ids=source_span_ids,
+            access_levels=access_levels,
         )
         return subgraph_dto_to_contract(subgraph)

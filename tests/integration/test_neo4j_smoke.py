@@ -153,7 +153,9 @@ async def test_neo4j_subgraph_by_evidence_ids(neo4j_adapter: Neo4jKnowledgeAdapt
         ],
     )
     assert await neo4j_adapter.write_bundle(bundle, request_id="integration-subgraph-write")
-    subgraph = await neo4j_adapter.build_subgraph_by_evidence([claim_id], [entity_id], [span_id])
+    subgraph = await neo4j_adapter.build_subgraph_by_evidence(
+        [claim_id], [entity_id], [span_id], ["public", "internal"]
+    )
     assert claim_id in subgraph.claim_ids
     assert span_id in subgraph.source_span_ids
     assert any(node.id == entity_id for node in subgraph.nodes)

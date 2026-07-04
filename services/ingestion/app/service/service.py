@@ -3,6 +3,7 @@ from uuid import UUID
 from fastapi import UploadFile
 
 from shared.contracts import (
+    DictionaryPackagePayload,
     IngestionReport,
     NormalizeStoredSourcesRequest,
     NormalizeStoredSourcesResponse,
@@ -10,6 +11,7 @@ from shared.contracts import (
 
 from ..parsers import ParserRegistry, SourceContent
 from .storage import InvalidUploadError, SourceStorage, StorageOperationError
+from .dictionaries import DictionaryPackageError, parse_dictionary_package
 
 
 class UploadStorageError(Exception):
@@ -32,6 +34,28 @@ class IngestionService:
     def __init__(self, storage: SourceStorage, parser_registry: ParserRegistry) -> None:
         self._storage = storage
         self._parser_registry = parser_registry
+
+    async def store_dictionary_package(
+        self,
+        user_id: UUID,
+        task_id: UUID,
+        package: UploadFile,
+        max_entries: int,
+        max_uncompressed_bytes: int,
+    ) -> DictionaryPackagePayload:
+        if not package.filename or not package.filename.lower().endswith(".zip"):
+            raise UploadStorageError(422, "invalid_dictionary_zip", "Dictionary package must be a ZIP file")
+        try:
+            sources = await self._storage.store(user_id, task_id, [package])
+            source = sources[0]
+            content = await self._storage.read(source)
+            return parse_dictionary_package(content, source, max_entries, max_uncompressed_bytes)
+        except DictionaryPackageError as error:
+            raise UploadStorageError(422, error.code, error.message) from error
+        except InvalidUploadError as error:
+            raise UploadStorageError(error.status_code, error.code, error.message) from error
+        except StorageOperationError as error:
+            raise UploadStorageError(503, "storage_unavailable", "Source storage is unavailable") from error
 
     async def store_sources(
         self,

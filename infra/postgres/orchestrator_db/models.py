@@ -6,7 +6,7 @@ from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PostgreSQLUUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from shared.contracts import IngestionTaskStatus, QueryRunStatus
+from shared.contracts import IngestionTaskStatus, QueryRunStatus, TaskKind
 
 
 class ExportJobStatus(StrEnum):
@@ -42,6 +42,10 @@ class IngestionTask(Base):
     status: Mapped[str] = mapped_column(
         String(32), nullable=False, default=IngestionTaskStatus.PENDING.value
     )
+    task_kind: Mapped[str] = mapped_column(
+        String(32), nullable=False, default=TaskKind.DOCUMENT_INGESTION.value
+    )
+    dictionary_version_id: Mapped[UUID | None] = mapped_column(PostgreSQLUUID(as_uuid=True))
     report: Mapped[dict | None] = mapped_column(JSONB)
     error_message: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
@@ -78,6 +82,7 @@ class QueryRun(Base):
     error_code: Mapped[str | None] = mapped_column(String(128))
     error_message: Mapped[str | None] = mapped_column(Text)
     latency_ms: Mapped[int | None] = mapped_column(Integer)
+    dictionary_version_id: Mapped[UUID | None] = mapped_column(PostgreSQLUUID(as_uuid=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

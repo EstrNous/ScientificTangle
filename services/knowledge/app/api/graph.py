@@ -26,6 +26,7 @@ class SubgraphRequest(BaseModel):
     claim_ids: list[str] = Field(default_factory=list)
     entity_ids: list[str] = Field(default_factory=list)
     source_span_ids: list[str] = Field(default_factory=list)
+    access_levels: list[str] = Field(default_factory=lambda: ["public"])
 
 
 class ResolveAliasRequest(BaseModel):
@@ -124,6 +125,7 @@ async def build_subgraph(
             payload.claim_ids,
             payload.entity_ids,
             payload.source_span_ids,
+            payload.access_levels,
         )
     except StorageAdapterNotReady as error:
         raise HTTPException(status_code=503, detail=str(error)) from error

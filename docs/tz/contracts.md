@@ -12,6 +12,8 @@ NormalizedDocument, SourceSpan, TableBlock, Claim, QueryIR, EvidenceBundle, Answ
 
 AnswerPayload, SourceSpanPayload, GraphSubgraphPayload, IngestionTaskPayload, SearchResultPayload, UserRolePayload, ExportPayload — фиксация совместно frontend и backend.
 
+Для управляемых справочников добавлены `DictionaryVersionPayload`, `DictionaryIngestionReport`, `TaskKind` и обратно совместимое поле `dictionary_version_id` в ingestion/query payload. Публичный API: загрузка ZIP `dictionary-package.v1`, список версий, чтение активной версии и атомарная активация.
+
 ## Ключевые точки синхронизации
 
 | Sync | Содержание | Статус (2026-07-04) |

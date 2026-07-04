@@ -9,6 +9,7 @@ from app.api.query import (
     SourceResolveRequest,
     build_points,
     collect_evidence_items,
+    fuse_channels,
     payload_allowed,
     resolve_source,
     run_query,
@@ -43,6 +44,21 @@ def source(document_id: str, policy: AccessPolicy, text: str) -> SourcePayload:
         source_type="pdf",
         access_policy=policy,
     )
+
+
+def test_fusion_deduplicates_source_spans_and_merges_links() -> None:
+    policy = AccessPolicy(level="internal", allowed_roles=["researcher"])
+    dense = SearchResult(source=source("doc-1", policy, "nickel"), relevance_score=0.9, claim_ids=["c1"])
+    lexical = SearchResult(
+        source=dense.source,
+        relevance_score=0.8,
+        claim_ids=["c2"],
+        entity_ids=["e1"],
+    )
+    fused = fuse_channels({"dense": [dense], "lexical": [lexical]}, 10)
+    assert len(fused) == 1
+    assert fused[0].claim_ids == ["c1", "c2"]
+    assert fused[0].entity_ids == ["e1"]
 
 
 class FakeStorageAdapter:
@@ -96,6 +112,8 @@ def test_denied_evidence_is_not_sent_to_reranking() -> None:
                     "warnings": [],
                 },
             )
+        if request.url.path.endswith("/graph/evidence"):
+            return httpx.Response(200, json=[])
         payload = json.loads(request.content)
         assert len(payload["evidence_items"]) == 1
         assert payload["evidence_items"][0]["source_span"]["document_id"] == "allowed"

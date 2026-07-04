@@ -16,3 +16,6 @@ CREATE CONSTRAINT entity_type_name IF NOT EXISTS FOR (et:EntityType) REQUIRE et.
 CREATE CONSTRAINT relation_type_name IF NOT EXISTS FOR (rt:RelationType) REQUIRE rt.type_name IS UNIQUE;
 CREATE CONSTRAINT validation_rule_id IF NOT EXISTS FOR (vr:ValidationRule) REQUIRE vr.rule_id IS UNIQUE;
 CREATE CONSTRAINT schema_version_id IF NOT EXISTS FOR (sv:SchemaVersion) REQUIRE sv.version IS UNIQUE;
+CREATE CONSTRAINT dictionary_version_id_unique IF NOT EXISTS FOR (v:DictionaryVersion) REQUIRE v.dictionary_version_id IS UNIQUE;
+CREATE CONSTRAINT dictionary_version_name_unique IF NOT EXISTS FOR (v:DictionaryVersion) REQUIRE v.version IS UNIQUE;
+CREATE CONSTRAINT dictionary_entry_id_unique IF NOT EXISTS FOR (e:DictionaryEntry) REQUIRE e.dictionary_entry_id IS UNIQUE;

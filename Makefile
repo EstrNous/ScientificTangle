@@ -21,7 +21,7 @@ seed:
 	python scripts/seed_demo.py
 
 ingest-demo:
-	python scripts/seed_demo.py --no-reset
+	python scripts/seed_demo.py
 
 e2e:
 	RUN_E2E=1 python scripts/run_tests.py
@@ -38,6 +38,10 @@ perf-smoke:
 	python scripts/perf_smoke.py
 
 reset-demo:
+	docker compose down -v
+	python scripts/generate_auth_keys.py
+	docker compose up -d
+	docker compose exec auth_audit auth-seed-users
 	python scripts/seed_demo.py
 
 lint:

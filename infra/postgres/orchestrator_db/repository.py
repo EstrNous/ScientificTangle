@@ -11,9 +11,11 @@ from shared.contracts import (
     ExportPayload,
     GraphSubgraph,
     IngestionReport,
+    DictionaryIngestionReport,
     IngestionTaskStatus,
     QueryIR,
     QueryRunStatus,
+    TaskKind,
 )
 
 from .models import ExportJob, ExportJobStatus, IngestionTask, QueryRun, QueryRunStatus
@@ -23,8 +25,18 @@ class IngestionTaskRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def create(self, user_id: UUID) -> IngestionTask:
-        task = IngestionTask(user_id=user_id, status=IngestionTaskStatus.PENDING.value)
+    async def create(
+        self,
+        user_id: UUID,
+        task_kind: TaskKind = TaskKind.DOCUMENT_INGESTION,
+        dictionary_version_id: UUID | None = None,
+    ) -> IngestionTask:
+        task = IngestionTask(
+            user_id=user_id,
+            status=IngestionTaskStatus.PENDING.value,
+            task_kind=task_kind.value,
+            dictionary_version_id=dictionary_version_id,
+        )
         self._session.add(task)
         await self._session.commit()
         await self._session.refresh(task)
@@ -34,7 +46,7 @@ class IngestionTaskRepository:
         return await self._session.get(IngestionTask, task_id)
 
     async def set_report(
-        self, task: IngestionTask, report: IngestionReport
+        self, task: IngestionTask, report: IngestionReport | DictionaryIngestionReport
     ) -> IngestionTask:
         task.status = IngestionTaskStatus.COMPLETED.value
         task.report = report.model_dump(mode="json")
@@ -46,7 +58,7 @@ class IngestionTaskRepository:
     async def mark_processing(
         self,
         task: IngestionTask,
-        report: IngestionReport,
+        report: IngestionReport | DictionaryIngestionReport,
     ) -> IngestionTask:
         task.status = IngestionTaskStatus.PROCESSING.value
         task.report = report.model_dump(mode="json")
@@ -58,7 +70,7 @@ class IngestionTaskRepository:
     async def mark_completed(
         self,
         task: IngestionTask,
-        report: IngestionReport,
+        report: IngestionReport | DictionaryIngestionReport,
     ) -> IngestionTask:
         task.status = IngestionTaskStatus.COMPLETED.value
         task.report = report.model_dump(mode="json")
@@ -157,7 +169,13 @@ class QueryRunRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def create(self, user_id: UUID, question: str, request_id: str) -> QueryRun:
+    async def create(
+        self,
+        user_id: UUID,
+        question: str,
+        request_id: str,
+        dictionary_version_id: UUID | None = None,
+    ) -> QueryRun:
         run = QueryRun(
             user_id=user_id,
             raw_question=question,
@@ -165,6 +183,7 @@ class QueryRunRepository:
             status=QueryRunStatus.PENDING.value,
             warnings=[],
             graph_subgraph=GraphSubgraph().model_dump(mode="json"),
+            dictionary_version_id=dictionary_version_id,
         )
         self._session.add(run)
         await self._save(run)

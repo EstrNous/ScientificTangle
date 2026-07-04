@@ -25,3 +25,11 @@ def test_query_e2e_routes_are_in_openapi() -> None:
     assert "/search" in paths
     schema = app.openapi()["components"]["schemas"]["QueryRequest"]
     assert "documents" not in schema["properties"]
+
+
+def test_dictionary_routes_are_in_openapi() -> None:
+    paths = app.openapi()["paths"]
+    assert paths["/dictionaries/upload"]["post"]["responses"]["202"]
+    assert "/dictionaries" in paths
+    assert "/dictionaries/active" in paths
+    assert "/dictionaries/{version_id}/activate" in paths

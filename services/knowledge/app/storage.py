@@ -22,6 +22,7 @@ class KnowledgeStorageAdapter(Protocol):
         claim_ids: list[str],
         entity_ids: list[str],
         source_span_ids: list[str],
+        access_levels: list[str],
     ) -> GraphSubgraph: ...
 
 
@@ -40,5 +41,6 @@ class PendingKnowledgeStorageAdapter:
         claim_ids: list[str],
         entity_ids: list[str],
         source_span_ids: list[str],
+        access_levels: list[str],
     ) -> GraphSubgraph:
         raise StorageAdapterNotReady("neo4j_adapter_pending")
