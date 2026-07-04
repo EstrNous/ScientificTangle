@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import fnmatch
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -7,14 +9,41 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def _matches_glob(relative_path: str, glob_pattern: str) -> bool:
+    return fnmatch.fnmatch(relative_path, glob_pattern)
+
+
+def _iter_files(path: Path, glob: str | None = None) -> list[Path]:
+    if path.is_file():
+        return [path]
+    files: list[Path] = []
+    for candidate in path.rglob("*"):
+        if not candidate.is_file():
+            continue
+        if glob is not None:
+            relative = candidate.relative_to(path).as_posix()
+            if not _matches_glob(relative, glob):
+                continue
+        files.append(candidate)
+    return sorted(files)
+
+
 def run_rg(pattern: str, path: str, glob: str | None = None) -> list[str]:
-    cmd = ["rg", pattern, path]
-    if glob:
-        cmd.extend(["--glob", glob])
-    result = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True, check=False)
-    if result.returncode not in (0, 1):
-        raise RuntimeError(result.stderr or result.stdout)
-    return [line for line in result.stdout.splitlines() if line.strip()]
+    regex = re.compile(pattern)
+    target = ROOT / path
+    if not target.exists():
+        return []
+    matches: list[str] = []
+    for file_path in _iter_files(target, glob):
+        try:
+            lines = file_path.read_text(encoding="utf-8").splitlines()
+        except (OSError, UnicodeDecodeError):
+            continue
+        relative = file_path.relative_to(ROOT).as_posix()
+        for line_number, line in enumerate(lines, start=1):
+            if regex.search(line):
+                matches.append(f"{relative}:{line_number}:{line}")
+    return matches
 
 
 def check_no_app_imports() -> list[str]:
