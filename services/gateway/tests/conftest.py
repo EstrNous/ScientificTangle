@@ -102,14 +102,12 @@ def chat_test_app(fake_chat_repository: FakeChatRepository, principal: Authentic
     app.state.jwt_validator = AsyncMock()
     app.state.jwt_validator.validate = AsyncMock(return_value=principal)
 
-    async def override_get_chat_service(_request):
-        return ChatService(
-            repository=fake_chat_repository,
-            gateway_service=app.state.gateway_service,
-            notification_service=app.state.notification_service,
-        )
-
-    app.dependency_overrides[dependencies.get_chat_service] = override_get_chat_service
+    chat_service = ChatService(
+        repository=fake_chat_repository,
+        gateway_service=app.state.gateway_service,
+        notification_service=app.state.notification_service,
+    )
+    app.dependency_overrides[dependencies.get_chat_service] = lambda: chat_service
     return app
 
 
