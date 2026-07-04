@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import PageShell from '../components/shared/PageShell.jsx';
 import Loader from '../components/shared/Loader.jsx';
+import { ErrorBanner } from '../components/shared/PageState.jsx';
 import { ChatSidebar, ChatWindow, ChatInput } from '../components/chat/index.js';
 import { ensureAuth } from '../api/auth.js';
 import {
@@ -150,9 +151,10 @@ export default function ChatPage() {
   return (
     <PageShell>
       {error && (
-        <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
-          {t('chat.backendError', { message: error })}
-        </div>
+        <ErrorBanner
+          className="mb-3"
+          message={t('chat.backendError', { message: error })}
+        />
       )}
       <div className="flex h-full min-h-0 flex-col lg:flex-row">
         <div className="mb-2 flex shrink-0 items-center gap-2 lg:hidden">

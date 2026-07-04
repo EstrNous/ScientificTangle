@@ -8,6 +8,8 @@ import PageShell from '../components/shared/PageShell.jsx';
 
 import Loader from '../components/shared/Loader.jsx';
 
+import { ErrorBanner } from '../components/shared/PageState.jsx';
+
 import { AdminSubNav, AuditLogTable, SourceViewer } from '../components/admin/index.js';
 
 import PdfDownloadButton from '../components/shared/PdfDownloadButton.jsx';
@@ -389,13 +391,7 @@ export default function AdminAuditPage() {
         />
 
         {error && (
-
-          <p className="text-sm text-red-600 dark:text-red-400">
-
-            {t(`admin.errors.${error}`, { defaultValue: error })}
-
-          </p>
-
+          <ErrorBanner message={t(`admin.errors.${error}`, { defaultValue: error })} />
         )}
 
         <div

@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import PageShell from '../components/shared/PageShell.jsx';
+import { ErrorBanner } from '../components/shared/PageState.jsx';
 import { UploadAnalysisPanel, UploadDropzone, UploadEntityPanel } from '../components/upload/index.js';
 import { ensureAuth } from '../api/auth.js';
 import {
@@ -186,9 +187,10 @@ export default function UploadPage() {
             onRemoveFile={handleRemoveFile}
           />
           {error && (
-            <p className="mt-3 text-sm text-red-600 dark:text-red-400">
-              {t(`upload.errors.${error}`, { defaultValue: error })}
-            </p>
+            <ErrorBanner
+              className="mt-3"
+              message={t(`upload.errors.${error}`, { defaultValue: error })}
+            />
           )}
         </div>
         <div className="flex min-h-0 flex-col gap-4">

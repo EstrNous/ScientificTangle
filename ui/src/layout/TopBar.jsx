@@ -4,6 +4,7 @@ import DarkModeToggle from '../components/shared/DarkModeToggle.jsx';
 import NotificationBell from '../components/shared/NotificationBell.jsx';
 import RoleSwitcher from '../components/shared/RoleSwitcher.jsx';
 import ProfileButton from '../components/shared/ProfileButton.jsx';
+import ServiceHealthIndicator from '../components/shared/ServiceHealthIndicator.jsx';
 import { useLocaleStore } from '../stores/localeStore.js';
 import { isDevRoleSwitcherEnabled } from '../utils/uiFeatureFlags.js';
 import i18n from '../i18n/index.js';
@@ -14,16 +15,17 @@ export default function TopBar() {
   const setLocale = useLocaleStore((s) => s.setLocale);
 
   return (
-    <header className="shrink-0 border-b border-nn-border bg-white px-6 py-4 dark:border-slate-700 dark:bg-slate-900">
-      <div className="flex items-center justify-between gap-6">
-        <div className="flex shrink-0 items-center gap-3">
+    <header className="shrink-0 border-b border-nn-border bg-white px-3 py-3 sm:px-6 sm:py-4 dark:border-slate-700 dark:bg-slate-900">
+      <div className="flex items-center justify-between gap-3 sm:gap-6">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <AppLogo />
-          <span className="text-lg font-semibold text-gray-900 dark:text-slate-100">
+          <span className="truncate text-base font-semibold text-gray-900 sm:text-lg dark:text-slate-100">
             {t('app.title')}
           </span>
         </div>
 
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          <ServiceHealthIndicator />
           {isDevRoleSwitcherEnabled() && <RoleSwitcher />}
           <DarkModeToggle />
           <button

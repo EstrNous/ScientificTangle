@@ -7,7 +7,7 @@ export default function AppLogo({ className = 'h-9 w-9' }) {
     >
       <img
         src={appLogo}
-        alt=""
+        alt="НорСинтез"
         className="h-full w-full object-contain"
       />
     </span>

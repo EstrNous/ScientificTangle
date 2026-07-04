@@ -6,6 +6,8 @@ import PageShell from '../components/shared/PageShell.jsx';
 
 import Loader from '../components/shared/Loader.jsx';
 
+import { ErrorBanner } from '../components/shared/PageState.jsx';
+
 import { AccessPolicyTable, AdminSubNav, DictionaryVersionTable, UserRoleTable } from '../components/admin/index.js';
 
 import PdfDownloadButton from '../components/shared/PdfDownloadButton.jsx';
@@ -511,13 +513,7 @@ export default function AdminPage() {
         />
 
         {saveError && (
-
-          <p className="text-sm text-red-600 dark:text-red-400" role="alert">
-
-            {t(`admin.errors.${saveError}`, { defaultValue: saveError })}
-
-          </p>
-
+          <ErrorBanner message={t(`admin.errors.${saveError}`, { defaultValue: saveError })} />
         )}
 
         {saveSuccess && !hasDirtyChanges && (
@@ -531,13 +527,7 @@ export default function AdminPage() {
         )}
 
         {dictionaryError && (
-
-          <p className="text-sm text-red-600 dark:text-red-400" role="alert">
-
-            {t(`admin.errors.${dictionaryError}`, { defaultValue: dictionaryError })}
-
-          </p>
-
+          <ErrorBanner message={t(`admin.errors.${dictionaryError}`, { defaultValue: dictionaryError })} />
         )}
 
 

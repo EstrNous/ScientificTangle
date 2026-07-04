@@ -6,6 +6,8 @@ import PageShell from '../components/shared/PageShell.jsx';
 
 import Loader from '../components/shared/Loader.jsx';
 
+import { ErrorBanner } from '../components/shared/PageState.jsx';
+
 import {
 
   CandidateTable,
@@ -341,23 +343,15 @@ export default function ReviewConsolePage() {
 
 
         {error && (
-
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
-
-            {error}
-
-          </div>
-
+          <ErrorBanner
+            message={t(`review.errors.${error}`, { defaultValue: error })}
+            onRetry={loadQueue}
+            retryLabel={t('common.retry')}
+          />
         )}
 
         {decisionError && (
-
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
-
-            {t(`review.errors.${decisionError}`, { defaultValue: decisionError })}
-
-          </div>
-
+          <ErrorBanner message={t(`review.errors.${decisionError}`, { defaultValue: decisionError })} />
         )}
 
 

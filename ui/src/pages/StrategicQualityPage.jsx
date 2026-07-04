@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import PageShell from '../components/shared/PageShell.jsx';
 import Loader from '../components/shared/Loader.jsx';
+import { ErrorBanner } from '../components/shared/PageState.jsx';
 import PdfDownloadButton from '../components/shared/PdfDownloadButton.jsx';
 import { EvaluationDashboard, StrategicSubNav } from '../components/strategic/index.js';
 import { ensureAuth } from '../api/auth.js';
@@ -66,9 +67,7 @@ export default function StrategicQualityPage() {
   if (error) {
     return (
       <PageShell>
-        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
-          {error}
-        </div>
+        <ErrorBanner message={error} />
       </PageShell>
     );
   }
