@@ -3,6 +3,9 @@ import { ensureAuth } from './auth.js';
 const baseURL = import.meta.env.VITE_API_URL || '/api';
 
 export async function uploadFiles(files, { kind = 'document' } = {}) {
+  if (!files.length) {
+    throw new Error('upload_failed');
+  }
   const token = await ensureAuth();
   const formData = new FormData();
   const path =
@@ -10,9 +13,6 @@ export async function uploadFiles(files, { kind = 'document' } = {}) {
       ? `${baseURL}/dictionaries/upload`
       : `${baseURL}/documents/upload`;
   if (kind === 'dictionary') {
-    if (!files.length) {
-      throw new Error('upload_failed');
-    }
     formData.append('package', files[0]);
   } else {
     files.forEach((file) => formData.append('files', file));

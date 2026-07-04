@@ -221,6 +221,11 @@
     "newChatShortcut": "Новый чат ({{shortcut}})",
     "defaultSessionTitle": "Новый запрос",
     "deleteSession": "Удалить запрос",
+    "inputPlaceholder": "Задайте вопрос…",
+    "send": "Отправить",
+    "attachFile": "Прикрепить файл",
+    "attachFileHint": "Прикрепить PDF, DOCX, TXT",
+    "removeAttachment": "Убрать {{name}}",
     "errors": {
       "chat_load_failed": "Не удалось загрузить список чатов",
       "chat_messages_failed": "Не удалось загрузить сообщения",

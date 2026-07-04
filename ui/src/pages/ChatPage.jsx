@@ -5,7 +5,7 @@ import Loader from '../components/shared/Loader.jsx';
 import { ErrorBanner } from '../components/shared/PageState.jsx';
 import { ChatSidebar, ChatWindow, ChatInput } from '../components/chat/index.js';
 import { ensureAuth } from '../api/auth.js';
-import { getApiErrorMessage } from '../api/errors.js';
+import { mapApiError } from '../api/errors.js';
 import {
   createChatSession,
   deleteChatSession,
@@ -54,7 +54,7 @@ export default function ChatPage() {
         setActiveId(nextSessions[0]?.id ?? null);
       } catch (loadError) {
         if (!cancelled) {
-          setError(getApiErrorMessage(loadError, 'chat_load_failed'));
+          setError(mapApiError(loadError, 'chat_load_failed'));
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -79,7 +79,7 @@ export default function ChatPage() {
         if (!cancelled) setMessages(items);
       })
       .catch((loadError) => {
-        if (!cancelled) setError(getApiErrorMessage(loadError, 'chat_messages_failed'));
+        if (!cancelled) setError(mapApiError(loadError, 'chat_messages_failed'));
       });
 
     return () => {
@@ -133,7 +133,7 @@ export default function ChatPage() {
       setSidebarOpen(false);
       focusChatInput();
     } catch (createError) {
-      setError(getApiErrorMessage(createError, 'chat_create_failed'));
+      setError(mapApiError(createError, 'chat_create_failed'));
     } finally {
       setCreatingChat(false);
     }
@@ -171,7 +171,7 @@ export default function ChatPage() {
   };
 
   const handleSend = async ({ text, files }) => {
-    if (isActive || !text.trim()) return;
+    if (isActive || (!text.trim() && files.length === 0)) return;
 
     setError(null);
 
@@ -225,7 +225,7 @@ export default function ChatPage() {
       } else {
         setMessages((prev) => prev.filter((m) => m.id !== optimisticUser.id));
       }
-      setError(getApiErrorMessage(sendError, 'chat_send_failed'));
+      setError(mapApiError(sendError, 'chat_send_failed'));
     }
   };
 
@@ -244,7 +244,7 @@ export default function ChatPage() {
         return next;
       });
     } catch (deleteError) {
-      setError(getApiErrorMessage(deleteError, 'chat_delete_failed'));
+      setError(mapApiError(deleteError, 'chat_delete_failed'));
     }
   };
 

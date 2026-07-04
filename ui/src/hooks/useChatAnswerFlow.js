@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { sendChatMessage } from '../api/chat.js';
 import { ensureAuth, authHeaders } from '../api/auth.js';
+import { uploadFiles } from '../api/uploadCore.js';
 import {
   isQueryStreamTransportAvailable,
   tryRunQueryEventStream,
@@ -98,6 +99,10 @@ export function useChatAnswerFlow() {
 
       const queryMode = liveProduction && streamingUxEnabled ? 'live' : 'session';
       beginQuery(queryMode);
+
+      if (files.length > 0) {
+        await uploadFiles(files);
+      }
 
       if (liveProduction && streamingUxEnabled && isQueryStreamTransportAvailable()) {
         const handlers = createQueryEventHandlers({
