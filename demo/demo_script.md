@@ -100,7 +100,7 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST http://127.0.0.1/api/documents/
 
 ## 4. UI journeys (живое демо, ~15 мин)
 
-Войти как **researcher** / **researcher**, затем при необходimости переключить роль через admin.
+Войти как **researcher** / **researcher**, затем при необходимости переключить роль через admin.
 
 ### 4.1 Вход и i18n
 
