@@ -482,6 +482,88 @@ def test_answer_synthesis_does_not_present_candidates_as_facts() -> None:
     assert payload["candidate_count"] == 1
     assert payload["unsupported_warnings"][0]["statement"] == "Candidate unsupported fact"
     assert payload["answer"]["sources_count"] == 0
+    assert payload["evidence_layers"]["unsupported"][0]["statement"] == "Candidate unsupported fact"
+    assert payload["answer_v2"]["sources_count"] == 0
+
+
+def test_answer_synthesis_splits_verified_candidate_conflicting_and_unsupported_layers() -> None:
+    query_ir = QueryIR(
+        raw_query="Nickel recovery in Russia in 2023 at 82 %",
+        entities=["nickel"],
+        filters={
+            "numeric_constraints": [{"value": 82, "unit": "%", "operator": "eq"}],
+            "geo_constraints": ["Russia"],
+            "time_constraints": {"start_year": 2023, "end_year": 2023},
+        },
+    )
+    verified_span = SourceSpan(
+        document_id="doc-layer",
+        page=1,
+        start_offset=0,
+        end_offset=55,
+        text="Nickel recovery in Russia reached 82 % in 2023.",
+        source_type="text",
+    )
+    filtered_span = SourceSpan(
+        document_id="doc-layer",
+        page=1,
+        start_offset=56,
+        end_offset=108,
+        text="Copper recovery in Canada reached 75 % in 2020.",
+        source_type="text",
+    )
+    conflict_candidate = ExtractionArtifact(
+        kind="measurement",
+        value="Nickel recovery may be 76 %",
+        confidence=0.61,
+        status="candidate",
+        reason_codes=["conflicting_values"],
+    )
+    unsupported_candidate = ExtractionArtifact(
+        kind="claim",
+        value="Nickel recovery is always above 90 %",
+        confidence=0.44,
+        status="candidate",
+        reason_codes=["unsupported_claim"],
+    )
+    bundle = EvidenceBundle(
+        query_ir=query_ir,
+        evidence_items=[
+            EvidenceItem(source_span=verified_span, relevance_score=0.91, extraction_method="numeric"),
+            EvidenceItem(source_span=filtered_span, relevance_score=0.72, extraction_method="semantic"),
+        ],
+        total_found=2,
+        has_conflicts=True,
+        conflicts=["conflicting_values: recovery differs"],
+        gaps=["missing_lab_conditions"],
+    )
+
+    response = client.post(
+        "/v1/answers/synthesize",
+        json={
+            "query_ir": query_ir.model_dump(mode="json"),
+            "evidence_bundle": bundle.model_dump(mode="json"),
+            "candidate_items": [
+                conflict_candidate.model_dump(mode="json"),
+                unsupported_candidate.model_dump(mode="json"),
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    layers = payload["evidence_layers"]
+    assert [item["statement"] for item in layers["verified"]] == ["Nickel recovery in Russia reached 82 % in 2023."]
+    assert layers["candidate"] == []
+    assert layers["conflicting"][0]["statement"] == "Nickel recovery may be 76 %"
+    assert layers["unsupported"][0]["statement"] == "Copper recovery in Canada reached 75 % in 2020."
+    assert layers["unsupported"][1]["statement"] == "Nickel recovery is always above 90 %"
+    assert "Copper recovery in Canada" not in payload["answer"]["answer_text"]
+    assert "Nickel recovery is always above 90 %" not in payload["answer"]["answer_text"]
+    assert payload["answer"]["sources_count"] == 1
+    assert payload["answer_v2"]["facts"] == ["Nickel recovery in Russia reached 82 % in 2023."]
+    assert payload["answer_v2"]["gaps"] == ["missing_lab_conditions"]
+    assert "conflicting_evidence_requires_resolution" in payload["answer_v2"]["limitations"]
 
 
 def test_rerank_scores_source_span_matches() -> None:
