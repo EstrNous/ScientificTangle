@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { getDocumentViewPages } from '../../api/sourceResolver/index.js';
 import { downloadSourceDocumentPdf } from '../../utils/downloadSource.js';
 import HighlightedText from './HighlightedText.jsx';
+import SourceLockedPanel from './SourceLockedPanel.jsx';
+import SourceTableBlock from './SourceTableBlock.jsx';
 
 export default function SourceDocumentPanel({ source, compact = false }) {
   const { t } = useTranslation();
@@ -16,9 +18,13 @@ export default function SourceDocumentPanel({ source, compact = false }) {
       citedRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 120);
     return () => window.clearTimeout(timer);
-  }, [source?.id, source?.page]);
+  }, [source?.id, source?.page, source?.tableRowId]);
 
   if (!source) return null;
+
+  if (source.locked || source.accessDenied) {
+    return <SourceLockedPanel sourceId={source.id} />;
+  }
 
   const handleDownload = async () => {
     if (downloading) return;
@@ -53,44 +59,53 @@ export default function SourceDocumentPanel({ source, compact = false }) {
         </button>
       </div>
 
-      <article
-        className={`mx-auto w-full rounded-xl border border-nn-border bg-white shadow-sm dark:border-slate-600 dark:bg-slate-950 ${
-          compact ? 'px-4 py-5' : 'px-6 py-8 sm:px-10 sm:py-10'
-        }`}
-      >
-        {pages.map((page, index) => (
-          <section
-            key={page.page}
-            ref={page.isCited ? citedRef : null}
-            className={`${index > 0 ? 'mt-8 border-t border-dashed border-nn-border pt-8 dark:border-slate-700' : ''} ${
-              page.isCited
-                ? 'rounded-lg border border-amber-300/80 bg-amber-50/60 p-4 dark:border-amber-500/40 dark:bg-amber-500/10'
-                : ''
-            }`}
-          >
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <span className="text-[11px] font-semibold uppercase tracking-wide text-nn-gray dark:text-slate-400">
-                {t('source.pageLabel', { page: page.page })}
-              </span>
-              {page.isCited && (
-                <span className="rounded-full bg-amber-200/80 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-900 dark:bg-amber-500/30 dark:text-amber-100">
-                  {t('source.citedFragment')}
+      {source.tableRows?.length > 0 ? (
+        <SourceTableBlock rows={source.tableRows} highlightedRowId={source.tableRowId} />
+      ) : (
+        <article
+          className={`mx-auto w-full rounded-xl border border-nn-border bg-white shadow-sm dark:border-slate-600 dark:bg-slate-950 ${
+            compact ? 'px-4 py-5' : 'px-6 py-8 sm:px-10 sm:py-10'
+          }`}
+        >
+          {pages.map((page, index) => (
+            <section
+              key={page.page}
+              ref={page.isCited ? citedRef : null}
+              className={`${index > 0 ? 'mt-8 border-t border-dashed border-nn-border pt-8 dark:border-slate-700' : ''} ${
+                page.isCited
+                  ? 'rounded-lg border border-amber-300/80 bg-amber-50/60 p-4 dark:border-amber-500/40 dark:bg-amber-500/10'
+                  : ''
+              }`}
+            >
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-nn-gray dark:text-slate-400">
+                  {t('source.pageLabel', { page: page.page })}
                 </span>
+                {page.isCited && (
+                  <span className="rounded-full bg-amber-200/80 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-900 dark:bg-amber-500/30 dark:text-amber-100">
+                    {t('source.citedFragment')}
+                  </span>
+                )}
+                {page.section && (
+                  <span className="text-[11px] text-nn-blue dark:text-sky-400">{page.section}</span>
+                )}
+              </div>
+              {page.raw_text ? (
+                <p className="whitespace-pre-wrap text-sm leading-7 text-gray-800 dark:text-slate-200">
+                  <HighlightedText
+                    text={page.raw_text}
+                    highlight={page.highlight}
+                    highlightStart={page.highlightStart}
+                    highlightEnd={page.highlightEnd}
+                  />
+                </p>
+              ) : (
+                <p className="text-sm text-nn-gray dark:text-slate-400">{t('source.pageEmpty')}</p>
               )}
-              {page.section && (
-                <span className="text-[11px] text-nn-blue dark:text-sky-400">{page.section}</span>
-              )}
-            </div>
-            {page.raw_text ? (
-              <p className="whitespace-pre-wrap text-sm leading-7 text-gray-800 dark:text-slate-200">
-                <HighlightedText text={page.raw_text} highlight={page.highlight} />
-              </p>
-            ) : (
-              <p className="text-sm text-nn-gray dark:text-slate-400">{t('source.pageEmpty')}</p>
-            )}
-          </section>
-        ))}
-      </article>
+            </section>
+          ))}
+        </article>
+      )}
     </div>
   );
 }

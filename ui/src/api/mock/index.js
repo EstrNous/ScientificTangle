@@ -76,6 +76,14 @@ export async function mockFetch(resource, options = {}) {
     if (body.type) {
       items = items.filter((item) => item.type === body.type);
     }
+    if (body.from) {
+      const fromTs = new Date(`${body.from}T00:00:00Z`).getTime();
+      items = items.filter((item) => new Date(item.updated_at).getTime() >= fromTs);
+    }
+    if (body.to) {
+      const toTs = new Date(`${body.to}T23:59:59Z`).getTime();
+      items = items.filter((item) => new Date(item.updated_at).getTime() <= toTs);
+    }
     return { items, total: items.length, filters: body };
   }
   if (resource === 'review/decisions') {

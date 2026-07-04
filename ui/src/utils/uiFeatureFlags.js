@@ -28,6 +28,10 @@ export function isReviewConsoleEnabled() {
   return readFlag('VITE_REVIEW_CONSOLE_ENABLED', false);
 }
 
+export function isReviewActionsEnabled() {
+  return useMock;
+}
+
 export function isSourceLiveModeEnabled() {
   if (readFlag('VITE_SOURCE_LIVE_MODE', false)) {
     return true;

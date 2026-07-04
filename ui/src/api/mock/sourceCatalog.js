@@ -344,6 +344,64 @@ const SOURCE_ENTRIES = {
       },
     },
   },
+  'span-101': {
+    id: 'span-101',
+    title: 'ni_electrolyte_lab.pdf',
+    file_name: 'ni_electrolyte_lab.pdf',
+    mime_type: 'application/pdf',
+    page: 3,
+    total_pages: 8,
+    section: 'Состав электролита',
+    highlight_start: 11,
+    highlight_end: 16,
+    aliases: ['span-101', 'ni_electrolyte_lab.pdf'],
+    pages: {
+      1: {
+        raw_text:
+          'Лабораторный протокол по подготовке сульфатного электролита для электроэкстракции никеля.',
+      },
+      2: {
+        raw_text:
+          'Методика включает контроль pH, температуры и содержания примесей Fe, Co, Cu перед постановкой опыта.',
+      },
+      3: {
+        raw_text:
+          'Содержание NiSO4 в растворе 45–55 г/л при pH 4.0 и температуре 55 °C. Допустимый разброс по Ni²⁺ не превышает ±3 г/л.',
+        highlight_start: 11,
+        highlight_end: 16,
+      },
+    },
+  },
+  'span-205': {
+    id: 'span-205',
+    title: 'catholyte_regimes.xlsx',
+    file_name: 'catholyte_regimes.xlsx',
+    mime_type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    page: 1,
+    total_pages: 1,
+    section: 'table:catholyte-flow',
+    table_row_id: 'row-3',
+    table_rows: [
+      { id: 'row-1', cells: ['Режим', 'Скорость потока', 'Температура'] },
+      { id: 'row-2', cells: ['A', '1.8 м/ч', '52 °C'] },
+      { id: 'row-3', cells: ['B', '2–4 м/ч', '58 °C'] },
+      { id: 'row-4', cells: ['C', '4.6 м/ч', '60 °C'] },
+    ],
+    aliases: ['span-205', 'catholyte_regimes.xlsx'],
+    pages: {
+      1: {
+        raw_text: 'Таблица режимов циркуляции католита при электроэкстракции никеля.',
+      },
+    },
+  },
+  'span-locked': {
+    id: 'span-locked',
+    title: 'restricted_process_memo.pdf',
+    file_name: 'restricted_process_memo.pdf',
+    access_denied: true,
+    locked: true,
+    aliases: ['span-locked'],
+  },
 };
 
 function normalizeKey(value) {
@@ -396,12 +454,19 @@ export function getSourcePageContent(entry, pageNum) {
     return {
       raw_text: pageData.raw_text,
       highlight: pageData.highlight ?? (page === entry.page ? entry.highlight : null),
+      highlight_start: pageData.highlight_start ?? (page === entry.page ? entry.highlight_start : null),
+      highlight_end: pageData.highlight_end ?? (page === entry.page ? entry.highlight_end : null),
     };
   }
   if (page === entry.page) {
-    return { raw_text: entry.raw_text ?? '', highlight: entry.highlight ?? null };
+    return {
+      raw_text: entry.raw_text ?? '',
+      highlight: entry.highlight ?? null,
+      highlight_start: entry.highlight_start ?? null,
+      highlight_end: entry.highlight_end ?? null,
+    };
   }
-  return { raw_text: '', highlight: null };
+  return { raw_text: '', highlight: null, highlight_start: null, highlight_end: null };
 }
 
 export function getFullDocumentPages(entry) {
@@ -429,11 +494,14 @@ export function getDocumentViewPages(entry) {
   const citedPage = entry.page;
 
   return pageNumbers.map((page) => {
-    const { raw_text: rawText, highlight } = getSourcePageContent(entry, page);
+    const { raw_text: rawText, highlight, highlight_start: highlightStart, highlight_end: highlightEnd } =
+      getSourcePageContent(entry, page);
     return {
       page,
       raw_text: rawText,
       highlight,
+      highlightStart,
+      highlightEnd,
       section: page === citedPage ? entry.section : null,
       isCited: page === citedPage,
     };
@@ -444,7 +512,14 @@ export function mergeSourceSpan(span) {
   if (!span?.id) return span;
   const catalog = getSourceById(span.id);
   if (!catalog) return span;
-  return { ...catalog, ...span };
+  return {
+    ...catalog,
+    ...span,
+    tableRows: span.tableRows ?? span.table_rows ?? catalog.tableRows ?? catalog.table_rows ?? null,
+    tableRowId: span.tableRowId ?? span.table_row_id ?? catalog.tableRowId ?? catalog.table_row_id ?? null,
+    highlightStart: span.highlightStart ?? span.highlight_start ?? catalog.highlightStart ?? catalog.highlight_start ?? null,
+    highlightEnd: span.highlightEnd ?? span.highlight_end ?? catalog.highlightEnd ?? catalog.highlight_end ?? null,
+  };
 }
 
 export { SOURCE_ENTRIES };

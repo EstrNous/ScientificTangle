@@ -71,11 +71,15 @@ export async function fetchSourceDocument(ref) {
 export function getDocumentViewPages(entry) {
   if (!entry) return [];
   const page = entry.page ?? 1;
+  const highlightStart = entry.highlightStart ?? entry.highlight_start ?? null;
+  const highlightEnd = entry.highlightEnd ?? entry.highlight_end ?? null;
   return [
     {
       page,
       raw_text: entry.raw_text ?? '',
       highlight: entry.highlight ?? null,
+      highlightStart,
+      highlightEnd,
       section: entry.section ?? null,
       isCited: true,
     },

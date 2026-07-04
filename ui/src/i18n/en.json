@@ -8,7 +8,8 @@
     "strategic": "Strategic Analytics",
     "lab": "R&D Lab",
     "admin": "Administration",
-    "upload": "Upload"
+    "upload": "Upload",
+    "review": "Review console"
   },
   "roles": {
     "director": "Director",
@@ -133,7 +134,10 @@
     "close": "Close",
     "pageEmpty": "Page text is not available",
     "refsTitle": "Source documents",
-    "refsCount": "{{count}} documents"
+    "refsCount": "{{count}} documents",
+    "lockedTitle": "Source unavailable",
+    "lockedHint": "Your role cannot access this document. Contact an administrator if review access is required.",
+    "tableRowHighlight": "Highlighted table row: {{rowId}}"
   },
   "chat": {
     "history": "History",
@@ -551,6 +555,48 @@
     "errors": {
       "upload_failed": "Failed to upload files",
       "delete_failed": "Failed to delete document"
+    }
+  },
+  "review": {
+    "title": "Review console",
+    "subtitle": "Candidates, conflicts, and source bindings",
+    "emptyQueue": "No candidates match the selected filters",
+    "noConflicts": "No conflicts selected",
+    "conflictsTitle": "Value conflict",
+    "sourcePanelTitle": "Candidate source",
+    "sourceEmpty": "Select a candidate with a source binding",
+    "actionsBlocked": "Decisions are mock-only until backend workflow wiring (E3)",
+    "filters": {
+      "status": "Status",
+      "type": "Type",
+      "from": "From",
+      "to": "To",
+      "all": "All"
+    },
+    "columns": {
+      "name": "Name",
+      "type": "Type",
+      "status": "Status",
+      "confidence": "Confidence",
+      "conflicts": "Conflicts",
+      "updated": "Updated"
+    },
+    "status": {
+      "pending": "pending",
+      "approved": "approved",
+      "rejected": "rejected",
+      "deferred": "deferred"
+    },
+    "types": {
+      "substance": "substance",
+      "process_term": "process term",
+      "numeric_claim": "numeric claim",
+      "entity": "entity"
+    },
+    "decisions": {
+      "approved": "Approve",
+      "rejected": "Reject",
+      "deferred": "Defer"
     }
   }
 }
