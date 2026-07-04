@@ -31,22 +31,21 @@
 
 - Запись structured extraction в Neo4j через `Neo4jKnowledgeAdapter` (knowledge service).
 - Индексация source spans и table rows в Qdrant `st_evidence_v1` (retrieval service).
-- Query pipeline: query-ir → Qdrant search → rerank → gaps → subgraph → answer synthesis (orchestrator).
+- Query pipeline: query-ir → hybrid retrieval (dense + lexical + table + graph) → fusion → access revalidation → rerank → gaps → subgraph → answer synthesis (orchestrator).
+- Qdrant retrieval applies geo/numeric/time/source filters before rerank: units/ranges, geo bucket/country and `published_year`.
+- Official MVP questions have reviewed `expected_source_span_ids`; offline gate fails if any `official-*` expected source span set is empty.
 
 ## Что ещё не закрыто до полного ML/MVP
 
-- Гибридный retrieval по ТЗ: graph/table/lexical channels и fusion поверх vector search.
-- Geo/numeric constraints из Query IR не enforced в Qdrant search (только в gap suggestions).
 - Нет UI evaluation dashboard; доступны Markdown/JSON eval reports.
 - Нет зафиксированного командного live eval artifact с реальными ответами на общем demo corpus; E4 закрепил только входы и правила regression comparison.
-- Export service wiring: JSON-LD endpoint готов в model, HTTP export service — заглушка.
+- Export service wiring: MVP Markdown/JSON идёт через orchestrator/gateway; JSON-LD endpoint готов в model, HTTP export service — reserved boundary/заглушка.
 - Notification service wiring: ML matching готов, HTTP notification service — заглушка.
 
 ## Top-1 ML backlog
 
 - Live eval artifact на общем demo corpus с поднятым стеком и Yandex secrets.
-- Graph/table/lexical fusion в retrieval.
-- Gap precision на реальном корпусе после полного hybrid retrieval.
+- Gap precision на реальном корпусе после seeded official/hybrid report.
 - Access filtering correctness в связке с backend/Auth/retrieval через live eval gate.
 - JSON-LD enrichment в финальном export service.
 - Notification service wiring.

@@ -73,6 +73,7 @@
 - `docs/agent_context/audit_report.md` — P0/P1 аудит репозитория и статусы инфраструктуры.
 - `docs/agent_context/prod_readiness_analysis.md` — план глубокого production-readiness анализа: scenarios, gates, gaps и offline verification без live model calls.
 - `docs/agent_context/prod_readiness_task_cards.md` — пул task cards для закрытия production-readiness gaps с зависимостями и acceptance criteria.
+- `docs/agent_context/prod_readiness_gap_analysis.md` — фактический gap-анализ production-readiness: чего не хватает, почему это важно и как закрывать.
 
 ### Общий код (`shared/`)
 

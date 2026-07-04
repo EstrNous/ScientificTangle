@@ -190,7 +190,7 @@ flowchart TB
 | ≥4 официальных вопроса | ⚠️ | eval runner есть; pinned artifact нет |
 | RBAC + access policy | ✅ backend / ⚠️ UI | RoleSwitcher + env auto-login |
 | Audit log | ✅ | auth_audit + orchestrator audit |
-| Export MD/JSON | ⚠️ | UI client-side; export service — stub |
+| Export MD/JSON | ✅ MVP via orchestrator/gateway | backend export includes evidence/sources/graph/gaps/conflicts/QueryIR/retrieval_trace; export service reserved boundary |
 | Docker reproducibility | ✅ | compose + Makefile + seed |
 
 **MVP checklist: ~85% закрыт.**
@@ -286,7 +286,7 @@ flowchart TB
 
 | Документ | Утверждение | Факт в коде |
 |----------|-------------|-------------|
-| `domains/export.md` | `not_wired` | Актуально |
+| `domains/export.md` | `✅ MVP via orchestrator/gateway`; `services/export` reserved | Актуально |
 | `domains/notification.md` | `not_wired` | Актуально |
 | `docs/tz/mvp.md` | Только DoD без статуса | Обновлён чеклист vs код |
 
