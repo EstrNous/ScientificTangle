@@ -168,6 +168,33 @@
         "synthesis": "Answer synthesis",
         "citations": "Source citations"
       }
+    },
+    "answer": {
+      "degradedBanner": "Answer prepared with limited accessible evidence",
+      "partialBanner": "Partial answer — insufficient confirmed observations",
+      "confirmedTitle": "Confirmed observations",
+      "candidateTitle": "Candidates for review",
+      "candidateHint": "Not treated as established facts until verified",
+      "limitationsTitle": "Limitations",
+      "conflictsTitle": "Source conflicts",
+      "gapsTitle": "Data gaps",
+      "followUpTitle": "Follow-up steps",
+      "reasonCodes": {
+        "missing_source_span": "missing source span",
+        "low_confidence": "low confidence",
+        "ambiguous_alias": "ambiguous alias",
+        "conflicting_values": "conflicting values",
+        "needs_unit_check": "unit check needed",
+        "access_filtered": "access filtered",
+        "schema_candidate": "schema candidate",
+        "outside_time_range": "outside time range",
+        "geo_mismatch": "geo mismatch",
+        "unit_mismatch": "unit mismatch",
+        "unsupported_claim": "unsupported claim",
+        "unresolved_alias": "unresolved alias",
+        "inaccessible_source": "inaccessible source",
+        "insufficient_accessible_evidence": "insufficient accessible evidence"
+      }
     }
   },
   "graph": {

@@ -168,6 +168,33 @@
         "synthesis": "Синтез ответа",
         "citations": "Привязка источников"
       }
+    },
+    "answer": {
+      "degradedBanner": "Ответ сформирован с ограничениями по доступным доказательствам",
+      "partialBanner": "Ответ неполный — подтверждённых наблюдений недостаточно",
+      "confirmedTitle": "Подтверждённые наблюдения",
+      "candidateTitle": "Кандидаты на проверку",
+      "candidateHint": "Не считаются установленными фактами до верификации",
+      "limitationsTitle": "Ограничения",
+      "conflictsTitle": "Конфликты в источниках",
+      "gapsTitle": "Пробелы в данных",
+      "followUpTitle": "Следующие шаги",
+      "reasonCodes": {
+        "missing_source_span": "нет привязки к источнику",
+        "low_confidence": "низкая уверенность",
+        "ambiguous_alias": "неоднозначный синоним",
+        "conflicting_values": "противоречивые значения",
+        "needs_unit_check": "требуется проверка единиц",
+        "access_filtered": "отфильтровано по доступу",
+        "schema_candidate": "кандидат схемы",
+        "outside_time_range": "вне временного диапазона",
+        "geo_mismatch": "несовпадение географии",
+        "unit_mismatch": "несовпадение единиц",
+        "unsupported_claim": "неподтверждённое утверждение",
+        "unresolved_alias": "неразрешённый синоним",
+        "inaccessible_source": "источник недоступен",
+        "insufficient_accessible_evidence": "недостаточно доступных доказательств"
+      }
     }
   },
   "graph": {
