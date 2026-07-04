@@ -18,7 +18,7 @@ export default function ProfileButton() {
     <Link
       to="/profile"
       aria-label={t('common.profile')}
-      title={t(`roles.${role}`)}
+      title={role ? t(`roles.${role}`) : t('common.profile')}
       className="flex h-9 w-9 items-center justify-center rounded-full border border-nn-blue bg-nn-blue-light text-nn-blue transition-colors hover:bg-nn-blue hover:text-white dark:bg-slate-800 dark:hover:bg-nn-blue"
     >
       <ProfileIcon />

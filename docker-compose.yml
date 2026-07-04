@@ -98,8 +98,6 @@ services:
       context: ./ui
       args:
         VITE_USE_MOCK: "false"
-        VITE_AUTH_USERNAME: researcher
-        VITE_AUTH_PASSWORD: researcher123
     container_name: st-ui
     ports:
       - "3000:3000"

@@ -72,7 +72,7 @@
 
 | Механизм | Файл | Поведение |
 |----------|------|-----------|
-| `VITE_USE_MOCK !== 'false'` | `api/client.js` | mock по умолчанию |
+| `VITE_USE_MOCK === 'true'` | `utils/runtimeMode.js` | mock только при явном флаге; default live |
 | `{ real: true }` | большинство domain API | обход mock для конкретного вызова |
 | `export { useMock }` | `api/client.js` | runtime ветвление |
 | `isLiveProductionMode()` | `utils/uiFeatureFlags.js` | `!useMock` |

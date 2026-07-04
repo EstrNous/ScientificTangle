@@ -16,7 +16,7 @@ export function resolveSourceRef(ref) {
   if (typeof ref === 'object') {
     return {
       id,
-      title: ref.title ?? ref.document_id ?? ref.file_name ?? id,
+      title: ref.title ?? ref.document_title ?? ref.document_id ?? ref.file_name ?? id,
       page: ref.page,
       raw_text: ref.text ?? ref.raw_text ?? '',
       highlight: ref.text ?? ref.highlight ?? null,
@@ -33,7 +33,7 @@ export function mergeSourceSpan(span) {
 export function sourceRefLabel(ref) {
   if (!ref) return '';
   if (typeof ref === 'object') {
-    return ref.title ?? ref.file_name ?? ref.document_id ?? ref.id ?? '';
+    return ref.title ?? ref.document_title ?? ref.file_name ?? ref.document_id ?? ref.id ?? '';
   }
   return String(ref);
 }

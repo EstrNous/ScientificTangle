@@ -9,7 +9,7 @@ function readFlag(name, defaultValue = false) {
 }
 
 export function isDevRoleSwitcherEnabled() {
-  return useMock || import.meta.env.DEV;
+  return useMock;
 }
 
 export function isProductionAuthMode() {

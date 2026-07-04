@@ -1,7 +1,6 @@
 import { Component } from 'react';
 import i18n from '../../i18n/index.js';
-
-const useMock = import.meta.env.VITE_USE_MOCK !== 'false';
+import { useMock } from '../../utils/runtimeMode.js';
 
 export default class ErrorBoundary extends Component {
   constructor(props) {

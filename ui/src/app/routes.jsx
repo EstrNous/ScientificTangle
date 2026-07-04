@@ -20,6 +20,7 @@ import ProfilePage from '../pages/ProfilePage.jsx';
 import ReviewConsolePage from '../pages/ReviewConsolePage.jsx';
 import RoleRoute from '../components/shared/RoleRoute.jsx';
 import ReviewConsoleGate from '../components/review/ReviewConsoleGate.jsx';
+import RequireAuth from '../components/auth/RequireAuth.jsx';
 
 export const routes = [
   {
@@ -31,8 +32,11 @@ export const routes = [
     ],
   },
   {
-    element: <DashboardLayout />,
+    element: <RequireAuth />,
     children: [
+      {
+        element: <DashboardLayout />,
+        children: [
       { path: '/', element: <Navigate to="/chat" replace /> },
       {
         path: '/chat',
@@ -149,6 +153,8 @@ export const routes = [
         ),
       },
       { path: '*', element: <Navigate to="/chat" replace /> },
+        ],
+      },
     ],
   },
 ];

@@ -1,13 +1,13 @@
-import { useMock } from '../client.js';
+import { isSourceLiveModeEnabled } from '../../utils/uiFeatureFlags.js';
 import * as liveAdapter from './liveAdapter.js';
 import * as mockAdapter from './mockAdapter.js';
 
 function getAdapter() {
-  return useMock ? mockAdapter : liveAdapter;
+  return isSourceLiveModeEnabled() ? liveAdapter : mockAdapter;
 }
 
 export function getSourceMode() {
-  return useMock ? 'mock' : 'live';
+  return isSourceLiveModeEnabled() ? 'live' : 'mock';
 }
 
 export function resolveSourceRef(ref) {

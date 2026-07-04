@@ -17,7 +17,7 @@ const ROLE_PAGES = {
 };
 
 export const useAuthStore = create((set) => ({
-  role: ROLES.DIRECTOR,
+  role: null,
   accessToken: null,
   user: null,
   setRole: (role) => set({ role }),
@@ -25,8 +25,8 @@ export const useAuthStore = create((set) => ({
     set({
       accessToken,
       user,
-      role: role ?? ROLES.RESEARCHER,
+      role: role ?? null,
     }),
-  clearAuth: () => set({ accessToken: null, user: null }),
-  canAccess: (pageKey, role) => (ROLE_PAGES[role] ?? []).includes(pageKey),
+  clearAuth: () => set({ accessToken: null, user: null, role: null }),
+  canAccess: (pageKey, role) => (role ? (ROLE_PAGES[role] ?? []).includes(pageKey) : false),
 }));
