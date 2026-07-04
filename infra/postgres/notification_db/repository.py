@@ -1,9 +1,12 @@
 from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
+
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from .models import Notification, UserInterest
+
 
 @dataclass(frozen=True, slots=True)
 class NotificationData:
@@ -17,6 +20,7 @@ class NotificationRepository(Protocol):
     async def mark_as_read(self, notification_id: UUID, user_id: UUID) -> bool: ...
     async def mark_all_as_read(self, user_id: UUID) -> int: ...
     async def create_notification(self, data: NotificationData) -> Notification: ...
+    async def get_user_interests(self, user_id: UUID) -> UserInterest | None: ...
     async def update_user_interests(self, user_id: UUID, raw_text: str, entities: dict) -> UserInterest: ...
 
 class SqlAlchemyNotificationRepository:
@@ -62,8 +66,10 @@ class SqlAlchemyNotificationRepository:
         await self._session.refresh(note)
         return note
 
+    async def get_user_interests(self, user_id: UUID) -> UserInterest | None:
+        return await self._session.scalar(select(UserInterest).where(UserInterest.user_id == user_id))
+
     async def update_user_interests(self, user_id: UUID, raw_text: str, entities: dict) -> UserInterest:
-        # Используем merge для обновления или создания записи
         interest = await self._session.scalar(select(UserInterest).where(UserInterest.user_id == user_id))
         if interest:
             interest.raw_text = raw_text

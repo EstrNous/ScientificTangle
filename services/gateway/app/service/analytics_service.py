@@ -6,6 +6,7 @@ import httpx
 
 from shared.contracts import (
     AccessPolicy,
+    EvalReportSummaryPayload,
     GraphCandidate,
     GraphEntity,
     GraphLink,
@@ -161,6 +162,38 @@ class AnalyticsService:
                 )
                 for item in official
             ]
+        )
+
+    async def get_eval_report_summary(self) -> EvalReportSummaryPayload:
+        report_path = Path("eval/reports/latest.json")
+        if not report_path.is_file():
+            return EvalReportSummaryPayload(
+                status="blocked_by_data",
+                warnings=["eval/reports/latest.json is not available"],
+                blocked_checks=["offline_eval_report"],
+            )
+        report = json.loads(report_path.read_text(encoding="utf-8"))
+        blocked_checks = [
+            str(item)
+            for item in report.get("blocked_checks", [])
+        ]
+        status = str(report.get("status") or "warn")
+        if status not in {"pass", "warn", "fail", "blocked_by_policy", "blocked_by_data"}:
+            status = "warn"
+        return EvalReportSummaryPayload(
+            report_id=str(report.get("report_id", report_path.name)),
+            status=status,
+            suites=report.get("suites", {}),
+            metrics={
+                key: value
+                for key, value in report.items()
+                if key.endswith("_rate")
+                or key.endswith("_coverage")
+                or key.endswith("_f1")
+                or key.startswith("avg_")
+            },
+            warnings=[str(item) for item in report.get("warnings", [])],
+            blocked_checks=blocked_checks,
         )
 
     async def get_lab_coverage(self) -> LabCoveragePayload:

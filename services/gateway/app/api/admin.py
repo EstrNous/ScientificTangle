@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from shared.contracts import (
     AccessPolicy,
     AuditEvent,
+    EvalReportSummaryPayload,
     LabCoveragePayload,
     StrategicEvaluationPayload,
     StrategicMetricsPayload,
@@ -89,6 +90,14 @@ async def strategic_evaluation(
     service: Annotated[AnalyticsService, Depends(get_analytics_service)],
 ) -> StrategicEvaluationPayload:
     return await service.get_strategic_evaluation()
+
+
+@router.get("/eval/report/summary", response_model=EvalReportSummaryPayload)
+async def eval_report_summary(
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],
+    service: Annotated[AnalyticsService, Depends(get_analytics_service)],
+) -> EvalReportSummaryPayload:
+    return await service.get_eval_report_summary()
 
 
 @router.get("/lab/coverage", response_model=LabCoveragePayload)

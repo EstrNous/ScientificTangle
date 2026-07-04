@@ -3,6 +3,8 @@ from pydantic import ValidationError
 
 from shared.contracts import (
     AuditEvent,
+    DeleteDocumentResult,
+    EvalReportSummaryPayload,
     ExportPayload,
     ExportRequest,
     IngestionReport,
@@ -10,10 +12,16 @@ from shared.contracts import (
     KnowledgeIngestionRequest,
     NormalizedDocument,
     NormalizeStoredSourcesResponse,
+    NotificationListPayload,
+    NotificationPayload,
     QueryIR,
     RetrievalIndexResponse,
+    ReviewDecisionPayload,
+    ReviewQueuePayload,
     SourceSpan,
     StorageWriteResult,
+    UserInterestItem,
+    UserInterestsPayload,
 )
 
 
@@ -60,6 +68,13 @@ def test_new_cross_service_contracts_are_exported() -> None:
     assert KnowledgeIngestionRequest.model_fields
     assert NormalizeStoredSourcesResponse.model_fields
     assert RetrievalIndexResponse.model_fields
+    assert DeleteDocumentResult.model_fields
+    assert EvalReportSummaryPayload.model_fields
+    assert NotificationPayload.model_fields
+    assert NotificationListPayload.model_fields
+    assert ReviewQueuePayload.model_fields
+    assert ReviewDecisionPayload.model_fields
+    assert UserInterestsPayload.model_fields
     result = StorageWriteResult(backend="neo4j")
     assert result.mode == "mock"
 
@@ -130,3 +145,31 @@ def test_audit_event_accepts_extended_runtime_fields() -> None:
     assert event.role == "researcher"
     assert event.status == "success"
     assert event.details["source_span_id"] == "span-1"
+
+
+def test_e1_payloads_accept_minimal_offline_shapes() -> None:
+    span = SourceSpan(
+        document_id="doc-1",
+        page=1,
+        start_offset=0,
+        end_offset=10,
+        text="Никель",
+        source_type="text",
+    )
+    interest = UserInterestsPayload(
+        user_id="550e8400-e29b-41d4-a716-446655440000",
+        interests=[UserInterestItem(label="nickel", weight=0.8, source_terms=["Ni"])],
+    )
+    delete_result = DeleteDocumentResult(
+        document_id=span.document_id,
+        status="accepted",
+        tombstone_id="550e8400-e29b-41d4-a716-446655440001",
+    )
+    report = EvalReportSummaryPayload(
+        status="blocked_by_policy",
+        blocked_checks=["live_model_quality"],
+    )
+
+    assert interest.interests[0].label == "nickel"
+    assert delete_result.document_id == "doc-1"
+    assert report.blocked_checks == ["live_model_quality"]
