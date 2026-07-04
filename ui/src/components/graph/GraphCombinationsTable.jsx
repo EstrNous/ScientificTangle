@@ -1,8 +1,7 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { getCombinationRowSources } from '../../api/mock/sourceBindings.js';
+import { getCombinationRowSources, resolveSourceRef } from '../../api/sourceResolver/index.js';
 import { useSourceRefsPopover } from '../../hooks/useSourceRefsPopover.js';
-import { resolveSourceRef } from '../../api/mock/sourceCatalog.js';
 import { isDocumentColumnKey } from '../../utils/sourceColumn.js';
 import { DeleteIcon } from '../admin/AdminIcons.jsx';
 import SourceLink from '../shared/SourceLink.jsx';

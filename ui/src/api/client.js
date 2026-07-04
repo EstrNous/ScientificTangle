@@ -67,17 +67,36 @@ function mapQueryResponseToMessage(payload) {
   };
 }
 
-export async function submitChatQuery({ text, files }, { onStep, t } = {}) {
+export async function submitChatQuery({ text, files }, { onStep, onEvent, t } = {}) {
   if (useMock) {
     const { runMockChatQuery } = await import('./mock/chatQuery.js');
     return runMockChatQuery({ text, files }, { onStep, t, stepDelayMs: 650 });
   }
-  const response = await apiPost('/api/query', {
-    query: text,
-    documents: [],
-    limit: 20,
-  });
-  return mapQueryResponseToMessage(response, text);
+  const { runLiveQueryTransport } = await import('./queryTransport.js');
+  const { applyQueryEvent } = await import('../utils/queryEventAdapter.js');
+  return runLiveQueryTransport(
+    { question: text },
+    {
+      t,
+      revealAnswer: false,
+      onEvent: (event) => {
+        onEvent?.(event);
+        if (event.type === 'retrieval_step' || event.steps) {
+          onStep?.({
+            steps: event.steps ?? [],
+            activeStepId: event.activeStepId ?? null,
+            completed: Boolean(event.completed),
+          });
+        }
+        applyQueryEvent(
+          {
+            onRetrievalStep: onStep,
+          },
+          event,
+        );
+      },
+    },
+  );
 }
 
 export { useMock };

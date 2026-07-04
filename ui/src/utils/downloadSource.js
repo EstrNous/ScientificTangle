@@ -1,4 +1,4 @@
-import { getFullDocumentPages } from '../api/mock/sourceCatalog.js';
+import { getFullDocumentPages } from '../api/sourceResolver/index.js';
 
 function escapeHtml(value) {
   return String(value)
