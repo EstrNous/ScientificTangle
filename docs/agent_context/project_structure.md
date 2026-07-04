@@ -42,6 +42,9 @@
 - `docs/agent_context/project_structure.md` — этот файл, карта структуры проекта для агентов.
 - `docs/agent_context/sync_rules.md` — правила синхронизации контекста между агентами.
 - `docs/agent_context/ml_mvp_status.md` — текущий статус ML MVP, открытые gaps и позиция по VL/OCR.
+- `docs/agent_context/implementation_quality_report.md` — оценка реализации vs ТЗ по сервисам, стеку и gaps.
+- `docs/agent_context/query_pipeline.md` — сквозной пайплайн запроса user → answer.
+- `docs/agent_context/audit_report.md` — P0/P1 аудит репозитория и статусы инфраструктуры.
 
 ### Общий код (`shared/`)
 
@@ -178,8 +181,9 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 - `services/knowledge/app/api/extraction.py` — internal handoff `NormalizedDocument` → model structured extraction → `Neo4jKnowledgeAdapter.write_bundle`.
 - `services/knowledge/app/api/graph.py` — bootstrap/reset/subgraph/neighbors/aliases/conflicts/gaps/entities/filter/measurements/evidence/claims-rank.
 - `services/knowledge/adapters/` — `Neo4jKnowledgeAdapter`, DTO, mapper, Query IR compiler, graph operations.
-- `services/retrieval/app/api/indexing.py` — legacy internal mock boundary индексации документов, не подключается в FastAPI app.
-- `services/retrieval/app/api/query.py` — internal Query IR, Qdrant bootstrap/index/reset, Qdrant-first evidence retrieval, lexical fallback и model rerank; переданные `NormalizedDocument` остаются in-memory fallback.
+- `services/retrieval/app/api/query.py` — internal Query IR, Qdrant bootstrap/index/reset, vector search с access filter и model rerank; `StorageWriteResult.mode=live`.
+- `services/retrieval/app/qdrant_adapter.py` — live Qdrant adapter, collection `st_evidence_v1`.
+- `services/retrieval/app/api/indexing.py` — legacy endpoint, не смонтирован в FastAPI app.
 - `services/orchestrator/app/api/query.py` и `services/gateway/app/api/query.py` — тонкий query run/proxy path для eval-compatible ответа через `EvidenceBundle` и answer synthesis.
 
 ### services/auth_audit/
@@ -238,10 +242,12 @@ Gateway, Orchestrator и Ingestion используют слои по образ
 
 ### services/gateway/
 
-Внешний API для загрузки документов, чтения статуса ingestion-задач, чата, графа знаний и поиска. Проверяет JWT через JWKS, создаёт или принимает `request_id`, нормализует ошибки и передаёт запросы в Orchestrator.
+Внешний API для загрузки документов, чтения статуса ingestion-задач, чата, графа знаний и поиска. Проверяет JWT через JWKS, создаёт или принимает `request_id`, нормализует ошибки и передаёт запросы в Orchestrator. Chat history в `chat_ui_db`.
 
-- `app/api/graph.py` — `GET /graph`, `GET /search`.
-- `app/service/graph_service.py` — отдача GraphPayload и SearchResultsPayload (пока пустые структуры до подключения Neo4j).
+- `app/api/query.py` — query, runs, export, source, subgraph, search.
+- `app/api/chat.py` — chat sessions и messages.
+- `app/api/graph.py` — `GET /graph`, `GET /graph/catalog`.
+- `app/service/analytics_service.py` — GraphPayload через knowledge/retrieval; strategic/lab dashboards.
 
 ### services/orchestrator/
 

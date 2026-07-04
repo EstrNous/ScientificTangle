@@ -4,8 +4,10 @@
 
 ## Ключевые файлы
 
-- `services/knowledge/app/` — API extraction/graph/health, lifespan Neo4j
-- `services/knowledge/adapters/` — `Neo4jKnowledgeAdapter`, schema bootstrap, mapper, graph operations
+- `services/knowledge/app/api/extraction.py` — `POST /v1/documents/extract`
+- `services/knowledge/app/api/graph.py` — 14 graph endpoints (bootstrap, reset, subgraph, neighbors, conflicts, gaps, entities, …)
+- `services/knowledge/adapters/neo4j_adapter.py` — live Neo4j adapter (write, subgraph, conflicts, measurements)
+- `services/knowledge/adapters/neo4j_storage_adapter.py` — обёртка StorageWriteResult
 - `infra/neo4j/` — constraints, indexes, migrator
 - `ontology/` — core_schema, domain packs, validation
 - `dictionaries/aliases_mvp.json` — seed aliases
@@ -14,6 +16,19 @@
 
 Claim-based знание; не абсолютная истина без provenance. Локальный граф ограничен идентификаторами доказательств конкретного query run.
 
-## Текущий ingestion boundary
+## Текущий статус (2026-07-04)
 
-Structured extraction выполняется через Model Service. Подтверждённые артефакты пишутся в Neo4j через `Neo4jKnowledgeAdapter`; `StorageWriteResult.mode=live` при успешной записи.
+**Реализовано:**
+
+- Structured extraction через Model Service → `Neo4jKnowledgeAdapter.write_bundle`
+- При успешной записи: `StorageWriteResult.mode=live`
+- Graph API: subgraph по claim/entity/source_span IDs, conflicts, gaps, resolve-alias, claims/rank
+- Bootstrap schema при старте (constraints/indexes из `infra/neo4j/`)
+
+**Fallback:**
+
+- Если Neo4j недоступен — `PendingKnowledgeStorageAdapter`, warning `neo4j_adapter_pending`; orchestrator падает ingestion pipeline при `mode != live`
+
+## Зависимости
+
+Neo4j, model (structured extraction), Redis (config).

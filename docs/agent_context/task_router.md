@@ -49,6 +49,15 @@
 1. `docs/agent_prompts/quality_gate.md`
 2. `docs/agent_context/git_workflow.md` — если push, rebase или PR
 
+## Оценка реализации vs ТЗ, обновление документации
+
+1. `docs/tz/mvp.md` — чеклист MVP
+2. `docs/agent_context/implementation_quality_report.md` — сводная оценка
+3. `docs/agent_context/audit_report.md` — P0/P1 gaps
+4. `docs/agent_context/ml_mvp_status.md` — ML slice
+5. `docs/agent_context/domains/` — статусы по сервисам
+6. `docs/agent_context/project_structure.md` — при смене структуры
+
 ## Новый чат
 
 Шаблон: `docs/agent_prompts/new_chat.md`

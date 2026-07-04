@@ -2,6 +2,8 @@
 
 Выдержка из `docs/nauchny_klubok_top1_tz.md` §6 и §33. Полный текст — в основном ТЗ.
 
+**Статус реализации (2026-07-04):** ~85% чеклиста закрыт. Детали — [`implementation_quality_report.md`](../agent_context/implementation_quality_report.md).
+
 ## Когда MVP готов
 
 Команда проходит полный end-to-end без ручных правок в БД и консоли в момент демо.
@@ -19,8 +21,21 @@
 - Audit log: запросы, просмотры источников, экспорт.
 - Воспроизводимый запуск: docker compose, `.env.example`, Makefile, seed, healthchecks.
 
-## Чеклист (кратко)
+## Чеклист vs код (2026-07-04)
 
-Стек поднимается; UI и Gateway отвечают; ingestion task → NormalizedDocument → SourceSpan; claims в Neo4j; chunks в Qdrant; Query IR + retrieval + fusion; ответ в чат с таблицей и графом; geo/numeric фильтры базово; audit и роли; export Markdown/JSON; demo script готов.
+| Пункт | Статус | Комментарий |
+|-------|--------|-------------|
+| Стек поднимается | ✅ | docker-compose + healthchecks |
+| UI и Gateway отвечают | ✅ | real API в compose (`VITE_USE_MOCK=false`) |
+| ingestion → NormalizedDocument → SourceSpan | ✅ | parsers + MinIO |
+| claims в Neo4j | ✅ | Neo4jKnowledgeAdapter |
+| chunks в Qdrant | ✅ | `st_evidence_v1`, seed_demo |
+| Query IR + retrieval | ⚠️ | vector + rerank; graph/table/lexical fusion — нет |
+| ответ в чат с таблицей и графом | ✅ | ChatPage, EvidenceTable, LocalGraph |
+| geo/numeric фильтры базово | ⚠️ | в Query IR и gaps; не в Qdrant search |
+| audit и роли | ✅ backend / ⚠️ UI | RoleSwitcher в dev |
+| export Markdown/JSON | ⚠️ | orchestrator + UI client-side; export service — stub |
+| demo script готов | ✅ | `make seed`, `make eval`, `scripts/seed_demo.py` |
+| ≥4 официальных вопроса | ⚠️ | dataset готов; pinned live eval artifact — нет |
 
-Без этого — не переходить к полировке и top-1 фичам.
+Без полного закрытия ⚠️ — не переходить к полировке и top-1 фичам.

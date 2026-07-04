@@ -21,10 +21,13 @@
 - `docs/agent_context/rules_full.md` — расширенные правила
 - `docs/tz/` — сжатые выдержки из ТЗ
 - `docs/agent_context/project_structure.md` — карта репозитория
+- `docs/agent_context/implementation_quality_report.md` — статус реализации vs ТЗ (обновлять при значимых изменениях)
 
 ## Правило синхронного обновления
 
 Меняется общее правило → обнови `AGENTS.md` (и при необходимости `rules_full.md`, `docs/agent_prompts/`, `docs/tz/`).
+
+Меняется статус реализации сервиса или инфра → обнови `domains/<service>.md`, при необходимости `audit_report.md`, `ml_mvp_status.md`, `implementation_quality_report.md`, `docs/tz/mvp.md`.
 
 Адаптеры платформ (`CLAUDE.md`, `ZCODE.md`, `.cursor/rules/`, `.github/copilot-instructions.md`, `.zed/rules/`) — **только указатели**, без дублирования правил.
 

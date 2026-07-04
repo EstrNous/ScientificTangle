@@ -6,9 +6,18 @@
 
 | Файл | Содержание |
 |------|------------|
-| `docs/tz/mvp.md` | Definition of Done MVP, чеклист |
+| `docs/tz/mvp.md` | Definition of Done MVP, чеклист + статус реализации |
 | `docs/tz/agent_constraints.md` | Принципы, запреты, правила для агентов |
 | `docs/tz/contracts.md` | Shared DTO и точки синхронизации |
+
+## Статус реализации vs ТЗ
+
+| Документ | Назначение |
+|----------|------------|
+| [`implementation_quality_report.md`](../agent_context/implementation_quality_report.md) | Полная оценка по сервисам, стеку, gaps |
+| [`ml_mvp_status.md`](../agent_context/ml_mvp_status.md) | ML/model slice |
+| [`audit_report.md`](../agent_context/audit_report.md) | P0/P1 аудит, инфра-статусы |
+| [`query_pipeline.md`](../agent_context/query_pipeline.md) | Сквозной query path |
 
 ## Секции полного ТЗ
 
