@@ -1,11 +1,12 @@
-import pytest
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from infra.postgres.notification_db.repository import NotificationData
-from infra.postgres.common.cursor import encode_cursor
+import pytest
 
+from infra.postgres.common.cursor import encode_cursor
+from infra.postgres.notification_db.repository import NotificationData
 from tests.conftest import FakeNotification
+
 
 @pytest.mark.asyncio
 async def test_list_notifications(client, fake_repository) -> None:

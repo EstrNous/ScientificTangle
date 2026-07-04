@@ -8,7 +8,6 @@ from shared.contracts import IngestionTaskPayload
 from shared.security import AuthenticatedPrincipal
 
 from ..core.config import settings
-
 from .service import OrchestratorService
 
 

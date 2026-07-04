@@ -1,16 +1,14 @@
 import json
-from uuid import uuid4
 
 import pytest
 
 from infra.postgres.notification_db.repository import NotificationData
-from tests.conftest import FakeRepository
 
 
 @pytest.mark.asyncio
 async def test_delivery_handler_creates_event(notification_service, fake_repository, principal) -> None:
-    from app.service.delivery_handler import NotificationDeliveryHandler
     from app.core.config import Settings
+    from app.service.delivery_handler import NotificationDeliveryHandler
 
     class SessionFactory:
         def __call__(self):
