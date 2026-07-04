@@ -1,7 +1,7 @@
 services:
   nginx:
     ports: !override
-      - "80:80"
+      - "${NGINX_HTTP_PORT:-80}:80"
     environment: !override
       NGINX_CONFIG: dev
       GRAFANA_NGINX_BASIC_USER: ${GRAFANA_NGINX_BASIC_USER:-grafana}

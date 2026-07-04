@@ -1,0 +1,63 @@
+services:
+  postgres:
+    ports:
+      - "${POSTGRES_PUBLISH_PORT:-5432}:5432"
+
+  neo4j:
+    ports:
+      - "${NEO4J_HTTP_PUBLISH_PORT:-7474}:7474"
+      - "${NEO4J_BOLT_PUBLISH_PORT:-7687}:7687"
+
+  qdrant:
+    ports:
+      - "${QDRANT_PUBLISH_PORT:-6333}:6333"
+      - "${QDRANT_GRPC_PUBLISH_PORT:-6334}:6334"
+
+  minio:
+    ports:
+      - "${MINIO_API_PUBLISH_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PUBLISH_PORT:-9001}:9001"
+
+  redis:
+    ports:
+      - "${REDIS_PUBLISH_PORT:-6379}:6379"
+
+  ui:
+    ports:
+      - "${UI_PUBLISH_PORT:-3000}:3000"
+
+  gateway:
+    ports:
+      - "${GATEWAY_PUBLISH_PORT:-8000}:8000"
+
+  auth_audit:
+    ports:
+      - "${AUTH_AUDIT_PUBLISH_PORT:-8001}:8001"
+
+  orchestrator:
+    ports:
+      - "${ORCHESTRATOR_PUBLISH_PORT:-8002}:8002"
+
+  ingestion:
+    ports:
+      - "${INGESTION_PUBLISH_PORT:-8003}:8003"
+
+  knowledge:
+    ports:
+      - "${KNOWLEDGE_PUBLISH_PORT:-8004}:8004"
+
+  retrieval:
+    ports:
+      - "${RETRIEVAL_PUBLISH_PORT:-8005}:8005"
+
+  model:
+    ports:
+      - "${MODEL_PUBLISH_PORT:-8006}:8006"
+
+  prometheus:
+    ports:
+      - "${PROMETHEUS_PUBLISH_PORT:-9090}:9090"
+
+  grafana:
+    ports:
+      - "${GRAFANA_PUBLISH_PORT:-3001}:3000"

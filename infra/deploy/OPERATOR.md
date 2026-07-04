@@ -43,8 +43,10 @@ cd ScientificTangle
 
 ```bash
 chmod +x scripts/cloud_deploy.sh
-./scripts/cloud_deploy.sh 203.0.113.10 --install-docker
+./scripts/cloud_deploy.sh 203.0.113.10 --install-docker --yandex-api-key KEY --yandex-folder-id b1g...
 ```
+
+Или положите ключи в `.env.yandex` (см. `.env.yandex.example`) — скрипт подхватит их автоматически.
 
 Скрипт сам:
 
@@ -63,7 +65,12 @@ chmod +x scripts/cloud_deploy.sh
 ./scripts/cloud_deploy.sh demo.example.com --https --install-docker
 ./scripts/cloud_deploy.sh 203.0.113.10 --no-demo --install-docker
 ./scripts/cloud_deploy.sh 203.0.113.10 --yandex-api-key KEY --yandex-folder-id b1g...
+./scripts/cloud_deploy.sh 203.0.113.10 --expose-ports --http-port 8080
 ```
+
+Без ключей Yandex demo corpus **не запускается** (чтобы не индексировать в degraded-режиме). Для деплоя без demo: `--no-demo`.
+
+С `--expose-ports` наружу публикуются порты сервисов (5432, 8000–8006, 3000 и др.) — открывайте их в firewall только при необходимости.
 
 Через Makefile (на Linux VM):
 
