@@ -10,7 +10,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.seed_corpus_batches import (
+from scripts.seed_corpus_batches import (  # noqa: E402
     DEFAULT_CORPUS_DIR,
     DEFAULT_MAX_FILE_BYTES,
     DEFAULT_STATE_FILE,

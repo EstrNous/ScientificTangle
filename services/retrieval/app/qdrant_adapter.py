@@ -13,7 +13,7 @@ from shared.contracts import (
 )
 
 from .core.config import settings
-from .storage import StorageAdapterNotReady, payload_access_allowed
+from .storage import payload_access_allowed
 
 COLLECTION_NAME = "st_evidence_v1"
 VECTOR_SIZE = 256

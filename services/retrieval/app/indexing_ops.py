@@ -12,6 +12,7 @@ from .api.query import (
     qdrant_url,
 )
 
+
 async def write_index(
     client: httpx.AsyncClient,
     request: RetrievalIndexRequest,

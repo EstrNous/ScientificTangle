@@ -20,16 +20,14 @@ vi.mock('../api/uploadCore.js', () => ({
   waitForIngestionTask: (...args) => waitForIngestionTask(...args),
 }));
 
-vi.mock('../api/queryTransport.js', () => ({
-  isQueryStreamTransportAvailable: vi.fn(() => true),
-  mapQueryRunToMessage: vi.fn((payload) => ({
-    id: `run-${payload.id}`,
-    role: 'assistant',
-    content: payload.answer?.answer_text ?? 'Ответ',
-    confidence: payload.answer?.confidence ?? null,
-  })),
-  tryRunQueryEventStream: (...args) => tryRunQueryEventStream(...args),
-}));
+vi.mock('../api/queryTransport.js', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    isQueryStreamTransportAvailable: vi.fn(() => true),
+    tryRunQueryEventStream: (...args) => tryRunQueryEventStream(...args),
+  };
+});
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key) => key }),

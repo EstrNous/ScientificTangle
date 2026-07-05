@@ -1,21 +1,18 @@
 from app.main import app
 
 
-def test_ingestion_create_route_is_registered_before_get_task() -> None:
-    ordered: list[tuple[int, str, frozenset[str]]] = []
-    for index, route in enumerate(app.routes):
-        path = getattr(route, "path", None)
+def _route_method_index(app_instance, path: str, method: str) -> int:
+    for index, route in enumerate(app_instance.routes):
+        route_path = getattr(route, "path", None)
         methods = getattr(route, "methods", None)
-        if path in {"/ingestion/tasks", "/ingestion/tasks/{task_id}"} and methods:
-            ordered.append((index, path, frozenset(methods)))
-    create_index = next(
-        index for index, path, methods in ordered if path == "/ingestion/tasks" and "POST" in methods
-    )
-    get_index = next(
-        index
-        for index, path, methods in ordered
-        if path == "/ingestion/tasks/{task_id}" and "GET" in methods
-    )
+        if route_path == path and methods and method in methods:
+            return index
+    raise AssertionError(f"Route {method} {path} is not registered")
+
+
+def test_ingestion_create_route_is_registered_before_get_task() -> None:
+    create_index = _route_method_index(app, "/ingestion/tasks", "POST")
+    get_index = _route_method_index(app, "/ingestion/tasks/{task_id}", "GET")
     assert create_index < get_index
 
 

@@ -13,9 +13,9 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-import httpx
+import httpx  # noqa: E402
 
-from scripts._seed_common import (
+from scripts._seed_common import (  # noqa: E402
     DEFAULT_API_URL,
     DEFAULT_CORPUS_DIR,
     DEFAULT_DICTIONARY_VERSION,

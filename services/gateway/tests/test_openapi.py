@@ -1,21 +1,18 @@
 from app.main import app
 
 
-def test_upload_route_is_registered_before_delete_document() -> None:
-    ordered: list[tuple[int, str, frozenset[str]]] = []
-    for index, route in enumerate(app.routes):
-        path = getattr(route, "path", None)
+def _route_method_index(app_instance, path: str, method: str) -> int:
+    for index, route in enumerate(app_instance.routes):
+        route_path = getattr(route, "path", None)
         methods = getattr(route, "methods", None)
-        if path in {"/documents/upload", "/documents/{document_id}"} and methods:
-            ordered.append((index, path, frozenset(methods)))
-    upload_index = next(
-        index for index, path, methods in ordered if path == "/documents/upload" and "POST" in methods
-    )
-    delete_index = next(
-        index
-        for index, path, methods in ordered
-        if path == "/documents/{document_id}" and "DELETE" in methods
-    )
+        if route_path == path and methods and method in methods:
+            return index
+    raise AssertionError(f"Route {method} {path} is not registered")
+
+
+def test_upload_route_is_registered_before_delete_document() -> None:
+    upload_index = _route_method_index(app, "/documents/upload", "POST")
+    delete_index = _route_method_index(app, "/documents/{document_id}", "DELETE")
     assert upload_index < delete_index
 
 
