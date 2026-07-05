@@ -417,6 +417,15 @@ fi
 log "Seeding auth users"
 compose exec -T auth_audit auth-seed-users
 
+log "Ensuring active dictionary"
+python3 -m pip install -q httpx 2>/dev/null || pip3 install -q httpx
+ADMIN_PASSWORD="$(env_value AUTH_SEED_ADMIN_PASSWORD)"
+ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin}"
+python3 scripts/seed_dictionary.py \
+  --api-url "http://127.0.0.1/api" \
+  --username admin \
+  --password "$ADMIN_PASSWORD" || log "Dictionary seed skipped or already active"
+
 log "Seeding notification fixtures"
 compose exec -T notification sh -c "cd /app/infra/postgres/notification_db && PYTHONPATH=. python seed.py"
 
