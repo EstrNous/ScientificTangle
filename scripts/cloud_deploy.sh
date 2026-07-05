@@ -6,7 +6,8 @@ cd "$ROOT_DIR"
 
 HOST=""
 HTTPS=0
-WITH_DEMO=1
+WITH_DEMO=0
+SKIP_CORPUS=0
 INSTALL_DOCKER=0
 EXPOSE_PORTS=0
 HTTP_PORT=80
@@ -22,11 +23,13 @@ usage() {
   cat <<'EOF'
 Usage: ./scripts/cloud_deploy.sh <PUBLIC_IP_OR_DOMAIN> [options]
 
-Одна команда: сгенерировать .env, поднять весь стек, засеять пользователей и demo corpus.
+Одна команда: .env, стек, пользователи, умный полный корпус (скачать и проиндексировать при необходимости).
 
 Options:
   --https                  PUBLIC_URL=https://HOST, secure refresh cookie
-  --no-demo                не запускать seed_demo (только users)
+  --with-demo              маленький demo corpus через seed_demo.py (вместо полного корпуса)
+  --no-demo                то же, что поведение по умолчанию
+  --skip-corpus            не скачивать и не индексировать корпус
   --install-docker         установить Docker на Ubuntu (нужен sudo)
   --expose-ports           опубликовать порты сервисов (5432, 8000–8006, 3000, …)
   --http-port PORT         внешний порт nginx HTTP (по умолчанию 80)
@@ -42,10 +45,11 @@ Options:
   3) файл .env.yandex в корне репозитория
   4) уже записанные значения в существующем .env (повторный деплой)
 
-Без ключей demo seed не запускается (используйте --no-demo, чтобы пропустить).
+Без ключей Yandex полный корпус не индексируется нормально (используйте --skip-corpus).
 
 Примеры:
-  ./scripts/cloud_deploy.sh 203.0.113.10 --yandex-api-key KEY --yandex-folder-id b1g...
+  ./scripts/cloud_deploy.sh 203.0.113.10 --install-docker --yandex-api-key KEY --yandex-folder-id b1g...
+  ./scripts/cloud_deploy.sh 203.0.113.10 --with-demo --yandex-api-key KEY --yandex-folder-id b1g...
   ./scripts/cloud_deploy.sh 203.0.113.10 --expose-ports --http-port 8080
   ./scripts/cloud_deploy.sh demo.example.com --https --install-docker
 
@@ -65,6 +69,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --no-demo)
       WITH_DEMO=0
+      shift
+      ;;
+    --with-demo)
+      WITH_DEMO=1
+      shift
+      ;;
+    --skip-corpus)
+      SKIP_CORPUS=1
       shift
       ;;
     --install-docker)
@@ -223,6 +235,15 @@ edge_curl() {
   fi
 }
 
+edge_http_code() {
+  local url="$1"
+  if [[ "$HTTPS" -eq 1 ]]; then
+    curl -sSk -o /dev/null -w '%{http_code}' "$url" 2>/dev/null || echo "000"
+  else
+    curl -sS -o /dev/null -w '%{http_code}' "$url" 2>/dev/null || echo "000"
+  fi
+}
+
 check_public_perimeter() {
   local base_url="$1"
   local code path
@@ -241,12 +262,45 @@ check_public_perimeter() {
     exit 1
   fi
   for path in "${blocked_paths[@]}"; do
-    code="$(edge_curl "${base_url}${path}")"
+    code="$(edge_http_code "${base_url}${path}")"
     if [[ "$code" != "404" ]]; then
       echo "Perimeter check failed: ${base_url}${path} returned ${code}, expected 404" >&2
       exit 1
     fi
   done
+}
+
+count_indexed_documents() {
+  local count
+  if ! count="$(compose exec -T postgres psql -U st_user -d scientific_tangle -At -c "select count(*) from indexed_documents;" 2>/dev/null | tr -d '\r')"; then
+    echo "0"
+    return
+  fi
+  if [[ -z "$count" ]]; then
+    echo "0"
+    return
+  fi
+  echo "$count"
+}
+
+ensure_full_corpus() {
+  local indexed admin_password
+  local -a corpus_args
+  indexed="$(count_indexed_documents)"
+  admin_password="$(env_value AUTH_SEED_ADMIN_PASSWORD)"
+  admin_password="${admin_password:-admin}"
+  corpus_args=(
+    python3 scripts/ensure_cloud_corpus.py
+    --api-url "http://127.0.0.1/api"
+    --username admin
+    --password "$admin_password"
+    --indexed-count "$indexed"
+  )
+  if [[ -n "$(env_value DICTIONARY_ACTIVE_VERSION)" ]]; then
+    corpus_args+=(--skip-dictionary)
+  fi
+  log "Ensuring full corpus on disk and in indexes (indexed_documents=${indexed})"
+  "${corpus_args[@]}"
 }
 
 detect_docker_access() {
@@ -380,6 +434,15 @@ if [[ "$WITH_DEMO" -eq 1 ]]; then
     --api-url "http://127.0.0.1/api" \
     --username admin \
     --password "$ADMIN_PASSWORD"
+elif [[ "$SKIP_CORPUS" -eq 0 ]]; then
+  if [[ -z "$(env_value YANDEX_API_KEY)" ]] || [[ -z "$(env_value YANDEX_FOLDER_ID)" ]]; then
+    log "Yandex keys missing; skipping full corpus (use --skip-corpus to silence)"
+  else
+    log "Recreating model service to apply Yandex credentials"
+    compose up -d --force-recreate model
+    wait_for_model_yandex
+    ensure_full_corpus
+  fi
 fi
 
 PUBLIC_URL="$(env_value PUBLIC_URL)"
@@ -402,7 +465,7 @@ check_public_perimeter "${PUBLIC_URL}"
 
 if [[ -x "$ROOT_DIR/scripts/cloud_verify.sh" ]]; then
   log "Running cloud verify (critical checks)"
-  bash "$ROOT_DIR/scripts/cloud_verify.sh" --base-url "${PUBLIC_URL}" --skip-search
+  bash "$ROOT_DIR/scripts/cloud_verify.sh" --base-url "http://127.0.0.1" --skip-search
 fi
 
 cat <<EOF

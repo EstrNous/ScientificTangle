@@ -137,6 +137,15 @@ edge_curl() {
   fi
 }
 
+edge_http_code() {
+  local url="$1"
+  if [[ "$HTTPS" -eq 1 ]] || [[ "$BASE_URL" == https://* ]]; then
+    curl -sSk -o /dev/null -w '%{http_code}' "$url" 2>/dev/null || echo "000"
+  else
+    curl -sS -o /dev/null -w '%{http_code}' "$url" 2>/dev/null || echo "000"
+  fi
+}
+
 edge_curl_body() {
   local url="$1"
   if [[ "$HTTPS" -eq 1 ]] || [[ "$BASE_URL" == https://* ]]; then
@@ -274,7 +283,7 @@ check_public_perimeter() {
     fail "/api/health -> ${code} (expected 200)"
   fi
   for path in "${blocked_paths[@]}"; do
-    code="$(edge_curl "${BASE_URL}${path}")"
+    code="$(edge_http_code "${BASE_URL}${path}")"
     if [[ "$code" == "404" ]]; then
       ok "${path} -> 404"
     else
@@ -284,11 +293,13 @@ check_public_perimeter() {
 }
 
 auth_login() {
-  local body
+  local body admin_password
+  admin_password="$(env_value AUTH_SEED_ADMIN_PASSWORD)"
+  admin_password="${admin_password:-admin}"
   if [[ "$HTTPS" -eq 1 ]] || [[ "$BASE_URL" == https://* ]]; then
-    body="$(curl -fsSk "${BASE_URL}/api/auth/login" -H 'Content-Type: application/json' -d '{"identifier":"admin","password":"admin"}' 2>/dev/null || true)"
+    body="$(curl -fsSk "${BASE_URL}/api/auth/login" -H 'Content-Type: application/json' -d "{\"identifier\":\"admin\",\"password\":\"${admin_password}\"}" 2>/dev/null || true)"
   else
-    body="$(curl -fsS "${BASE_URL}/api/auth/login" -H 'Content-Type: application/json' -d '{"identifier":"admin","password":"admin"}' 2>/dev/null || true)"
+    body="$(curl -fsS "${BASE_URL}/api/auth/login" -H 'Content-Type: application/json' -d "{\"identifier\":\"admin\",\"password\":\"${admin_password}\"}" 2>/dev/null || true)"
   fi
   printf '%s' "$body" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("access_token",""))' 2>/dev/null || true
 }
