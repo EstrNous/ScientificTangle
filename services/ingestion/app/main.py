@@ -25,6 +25,8 @@ setup_logging(settings.service_name)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger = structlog.get_logger()
+    if not settings.internal_service_token:
+        logger.warning("internal_service_token_not_configured")
     http_client = httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=5.0))
     source_storage = SourceStorage(
         client=Minio(
@@ -52,6 +54,7 @@ async def lifespan(app: FastAPI):
         clock_skew_seconds=settings.auth_clock_skew_seconds,
         client=http_client,
     )
+    app.state.internal_service_token = settings.internal_service_token
     logger.info("service_started", service=settings.service_name, port=settings.port)
     yield
     await http_client.aclose()

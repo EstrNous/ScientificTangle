@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import PageShell from '../components/shared/PageShell.jsx';
 import Loader from '../components/shared/Loader.jsx';
 import PdfDownloadButton from '../components/shared/PdfDownloadButton.jsx';
+import { ErrorBanner } from '../components/shared/PageState.jsx';
 import {
   AdminSubNav,
   AdminSummaryCards,
@@ -18,14 +19,28 @@ const real = { real: true };
 export default function AdminStatsPage() {
   const { t, i18n } = useTranslation();
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [adminData, setAdminData] = useState(null);
   const [metricsExpanded, setMetricsExpanded] = useState(false);
   const statsVisualRef = useRef(null);
 
   useEffect(() => {
+    let cancelled = false;
+
     apiGet('/admin/stats', real)
-      .then(setAdminData)
-      .finally(() => setLoading(false));
+      .then((data) => {
+        if (!cancelled) setAdminData(data);
+      })
+      .catch((loadError) => {
+        if (!cancelled) setError(loadError?.message ?? 'admin_load_failed');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const summary = useMemo(() => {
@@ -54,6 +69,9 @@ export default function AdminStatsPage() {
     <PageShell>
       <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden">
         <AdminSubNav action={<PdfDownloadButton onExport={handleExportPdf} />} />
+        {error && (
+          <ErrorBanner message={t(`admin.errors.${error}`, { defaultValue: error })} />
+        )}
         <div
           ref={statsVisualRef}
           className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"

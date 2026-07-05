@@ -1,3 +1,8 @@
+"""Authenticated upload через nginx: MinIO + Postgres после POST /api/documents/upload.
+
+Запуск: RUN_UPLOAD_INTEGRATION=1 python -m pytest tests/integration/test_authenticated_upload.py -v
+или: make test-upload-integration
+"""
 import asyncio
 import hashlib
 import os

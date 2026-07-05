@@ -187,6 +187,21 @@ export async function mockFetch(resource, options = {}) {
       warnings: [],
     };
   }
+  if (resource.startsWith('documents/') && !resource.includes('?')) {
+    const documentId = resource.slice('documents/'.length);
+    return {
+      document_id: documentId,
+      title: documentId,
+      source_path: `${documentId}.pdf`,
+      source_type: 'pdf',
+      status: 'completed',
+      access_level: 'internal',
+      source_spans_count: 1,
+      indexed_points_count: 1,
+      created_at: new Date().toISOString(),
+      warnings: [],
+    };
+  }
   if (resource.startsWith('notifications') && resource.includes('?since=')) {
     const since = decodeURIComponent(resource.split('?since=')[1] ?? '');
     return notificationItems

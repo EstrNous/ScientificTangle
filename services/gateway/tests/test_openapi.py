@@ -1,6 +1,19 @@
 from app.main import app
 
 
+def _openapi_path_index(app_instance, path: str) -> int:
+    paths = app_instance.openapi()["paths"]
+    if path not in paths:
+        raise AssertionError(f"Path {path} is not registered in OpenAPI")
+    return list(paths).index(path)
+
+
+def test_upload_route_is_registered_before_delete_document() -> None:
+    upload_index = _openapi_path_index(app, "/documents/upload")
+    delete_index = _openapi_path_index(app, "/documents/{document_id}")
+    assert upload_index < delete_index
+
+
 def test_upload_and_task_routes_are_in_openapi() -> None:
     paths = app.openapi()["paths"]
 
@@ -15,6 +28,7 @@ def test_upload_and_task_routes_are_in_openapi() -> None:
     assert "/graph" in paths
     assert "/search" in paths
     assert paths["/documents/upload"]["post"]["responses"]["202"]
+    assert paths["/documents/{document_id}"]["get"]["responses"]["200"]
     assert paths["/documents/{document_id}"]["delete"]["responses"]["200"]
 
 

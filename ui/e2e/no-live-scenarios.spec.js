@@ -1,5 +1,13 @@
 import { test, expect } from '@playwright/test';
-import { installProductionApiMocks, loginThroughUi } from './fixtures/mockApi.js';
+import {
+  EXTERNAL_PARTNER_USER,
+  installProductionApiMocks,
+  loginThroughUi,
+} from './fixtures/mockApi.js';
+
+async function expectNoInterfaceError(page) {
+  await expect(page.getByText('Ошибка интерфейса')).not.toBeVisible();
+}
 
 test.describe('E6 no-live UI scenarios @offline', () => {
   test.beforeEach(async ({ page }) => {
@@ -14,6 +22,11 @@ test.describe('E6 no-live UI scenarios @offline', () => {
     await textarea.fill('циркуляция католита, обессоливание шахтных вод');
     await page.getByRole('button', { name: 'Сохранить интересы' }).click();
     await expect(page.getByText('Интересы сохранены')).toBeVisible();
+  });
+
+  test('scenario 1b: upload page renders without interface error', async ({ page }) => {
+    await page.goto('/upload');
+    await expect(page.getByText('Ошибка интерфейса')).not.toBeVisible();
   });
 
   test('scenario 2: upload stages visible after upload', async ({ page }) => {
@@ -120,6 +133,68 @@ test.describe('E6 no-live UI scenarios @offline', () => {
     await page.locator('select').first().selectOption('document_exported');
     await expect(page.getByText('экспорт')).toBeVisible();
     await expect(page.getByText('запрос')).not.toBeVisible();
+  });
+});
+
+test.describe('E6 wave1 route smoke @offline', () => {
+  test.beforeEach(async ({ page }) => {
+    await installProductionApiMocks(page);
+    await loginThroughUi(page);
+  });
+
+  test('smoke: graph page renders', async ({ page }) => {
+    await page.goto('/graph');
+    await expect(page.getByText('Карта знаний')).toBeVisible({ timeout: 15000 });
+    await expectNoInterfaceError(page);
+  });
+
+  test('smoke: strategic coverage page renders', async ({ page }) => {
+    await page.goto('/strategic/coverage');
+    await expect(page.getByText('Покрытие базы знаний')).toBeVisible({ timeout: 15000 });
+    await expectNoInterfaceError(page);
+  });
+
+  test('smoke: lab matrix page renders', async ({ page }) => {
+    await page.goto('/lab/matrix');
+    await expect(page.getByText('Матрица связей')).toBeVisible({ timeout: 15000 });
+    await expectNoInterfaceError(page);
+  });
+
+  test('smoke: search page renders', async ({ page }) => {
+    await page.goto('/search');
+    await expect(page.getByPlaceholder('Поиск по узлам, материалам и публикациям')).toBeVisible();
+    await expectNoInterfaceError(page);
+  });
+
+  test('smoke: top bar locale toggle RU/EN', async ({ page }) => {
+    await page.goto('/chat');
+    await expect(page.getByText('НорСинтез')).toBeVisible();
+    await page.getByRole('button', { name: 'EN' }).click();
+    await expect(page.getByRole('button', { name: 'RU' })).toBeVisible();
+    await expect(page.getByText('NorSintez')).toBeVisible();
+    await expectNoInterfaceError(page);
+  });
+});
+
+test.describe('E6 wave1 register smoke @offline', () => {
+  test.beforeEach(async ({ page }) => {
+    await installProductionApiMocks(page);
+  });
+
+  test('smoke: register page renders', async ({ page }) => {
+    await page.goto('/register');
+    await expect(page.getByRole('heading', { name: 'Регистрация' })).toBeVisible();
+    await expectNoInterfaceError(page);
+  });
+});
+
+test.describe('E6 wave1 access denied @offline', () => {
+  test('smoke: external_partner upload shows access denied', async ({ page }) => {
+    await installProductionApiMocks(page, { user: EXTERNAL_PARTNER_USER });
+    await loginThroughUi(page, { username: 'external_partner' });
+    await page.goto('/upload');
+    await expect(page.getByText('Нет доступа к этой странице')).toBeVisible();
+    await expectNoInterfaceError(page);
   });
 });
 

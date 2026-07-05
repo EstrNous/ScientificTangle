@@ -27,8 +27,11 @@ async def lifespan(app: FastAPI):
     logger = structlog.get_logger()
     http_client = httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=5.0))
     app.state.http_client = http_client
+    if not settings.internal_service_token:
+        logger.warning("internal_service_token_not_configured")
     driver = create_driver(settings.neo4j_url, settings.neo4j_user, settings.neo4j_password)
     app.state.neo4j_driver = driver
+    app.state.internal_service_token = settings.internal_service_token
     adapter = Neo4jKnowledgeAdapter(driver)
     app.state.neo4j_adapter = adapter
     if await verify_connectivity(driver):

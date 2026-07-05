@@ -44,6 +44,10 @@ describe('resolveUploadTaskStages', () => {
     expect(stages[0].status).toBe('done');
   });
 
+  it('returns empty array for null task', () => {
+    expect(resolveUploadTaskStages(null, t)).toEqual([]);
+  });
+
   it('derives document stages from task status', () => {
     const stages = resolveUploadTaskStages(
       {

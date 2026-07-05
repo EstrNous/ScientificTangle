@@ -6,6 +6,14 @@ const DIRECTOR_USER = {
   is_active: true,
 };
 
+export const EXTERNAL_PARTNER_USER = {
+  id: '00000000-0000-0000-0000-000000000004',
+  username: 'external_partner',
+  email: 'partner@external.io',
+  role: 'external_partner',
+  is_active: true,
+};
+
 const ACCESS_TOKEN = 'e2e-access-token';
 
 function json(body, status = 200) {
@@ -33,9 +41,9 @@ function chatSessionItemPath(pathname) {
   return /^\/api\/chat\/sessions\/[^/]+$/.test(pathname);
 }
 
-export function createMockState() {
+export function createMockState({ user } = {}) {
   return {
-    user: DIRECTOR_USER,
+    user: user ?? DIRECTOR_USER,
     interests: {
       raw_text: 'электроэкстракция никеля',
       interests: [{ label: 'электроэкстракция', weight: 1, source_terms: ['Ni'] }],
@@ -46,6 +54,7 @@ export function createMockState() {
         id: 'notif-1',
         type: 'ingestion_complete',
         title: 'Ingestion complete',
+        reason: 'Обработка документа завершена',
         reference_type: 'source_span',
         reference_id: 'span-public-1',
         read: false,
@@ -55,26 +64,48 @@ export function createMockState() {
     uploadTask: {
       id: 'task-e2e-1',
       status: 'completed',
+      task_kind: 'document_ingestion',
+      created_at: '2026-01-01T00:00:00Z',
+      updated_at: '2026-06-01T00:00:00Z',
       stages: [
         { id: 'parse', label: 'Parse', status: 'done', warnings: [] },
         { id: 'extract', label: 'Extract', status: 'done', warnings: ['minor table gap'] },
         { id: 'index', label: 'Index', status: 'done', warnings: [] },
       ],
       report: {
-        normalized_documents: [{ id: 'doc-e2e-1', title: 'demo.pdf', metadata: {} }],
+        stage: 'uploaded',
+        sources: [],
+        warnings: [],
+        normalized_documents: [
+          {
+            id: 'doc-e2e-1',
+            title: 'demo.pdf',
+            source_type: 'pdf',
+            content: '',
+            metadata: {},
+          },
+        ],
         documents_count: 1,
         source_spans_count: 5,
+        tables_count: 0,
+        indexed_points_count: 5,
         extracted_claims_count: 3,
+        candidates_count: 0,
       },
     },
     reviewQueue: [
       {
         id: 'candidate-1',
-        name: 'Ca/Mg ratio',
-        type: 'numeric',
+        document_id: 'doc-e2e-1',
+        source_span_id: 'span-public-1',
         status: 'pending',
-        source_span_ids: ['span-public-1'],
-        updated_at: new Date().toISOString(),
+        priority: 'medium',
+        payload: {
+          candidate_id: 'Ca/Mg ratio',
+          candidate_type: 'numeric',
+          confidence: 0.85,
+        },
+        created_at: new Date().toISOString(),
       },
     ],
     adminSnapshot: {
@@ -170,11 +201,66 @@ export function createMockState() {
     },
     chatSessions: [],
     chatMessagesBySession: {},
+    graphData: {
+      knowledgeGraph: {
+        nodes: [{ id: 'node-ni', label: 'Никель', type: 'Material' }],
+        links: [],
+      },
+      subgraph: {
+        nodes: [{ id: 'node-ni', label: 'Никель', type: 'Material' }],
+        links: [],
+      },
+      entities: [{ id: 'node-ni', name: 'Никель', type: 'Material', status: 'verified' }],
+      candidates: [],
+      nodeCombinations: [{ group: 'default', rows: [] }],
+    },
+    graphCatalog: {
+      items: [
+        {
+          id: 'catalog-1',
+          title: 'Шахтные воды',
+          material: 'Ni',
+          process: 'flotation',
+          year: 2023,
+          geo: 'RU',
+        },
+      ],
+    },
+    strategicMetrics: {
+      updated_at: '2026-01-01T00:00:00Z',
+      directions: [
+        { id: 'hydro', name: 'Гидрометаллургия', coverage: 0.7, documents: 5 },
+      ],
+      totals: {
+        documents: 5,
+        claims: 15,
+        verified_claims: 10,
+        candidates: 3,
+        gaps: 1,
+        conflicts: 0,
+      },
+      low_coverage_topics: [],
+      high_conflict_topics: [],
+    },
+    labCoverage: {
+      summary: { gap_count: 1, conflict_count: 0, sparse_cells: 1, links_total: 4 },
+      matrices: {
+        Material_Process: {
+          rowType: 'Material',
+          colType: 'Process',
+          rows: ['Никель'],
+          cols: ['Флотация'],
+          matrix: [[2]],
+        },
+      },
+      gaps: [],
+      contradictions: [],
+    },
   };
 }
 
-export async function installProductionApiMocks(page) {
-  const state = createMockState();
+export async function installProductionApiMocks(page, { user } = {}) {
+  const state = createMockState({ user });
 
   await page.route('**/api/**', async (route) => {
     const request = route.request();
@@ -183,6 +269,19 @@ export async function installProductionApiMocks(page) {
     const pathname = new URL(url).pathname;
 
     if (routeMatch(url, '/api/auth/login') && method === 'POST') {
+      await route.fulfill(json({ access_token: ACCESS_TOKEN, user: state.user }));
+      return;
+    }
+
+    if (routeMatch(url, '/api/auth/register') && method === 'POST') {
+      const body = request.postDataJSON();
+      state.user = {
+        id: '00000000-0000-0000-0000-000000000099',
+        username: body.username ?? 'new_user',
+        email: body.email ?? 'new@example.com',
+        role: 'researcher',
+        is_active: true,
+      };
       await route.fulfill(json({ access_token: ACCESS_TOKEN, user: state.user }));
       return;
     }
@@ -378,7 +477,14 @@ export async function installProductionApiMocks(page) {
     }
 
     if (routeMatch(url, '/api/review/queue') && method === 'GET') {
-      await route.fulfill(json({ items: state.reviewQueue, conflicts: [] }));
+      await route.fulfill(
+        json({
+          items: state.reviewQueue,
+          total_found: state.reviewQueue.length,
+          warnings: [],
+          conflicts: [],
+        }),
+      );
       return;
     }
 
@@ -392,6 +498,26 @@ export async function installProductionApiMocks(page) {
 
     if (routeMatch(url, '/api/search') && method === 'GET') {
       await route.fulfill(json(state.searchResults));
+      return;
+    }
+
+    if (routeMatch(url, '/api/graph/catalog') && method === 'GET') {
+      await route.fulfill(json(state.graphCatalog));
+      return;
+    }
+
+    if (routeMatch(url, '/api/graph') && method === 'GET') {
+      await route.fulfill(json(state.graphData));
+      return;
+    }
+
+    if (routeMatch(url, '/api/strategic/metrics') && method === 'GET') {
+      await route.fulfill(json(state.strategicMetrics));
+      return;
+    }
+
+    if (routeMatch(url, '/api/lab/coverage') && method === 'GET') {
+      await route.fulfill(json(state.labCoverage));
       return;
     }
 

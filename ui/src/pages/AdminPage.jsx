@@ -71,6 +71,8 @@ export default function AdminPage() {
 
   const [saveError, setSaveError] = useState(null);
 
+  const [loadError, setLoadError] = useState(null);
+
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   const [dictionaries, setDictionaries] = useState([]);
@@ -85,9 +87,13 @@ export default function AdminPage() {
 
   useEffect(() => {
 
+    let cancelled = false;
+
     fetchAdminSnapshot()
 
       .then((admin) => {
+
+        if (cancelled) return;
 
         setUsers(admin.users ?? []);
 
@@ -101,13 +107,37 @@ export default function AdminPage() {
 
       })
 
-      .finally(() => setLoading(false));
+      .catch((error) => {
+
+        if (!cancelled) setLoadError(error?.message ?? 'admin_load_failed');
+
+      })
+
+      .finally(() => {
+
+        if (!cancelled) setLoading(false);
+
+      });
 
     fetchDictionaryVersions()
 
-      .then((items) => setDictionaries(items))
+      .then((items) => {
 
-      .catch((error) => setDictionaryError(error?.message ?? 'dictionaries_load_failed'));
+        if (!cancelled) setDictionaries(items);
+
+      })
+
+      .catch((error) => {
+
+        if (!cancelled) setDictionaryError(error?.message ?? 'dictionaries_load_failed');
+
+      });
+
+    return () => {
+
+      cancelled = true;
+
+    };
 
   }, []);
 
@@ -201,11 +231,13 @@ export default function AdminPage() {
 
         if (policy.id !== policyId) return policy;
 
-        const roles = policy.roles.includes(role)
+        const currentRoles = policy.roles ?? [];
 
-          ? policy.roles.filter((item) => item !== role)
+        const roles = currentRoles.includes(role)
 
-          : [...policy.roles, role];
+          ? currentRoles.filter((item) => item !== role)
+
+          : [...currentRoles, role];
 
         return { ...policy, roles };
 
@@ -511,6 +543,10 @@ export default function AdminPage() {
           }
 
         />
+
+        {loadError && (
+          <ErrorBanner message={t(`admin.errors.${loadError}`, { defaultValue: loadError })} />
+        )}
 
         {saveError && (
           <ErrorBanner message={t(`admin.errors.${saveError}`, { defaultValue: saveError })} />

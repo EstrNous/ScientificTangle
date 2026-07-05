@@ -47,12 +47,23 @@ describe('queryEventAdapter', () => {
   it('applies events to handlers', () => {
     const onPhaseChange = vi.fn();
     const onStreamingDraft = vi.fn();
+    const onStreamError = vi.fn();
     applyQueryEvent(
-      { onPhaseChange, onStreamingDraft },
+      { onPhaseChange, onStreamingDraft, onStreamError },
       { type: 'answer_chunk', chunk: 'text', complete: true },
     );
     expect(onStreamingDraft).toHaveBeenCalledWith('text', true);
-    applyQueryEvent({ onPhaseChange }, { phase: 'verification' });
+    applyQueryEvent({ onPhaseChange, onStreamError }, { phase: 'verification' });
     expect(onPhaseChange).toHaveBeenCalledWith(CHAT_ANSWER_PHASES.VERIFICATION);
+    applyQueryEvent(
+      { onPhaseChange, onStreamError },
+      { type: 'phase', phase: 'error', code: 'query_stream_failed', message: 'failed' },
+    );
+    expect(onPhaseChange).toHaveBeenCalledWith(CHAT_ANSWER_PHASES.ERROR);
+    expect(onStreamError).toHaveBeenCalledWith({
+      code: 'query_stream_failed',
+      message: 'failed',
+      status: null,
+    });
   });
 });

@@ -2,9 +2,15 @@ import { ensureAuth } from './auth.js';
 
 const baseURL = import.meta.env.VITE_API_URL || '/api';
 
+function createUploadError(code = 'upload_failed') {
+  const error = new Error(code);
+  error.code = code;
+  return error;
+}
+
 export async function uploadFiles(files, { kind = 'document' } = {}) {
   if (!files.length) {
-    throw new Error('upload_failed');
+    throw createUploadError();
   }
   const token = await ensureAuth();
   const formData = new FormData();
@@ -23,7 +29,7 @@ export async function uploadFiles(files, { kind = 'document' } = {}) {
     body: formData,
   });
   if (!response.ok) {
-    throw new Error('upload_failed');
+    throw createUploadError();
   }
   return response.json();
 }
@@ -39,18 +45,18 @@ export async function waitForIngestionTask(
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!response.ok) {
-      throw new Error('upload_failed');
+      throw createUploadError();
     }
     const payload = await response.json();
     if (payload.status === 'completed') {
       return payload;
     }
     if (payload.status === 'failed') {
-      throw new Error('upload_failed');
+      throw createUploadError();
     }
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
-  throw new Error('upload_failed');
+  throw createUploadError();
 }
 
 export function resolveDocumentIdFromAuditEvent(event) {

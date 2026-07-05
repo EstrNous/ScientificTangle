@@ -40,7 +40,7 @@ export default function KnowledgeGraph({ subgraph, selectedNodeId, onNodeClick, 
   }
   const data = {
     nodes: subgraph.nodes.map((n) => ({ ...n, name: n.label })),
-    links: subgraph.links.map((l) => ({ ...l })),
+    links: (subgraph.links ?? []).map((l) => ({ ...l })),
   };
 
   const bgColor = isDark ? '#0f172a' : '#F5F6F8';

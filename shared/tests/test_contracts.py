@@ -195,3 +195,34 @@ def test_document_catalog_contract_roundtrip() -> None:
     assert payload.items[0].document_id == "doc-1"
     assert payload.total == 1
     assert payload.filters_applied["status"] == "completed"
+
+
+def test_notification_and_review_contract_roundtrip() -> None:
+    created_at = datetime.fromisoformat("2026-07-05T12:00:00+00:00")
+    notification = NotificationPayload.model_validate(
+        {
+            "id": "550e8400-e29b-41d4-a716-446655440000",
+            "title": "Ingestion complete",
+            "reason": "Task finished",
+            "type": "ingestion_complete",
+            "reference_id": "550e8400-e29b-41d4-a716-446655440001",
+            "reference_type": "ingestion_task",
+            "read": False,
+            "created_at": created_at.isoformat(),
+        }
+    )
+    queue = ReviewQueuePayload.model_validate(
+        {
+            "items": [
+                {
+                    "id": "550e8400-e29b-41d4-a716-446655440002",
+                    "document_id": "doc-1",
+                    "status": "pending",
+                    "created_at": created_at.isoformat(),
+                }
+            ],
+            "total_found": 1,
+        }
+    )
+    assert notification.reference_type == "ingestion_task"
+    assert queue.items[0].document_id == "doc-1"

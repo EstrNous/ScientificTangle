@@ -3,11 +3,14 @@ import re
 from pathlib import PurePosixPath
 from uuid import UUID, uuid4
 
+import structlog
 from anyio import to_thread
 from fastapi import UploadFile
 from minio import Minio
 
 from shared.contracts import StoredSource
+
+logger = structlog.get_logger()
 
 
 class InvalidUploadError(Exception):
@@ -133,7 +136,12 @@ class SourceStorage:
         for source in sources:
             try:
                 self._client.remove_object(self._bucket, source.object_key)
-            except Exception:
+            except Exception as exc:
+                logger.warning(
+                    "storage_rollback_failed",
+                    object_key=source.object_key,
+                    error=str(exc),
+                )
                 continue
 
     @staticmethod

@@ -23,29 +23,34 @@ function Metric({ label, value }) {
 export default function UploadAnalysisPanel({
   task,
   loading,
+  documentLoading = false,
   uploadedDocuments = [],
+  focusedDocumentId = null,
   onDeleteDocument,
   deletingDocumentId,
 }) {
   const { t } = useTranslation();
   const report = task?.report;
   const stages = resolveUploadTaskStages(task, t);
+  const hasTask = Boolean(task);
+  const hasDocuments = uploadedDocuments.length > 0;
+  const isResolving = (loading && !hasTask) || documentLoading;
 
   return (
     <section className="nn-card flex min-h-0 flex-col p-4">
       <h3 className="mb-3 text-sm font-semibold text-gray-900 dark:text-slate-100">{t('upload.analysisTitle')}</h3>
 
-      {loading && !task && (
+      {isResolving && !hasDocuments && (
         <div className="flex flex-1 items-center justify-center py-8">
           <Loader />
         </div>
       )}
 
-      {!loading && !task && (
+      {!isResolving && !hasTask && !hasDocuments && (
         <p className="text-sm text-nn-gray dark:text-slate-400">{t('upload.analysisEmpty')}</p>
       )}
 
-      {task && (
+      {hasTask && (
         <div className="flex min-h-0 flex-1 flex-col gap-4">
           <div className="flex items-center gap-2">
             <span className="text-xs text-nn-gray dark:text-slate-400">{t('upload.taskStatus')}</span>
@@ -73,41 +78,6 @@ export default function UploadAnalysisPanel({
             </div>
           )}
 
-          {uploadedDocuments.length > 0 && (
-            <div className="min-h-0">
-              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-nn-gray dark:text-slate-400">
-                {t('upload.sourcesTitle')}
-              </p>
-              <ul className="scrollbar-thin scrollbar-thumb-nn-border dark:scrollbar-thumb-slate-600 max-h-28 space-y-1 overflow-y-auto pr-1 text-xs">
-                {uploadedDocuments.map((document) => (
-                  <li
-                    key={document.id}
-                    className="flex items-center gap-2 rounded-md bg-nn-gray-light px-2 py-1 text-gray-900 dark:bg-slate-800 dark:text-slate-100"
-                  >
-                    <span className="min-w-0 flex-1 truncate" title={document.filename}>
-                      {document.filename}
-                    </span>
-                    <span className="shrink-0 rounded-full bg-white px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-nn-gray dark:bg-slate-900 dark:text-slate-400">
-                      {t(`upload.fileKinds.${document.kind}`, { defaultValue: document.kind })}
-                    </span>
-                    {onDeleteDocument && (
-                      <button
-                        type="button"
-                        onClick={() => onDeleteDocument(document)}
-                        disabled={deletingDocumentId === document.id}
-                        className="inline-flex shrink-0 rounded-md p-1 text-nn-gray transition-colors hover:bg-white hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100"
-                        title={t('upload.deleteDocument')}
-                        aria-label={t('upload.deleteDocument')}
-                      >
-                        <DeleteIcon className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
           {report?.warnings?.length > 0 && (
             <div>
               <p className="mb-2 text-xs font-medium uppercase tracking-wide text-amber-700 dark:text-amber-300">
@@ -128,6 +98,45 @@ export default function UploadAnalysisPanel({
               {task.error_message}
             </p>
           )}
+        </div>
+      )}
+
+      {hasDocuments && (
+        <div className={`min-h-0 ${hasTask ? 'mt-4' : ''}`}>
+          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-nn-gray dark:text-slate-400">
+            {t('upload.sourcesTitle')}
+          </p>
+          <ul className="scrollbar-thin scrollbar-thumb-nn-border dark:scrollbar-thumb-slate-600 max-h-28 space-y-1 overflow-y-auto pr-1 text-xs">
+            {uploadedDocuments.map((document) => (
+              <li
+                key={document.id}
+                className={`flex items-center gap-2 rounded-md px-2 py-1 text-gray-900 dark:text-slate-100 ${
+                  focusedDocumentId && document.id === focusedDocumentId
+                    ? 'bg-nn-blue-light ring-1 ring-nn-blue dark:bg-slate-700 dark:ring-sky-400'
+                    : 'bg-nn-gray-light dark:bg-slate-800'
+                }`}
+              >
+                <span className="min-w-0 flex-1 truncate" title={document.filename}>
+                  {document.filename}
+                </span>
+                <span className="shrink-0 rounded-full bg-white px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide text-nn-gray dark:bg-slate-900 dark:text-slate-400">
+                  {t(`upload.fileKinds.${document.kind}`, { defaultValue: document.kind })}
+                </span>
+                {onDeleteDocument && (
+                  <button
+                    type="button"
+                    onClick={() => onDeleteDocument(document)}
+                    disabled={deletingDocumentId === document.id}
+                    className="inline-flex shrink-0 rounded-md p-1 text-nn-gray transition-colors hover:bg-white hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100"
+                    title={t('upload.deleteDocument')}
+                    aria-label={t('upload.deleteDocument')}
+                  >
+                    <DeleteIcon className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </section>

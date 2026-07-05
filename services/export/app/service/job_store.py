@@ -2,6 +2,8 @@ import json
 from datetime import UTC, datetime
 from uuid import UUID
 
+import structlog
+
 from ..schemas import ExportArtifactMeta, ExportJobStatusResponse
 
 try:
@@ -10,6 +12,8 @@ try:
 except ImportError:
     Redis = None
     RedisError = Exception
+
+logger = structlog.get_logger()
 
 
 class JobStore:
@@ -26,8 +30,9 @@ class JobStore:
             try:
                 self._redis.setex(key, self._ttl_seconds, encoded)
                 return
-            except RedisError:
-                pass
+            except RedisError as exc:
+                logger.warning("export_job_store_redis_save_failed", job_id=str(job.job_id), error=str(exc))
+        logger.warning("export_job_store_memory_fallback", job_id=str(job.job_id))
         self._memory[key] = encoded
 
     async def get(self, job_id: UUID) -> ExportJobStatusResponse | None:
@@ -38,10 +43,13 @@ class JobStore:
                 raw = self._redis.get(key)
                 if raw is not None:
                     encoded = raw.decode("utf-8") if isinstance(raw, bytes) else str(raw)
-            except RedisError:
+            except RedisError as exc:
+                logger.warning("export_job_store_redis_get_failed", job_id=str(job_id), error=str(exc))
                 encoded = None
         if encoded is None:
             encoded = self._memory.get(key)
+            if encoded is not None and self._redis is not None:
+                logger.warning("export_job_store_memory_fallback", job_id=str(job_id))
         if encoded is None:
             return None
         return ExportJobStatusResponse.model_validate(json.loads(encoded))
@@ -117,5 +125,6 @@ class JobStore:
             client = Redis.from_url(redis_url, decode_responses=False)
             client.ping()
             return client
-        except Exception:
+        except Exception as exc:
+            logger.warning("export_job_store_redis_connect_failed", error=str(exc))
             return None

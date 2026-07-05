@@ -11,13 +11,12 @@ from app.api.query import (
     build_points,
     collect_evidence_items,
     fuse_channels,
-    payload_allowed,
     resolve_source,
     run_query,
     search,
     source_span_id,
 )
-from app.storage import access_allowed
+from app.storage import access_allowed, payload_access_allowed
 
 from shared.contracts import (
     AccessPolicy,
@@ -67,26 +66,30 @@ class FakeStorageAdapter:
     is_ready = True
 
     async def search(self, question, filters, access_roles, limit):
-        return SearchResultPayload(
-            items=[
-                SearchResult(
-                    source=source(
-                        "allowed",
-                        AccessPolicy(level="internal"),
-                        "Никель 82 %",
-                    ),
-                    relevance_score=0.9,
+        items = [
+            SearchResult(
+                source=source(
+                    "allowed",
+                    AccessPolicy(level="internal"),
+                    "Никель 82 %",
                 ),
-                SearchResult(
-                    source=source(
-                        "denied",
-                        AccessPolicy(level="restricted", allowed_roles=["admin"]),
-                        "Закрытый никель 99 %",
-                    ),
-                    relevance_score=1.0,
+                relevance_score=0.9,
+            ),
+            SearchResult(
+                source=source(
+                    "denied",
+                    AccessPolicy(level="restricted", allowed_roles=["admin"]),
+                    "Закрытый никель 99 %",
                 ),
-            ]
-        )
+                relevance_score=1.0,
+            ),
+        ]
+        filtered = [
+            item
+            for item in items
+            if access_allowed(item.source.access_policy, access_roles)
+        ]
+        return SearchResultPayload(items=filtered)
 
     async def get_source(self, source_span_id, access_roles):
         return source(
@@ -439,6 +442,6 @@ def test_payload_indexes_include_source_lookup_fields() -> None:
 def test_payload_allowed_respects_roles_and_admin_bypass() -> None:
     payload = {"access_level": "internal", "allowed_roles": ["researcher"]}
 
-    assert payload_allowed(payload, ["researcher"])
-    assert payload_allowed(payload, ["admin"])
-    assert not payload_allowed(payload, ["external_partner"])
+    assert payload_access_allowed(payload, ["researcher"])
+    assert payload_access_allowed(payload, ["admin"])
+    assert not payload_access_allowed(payload, ["external_partner"])

@@ -6,7 +6,11 @@ import subprocess
 import sys
 from pathlib import Path
 
-from scripts.seed_corpus_batches import (
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from scripts.seed_corpus_batches import (  # noqa: E402
     DEFAULT_CORPUS_DIR,
     DEFAULT_MAX_FILE_BYTES,
     DEFAULT_STATE_FILE,
@@ -65,6 +69,7 @@ def download_corpus(corpus_root: Path) -> None:
     subprocess.run(
         [sys.executable, "eval/yandex_disk_corpus.py", "--output-dir", str(corpus_root)],
         check=True,
+        cwd=ROOT,
     )
 
 
@@ -94,7 +99,9 @@ def run_batch_seed(
     ]
     if skip_dictionary:
         command.append("--skip-dictionary")
-    subprocess.run(command, check=True)
+    result = subprocess.run(command, check=False, cwd=ROOT)
+    if result.returncode != 0:
+        raise SystemExit(result.returncode)
 
 
 def parse_args() -> argparse.Namespace:
@@ -141,7 +148,11 @@ def main() -> int:
 
     if not args.skip_download and not corpus_has_local_files(corpus_root):
         print(json.dumps({"action": "download", "corpus_dir": str(corpus_root)}, ensure_ascii=False))
-        subprocess.run([sys.executable, "-m", "pip", "install", "-q", "httpx"], check=True)
+        subprocess.run(
+            [sys.executable, "-m", "pip", "install", "-q", "httpx"],
+            check=True,
+            cwd=ROOT,
+        )
         download_corpus(corpus_root)
     elif corpus_has_local_files(corpus_root):
         print(

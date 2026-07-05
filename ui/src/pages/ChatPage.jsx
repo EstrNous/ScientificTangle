@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import PageShell from '../components/shared/PageShell.jsx';
 import Loader from '../components/shared/Loader.jsx';
@@ -17,9 +18,15 @@ import {
   findReusableEmptyDraftSession,
   sessionTitleFromText,
 } from '../utils/chatSession.js';
+import { fetchQueryRun } from '../api/queryRun.js';
+import { mapQueryRunToMessage } from '../api/queryTransport.js';
+import { resolveQueryRunIdFromState, clearNavigationState } from '../utils/locationState.js';
 
 export default function ChatPage() {
   const { t } = useTranslation();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const drillDownRunId = resolveQueryRunIdFromState(location.state);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [sessions, setSessions] = useState([]);
@@ -68,6 +75,7 @@ export default function ChatPage() {
   }, []);
 
   useEffect(() => {
+    if (drillDownRunId) return undefined;
     if (!activeId) {
       setMessages([]);
       return undefined;
@@ -85,7 +93,36 @@ export default function ChatPage() {
     return () => {
       cancelled = true;
     };
-  }, [activeId]);
+  }, [activeId, drillDownRunId]);
+
+  useEffect(() => {
+    if (!drillDownRunId || loading) return undefined;
+
+    let cancelled = false;
+    (async () => {
+      setError(null);
+      try {
+        const payload = await fetchQueryRun(drillDownRunId);
+        if (cancelled) return;
+        const assistant = mapQueryRunToMessage(payload, t);
+        const question = payload?.question ?? '';
+        setActiveId(null);
+        setMessages([
+          { id: `run-user-${drillDownRunId}`, role: 'user', content: question },
+          assistant,
+        ]);
+        clearNavigationState(navigate, location.pathname);
+      } catch (loadError) {
+        if (!cancelled) {
+          setError(mapApiError(loadError, 'query_run_load_failed'));
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [drillDownRunId, loading, location.pathname, navigate, t]);
 
   const defaultSessionTitle = t('chat.defaultSessionTitle');
   const isMac =

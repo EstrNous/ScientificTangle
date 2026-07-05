@@ -70,7 +70,7 @@ export default function AdminAuditPage() {
 
   const loadEvents = useCallback(
 
-    async ({ offset = 0, append = false, action = actionFilter } = {}) => {
+    async ({ offset = 0, append = false, action = actionFilter, isActive = () => true } = {}) => {
 
       const apiAction = action === 'all' ? undefined : action;
 
@@ -83,6 +83,8 @@ export default function AdminAuditPage() {
         offset,
 
       });
+
+      if (!isActive()) return items;
 
       setHasMore(items.length === PAGE_SIZE);
 
@@ -114,7 +116,7 @@ export default function AdminAuditPage() {
 
     setError(null);
 
-    loadEvents({ offset: 0, append: false })
+    loadEvents({ offset: 0, append: false, isActive: () => active })
 
       .catch((loadError) => {
 
@@ -148,13 +150,19 @@ export default function AdminAuditPage() {
 
       setSelectedSpan(null);
 
-      return;
+      return undefined;
 
     }
+
+
+
+    let cancelled = false;
 
     apiGet(`/source/${encodeURIComponent(selectedEvent.source_span_id)}`, real)
 
       .then((payload) => {
+
+        if (cancelled) return;
 
         const span = payload?.source_span ?? {};
 
@@ -174,7 +182,19 @@ export default function AdminAuditPage() {
 
       })
 
-      .catch(() => setSelectedSpan(null));
+      .catch(() => {
+
+        if (!cancelled) setSelectedSpan(null);
+
+      });
+
+
+
+    return () => {
+
+      cancelled = true;
+
+    };
 
   }, [selectedEvent]);
 

@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
+export PYTHONPATH="$ROOT_DIR"
 
 HOST=""
 HTTPS=0
@@ -427,13 +428,18 @@ if [[ "$WITH_DEMO" -eq 1 ]]; then
     log "Downloading demo corpus from Yandex Disk"
     python3 eval/yandex_disk_corpus.py --output-dir "$CORPUS_DIR"
   fi
-  log "Seeding demo corpus (offline, via gateway)"
-  ADMIN_PASSWORD="$(env_value AUTH_SEED_ADMIN_PASSWORD)"
-  ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin}"
-  python3 scripts/seed_demo.py \
-    --api-url "http://127.0.0.1/api" \
-    --username admin \
-    --password "$ADMIN_PASSWORD"
+  indexed="$(count_indexed_documents)"
+  if [[ "${indexed:-0}" -gt 0 ]]; then
+    log "Demo corpus already indexed (indexed_documents=${indexed}), skipping seed_demo"
+  else
+    log "Seeding demo corpus (batched, via gateway)"
+    ADMIN_PASSWORD="$(env_value AUTH_SEED_ADMIN_PASSWORD)"
+    ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin}"
+    python3 scripts/seed_demo.py \
+      --api-url "http://127.0.0.1/api" \
+      --username admin \
+      --password "$ADMIN_PASSWORD"
+  fi
 elif [[ "$SKIP_CORPUS" -eq 0 ]]; then
   if [[ -z "$(env_value YANDEX_API_KEY)" ]] || [[ -z "$(env_value YANDEX_FOLDER_ID)" ]]; then
     log "Yandex keys missing; skipping full corpus (use --skip-corpus to silence)"

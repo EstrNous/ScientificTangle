@@ -1,11 +1,13 @@
 import json
 from datetime import UTC, datetime
+from pathlib import PurePosixPath
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
 from shared.contracts import (
+    DictionaryFilePayload,
     DictionaryPackagePayload,
     DictionaryVersionPayload,
     DictionaryVersionStatus,
@@ -14,6 +16,8 @@ from shared.contracts import (
 from shared.web import ServiceError
 
 router = APIRouter(prefix="/v1/dictionaries", tags=["dictionaries"])
+
+DICTIONARY_FILE_KINDS = frozenset({"entities", "aliases", "units", "geographies"})
 
 
 class CreateDictionaryVersionRequest(BaseModel):
@@ -30,16 +34,13 @@ async def create_dictionary_version(
     payload: CreateDictionaryVersionRequest,
     request: Request,
 ) -> DictionaryVersionPayload:
+    validation_errors = _validate_entries(payload.package)
+    if validation_errors:
+        raise ServiceError(422, "dictionary_validation_failed", "; ".join(validation_errors))
     driver = request.app.state.neo4j_driver
     version_id = uuid4()
     created_at = datetime.now(UTC)
     files_json = json.dumps([item.model_dump(mode="json") for item in payload.package.files], ensure_ascii=False)
-    validation_errors = _validate_entries(payload.package)
-    status = (
-        DictionaryVersionStatus.VALIDATION_FAILED
-        if validation_errors
-        else DictionaryVersionStatus.VALIDATED
-    )
     async with driver.session() as session:
         existing = await session.run(
             "MATCH (v:DictionaryVersion {version: $version}) RETURN v LIMIT 1",
@@ -69,9 +70,9 @@ async def create_dictionary_version(
             files_json=files_json,
             uploaded_by=str(payload.uploaded_by),
             created_at=created_at.isoformat(),
-            status=status.value,
+            status=DictionaryVersionStatus.VALIDATED.value,
         )
-        for file in payload.package.files if not validation_errors else []:
+        for file in payload.package.files:
             for entry in file.entries:
                 entry_id = uuid4()
                 await session.run(
@@ -91,8 +92,6 @@ async def create_dictionary_version(
                     canonical=str(entry.get("canonical") or entry.get("name") or ""),
                     payload_json=json.dumps(entry, ensure_ascii=False),
                 )
-    if validation_errors:
-        raise ServiceError(422, "dictionary_validation_failed", "; ".join(validation_errors))
     return DictionaryVersionPayload(
         id=version_id,
         version=payload.package.version,
@@ -205,7 +204,8 @@ async def _load_version(request: Request, version_id: UUID) -> DictionaryVersion
 
 
 def _version_payload(value: dict) -> DictionaryVersionPayload:
-    files = json.loads(str(value.get("files_json") or "[]"))
+    files_raw = json.loads(str(value.get("files_json") or "[]"))
+    files = [DictionaryFilePayload.model_validate(item) for item in files_raw]
     return DictionaryVersionPayload(
         id=UUID(str(value["dictionary_version_id"])),
         version=str(value["version"]),
@@ -228,7 +228,22 @@ def _native_datetime(value):
 
 def _validate_entries(package: DictionaryPackagePayload) -> list[str]:
     errors = []
+    seen_paths: set[str] = set()
     for file in package.files:
+        path_error = _validate_file_path(file.path)
+        if path_error:
+            errors.append(path_error)
+            continue
+        if file.path in seen_paths:
+            errors.append(f"{file.path}:duplicate_path")
+            continue
+        seen_paths.add(file.path)
+        if file.kind not in DICTIONARY_FILE_KINDS:
+            errors.append(f"{file.path}:kind_invalid")
+        if len(file.sha256) != 64:
+            errors.append(f"{file.path}:sha256_invalid")
+        if not file.entries:
+            errors.append(f"{file.path}:entries_required")
         for index, entry in enumerate(file.entries):
             canonical = str(entry.get("canonical") or entry.get("name") or "").strip()
             if not canonical:
@@ -237,3 +252,13 @@ def _validate_entries(package: DictionaryPackagePayload) -> list[str]:
             if not isinstance(aliases, list) or not all(isinstance(value, str) for value in aliases):
                 errors.append(f"{file.path}:{index}:aliases_invalid")
     return errors
+
+
+def _validate_file_path(path: str) -> str | None:
+    normalized = str(path or "").replace("\\", "/").strip()
+    if not normalized:
+        return "dictionary_file:path_required"
+    posix = PurePosixPath(normalized)
+    if posix.is_absolute() or ".." in posix.parts:
+        return f"{normalized}:path_unsafe"
+    return None

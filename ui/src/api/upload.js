@@ -1,4 +1,4 @@
-export { deleteDocument, mapDeleteDocumentResult } from './documents.js';
+export { deleteDocument, fetchDocument, mapDeleteDocumentResult } from './documents.js';
 export {
   resolveDocumentIdFromAuditEvent,
   canDeleteAuditDocument,

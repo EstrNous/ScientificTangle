@@ -5,6 +5,9 @@ target-version = "py312"
 select = ["E4", "E7", "E9", "F", "I", "UP"]
 
 [lint.per-file-ignores]
+"scripts/ensure_cloud_corpus.py" = ["E402"]
 "scripts/neo4j_smoke.py" = ["E402"]
+"scripts/seed_corpus_batches.py" = ["E402"]
+"scripts/seed_demo.py" = ["E402"]
 "scripts/seed_inventory.py" = ["E402"]
 "scripts/seed_reset_gate.py" = ["E402"]

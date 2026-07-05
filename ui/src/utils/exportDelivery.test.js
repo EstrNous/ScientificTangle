@@ -68,6 +68,44 @@ describe('auditNavigation', () => {
       ref: 'span-1',
     });
   });
+
+  it('resolves ingestion task drill-down with ingestionTaskId state', () => {
+    expect(
+      resolveAuditEventTarget({
+        resource_type: 'ingestion_task',
+        resource_id: 'task-1',
+      }),
+    ).toEqual({
+      kind: 'navigate',
+      path: '/upload',
+      state: { ingestionTaskId: 'task-1' },
+    });
+  });
+
+  it('resolves document drill-down with documentId state', () => {
+    expect(
+      resolveAuditEventTarget({
+        details: { document_id: 'doc-1' },
+      }),
+    ).toEqual({
+      kind: 'navigate',
+      path: '/upload',
+      state: { documentId: 'doc-1' },
+    });
+  });
+
+  it('resolves review item drill-down with candidateId state', () => {
+    expect(
+      resolveAuditEventTarget({
+        resource_type: 'review_item',
+        resource_id: 'c-1',
+      }),
+    ).toEqual({
+      kind: 'navigate',
+      path: '/review',
+      state: { candidateId: 'c-1' },
+    });
+  });
 });
 
 describe('auditCsv', () => {

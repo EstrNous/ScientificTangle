@@ -8,6 +8,7 @@ from fastapi import UploadFile, status
 from shared.contracts import (
     ApiError,
     DictionaryVersionPayload,
+    DocumentCatalogItem,
     DocumentCatalogResponse,
     IngestionTaskPayload,
 )
@@ -105,6 +106,22 @@ class GatewayService:
         if response.status_code != status.HTTP_200_OK:
             raise self._downstream_error(response)
         return DocumentCatalogResponse.model_validate(response.json())
+
+    async def get_document(
+        self,
+        document_id: str,
+        authorization: str,
+        request_id: str,
+    ) -> DocumentCatalogItem:
+        response = await self._request(
+            "GET",
+            f"/documents/{document_id}",
+            authorization,
+            request_id,
+        )
+        if response.status_code != status.HTTP_200_OK:
+            raise self._downstream_error(response)
+        return DocumentCatalogItem.model_validate(response.json())
 
     async def delete_document(
         self,

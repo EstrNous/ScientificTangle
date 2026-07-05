@@ -108,7 +108,7 @@ chmod +x scripts/cloud_verify.sh
 ./scripts/cloud_verify.sh
 ```
 
-Скрипт показывает: `compose ps`, `/api/health` и `/api/health/all`, счётчики Postgres (ingestion, indexed documents, source spans), объекты MinIO `source-files`, `points_count` в Qdrant, проверку периметра (internal routes → 404), smoke export/eval и поиск.
+Скрипт показывает: `compose ps`, `/api/health` и `/api/health/all`, счётчики Postgres (ingestion, indexed documents, source spans), объекты MinIO `source-files`, `points_count` в Qdrant, проверку периметра (internal routes → 404), smoke export/eval, multipart upload (`/api/documents/upload` → 202) и поиск.
 
 Для HTTPS-стенда:
 

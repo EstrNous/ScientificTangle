@@ -12,11 +12,12 @@ from adapters.dto import (
 )
 from adapters.neo4j_adapter import Neo4jKnowledgeAdapter
 from adapters.schema import reset_database, seed_schema_registry
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from shared.contracts import GraphSubgraph, QueryIR
 from shared.utils.request_id import generate_request_id
+from shared.web import require_internal_service
 
 from ..storage import KnowledgeStorageAdapter, StorageAdapterNotReady
 
@@ -99,14 +100,14 @@ class ResetGraphResponse(BaseModel):
     bootstrap: BootstrapResultDTO
 
 
-@router.post("/bootstrap", response_model=BootstrapResultDTO)
+@router.post("/bootstrap", response_model=BootstrapResultDTO, dependencies=[Depends(require_internal_service)])
 async def bootstrap_graph(app_request: Request) -> BootstrapResultDTO:
     request_id = getattr(app_request.state, "request_id", None) or generate_request_id()
     adapter: Neo4jKnowledgeAdapter = app_request.app.state.neo4j_adapter
     return await seed_schema_registry(adapter._driver, request_id=request_id)
 
 
-@router.post("/reset", response_model=ResetGraphResponse)
+@router.post("/reset", response_model=ResetGraphResponse, dependencies=[Depends(require_internal_service)])
 async def reset_graph(app_request: Request) -> ResetGraphResponse:
     request_id = getattr(app_request.state, "request_id", None) or generate_request_id()
     adapter: Neo4jKnowledgeAdapter = app_request.app.state.neo4j_adapter

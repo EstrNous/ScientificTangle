@@ -31,7 +31,15 @@ export function resolveAuditEventTarget(event) {
     return {
       kind: 'navigate',
       path: '/upload',
-      state: { taskId: String(resourceId) },
+      state: { ingestionTaskId: String(resourceId) },
+    };
+  }
+
+  if (resourceType === 'review_item' && resourceId) {
+    return {
+      kind: 'navigate',
+      path: '/review',
+      state: { candidateId: String(resourceId) },
     };
   }
 

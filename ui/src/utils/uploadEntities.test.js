@@ -27,6 +27,17 @@ describe('deriveEntitiesFromReport', () => {
 });
 
 describe('createEmptyEntity', () => {
+  it('works when crypto.randomUUID is unavailable', () => {
+    const original = crypto.randomUUID;
+    crypto.randomUUID = undefined;
+    try {
+      const entity = createEmptyEntity();
+      expect(entity.id).toMatch(/^new-/);
+    } finally {
+      crypto.randomUUID = original;
+    }
+  });
+
   it('returns editable draft entity', () => {
     const entity = createEmptyEntity();
     expect(entity.name).toBe('');

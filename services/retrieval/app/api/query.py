@@ -22,6 +22,7 @@ from shared.contracts import (
     SourceSpan,
     StorageWriteResult,
     TableBlock,
+    UserRole,
 )
 from shared.utils.source_span import compute_source_span_id as source_span_id
 from shared.web import ServiceError
@@ -166,6 +167,30 @@ def dedupe_mapping(mapping: dict[str, list[str]]) -> dict[str, list[str]]:
     return {key: list(dict.fromkeys(value)) for key, value in mapping.items()}
 
 
+def build_index_links_by_span(
+    request: RetrievalIndexRequest,
+) -> tuple[dict[str, list[str]], dict[str, list[str]]]:
+    claim_ids_by_span, graph_entity_ids_by_span = knowledge_index_metadata(request.knowledge_results)
+    span_ids_by_document = {
+        document.id: [source_span_id(span) for span in document.source_spans]
+        for document in request.documents
+    }
+    for result in request.knowledge_results:
+        for span_id in span_ids_by_document.get(result.document_id, []):
+            for claim_id in result.graph_write.claim_ids:
+                claim_ids_by_span.setdefault(span_id, []).append(claim_id)
+            for entity_id in result.graph_write.graph_entity_ids:
+                graph_entity_ids_by_span.setdefault(span_id, []).append(entity_id)
+    extra_claim_ids = list(getattr(request, "claim_ids", []) or [])
+    extra_entity_ids = list(getattr(request, "graph_entity_ids", []) or [])
+    if extra_claim_ids or extra_entity_ids:
+        for span_ids in span_ids_by_document.values():
+            for span_id in span_ids:
+                claim_ids_by_span.setdefault(span_id, []).extend(extra_claim_ids)
+                graph_entity_ids_by_span.setdefault(span_id, []).extend(extra_entity_ids)
+    return dedupe_mapping(claim_ids_by_span), dedupe_mapping(graph_entity_ids_by_span)
+
+
 @router.post("/documents/index", response_model=RetrievalIndexResponse)
 async def index_documents(
     request: RetrievalIndexRequest,
@@ -174,7 +199,8 @@ async def index_documents(
     client: httpx.AsyncClient = app_request.app.state.http_client
     bootstrap = await ensure_collection(client)
     claim_ids, graph_entity_ids = collect_index_links(request)
-    points = build_points(request.documents, claim_ids, graph_entity_ids)
+    claim_ids_by_span, graph_entity_ids_by_span = build_index_links_by_span(request)
+    points = build_points(request.documents, claim_ids_by_span, graph_entity_ids_by_span)
     warnings = [*bootstrap.warnings]
     document_ids = [document.id for document in request.documents]
     if not points:
@@ -277,8 +303,6 @@ async def run_query(
     query_ir = QueryIR.model_validate(query_ir_response.json()["query_ir"])
     query_ir.filters = {**query_ir.filters, **request.filters}
     query_ir.limit = request.limit
-    query_ir.filters = {**query_ir.filters, **request.filters}
-    query_ir.limit = request.limit
 
     if request.dictionary_version_id is not None:
         enrichment_response = await client.post(
@@ -311,12 +335,12 @@ async def run_query(
         lexical_search = getattr(adapter, "search_lexical", None)
         tokens = sorted(normalized_tokens(request.question))
         lexical_results = (
-            await lexical_search(tokens, query_ir.filters, request.access_roles, request.limit)
+            await lexical_search(tokens, retrieval_plan.filters, request.access_roles, request.limit)
             if lexical_search is not None
             else SearchResultPayload()
         )
         table_results = (
-            await lexical_search(tokens, query_ir.filters, request.access_roles, request.limit, True)
+            await lexical_search(tokens, retrieval_plan.filters, request.access_roles, request.limit, True)
             if lexical_search is not None
             else SearchResultPayload()
         )
@@ -423,7 +447,7 @@ async def graph_evidence(
         if not isinstance(span, dict) or not span.get("source_span_id"):
             continue
         source = await adapter.get_source(str(span["source_span_id"]), access_roles)
-        if source is None:
+        if source is None or not access_allowed(source.access_policy, access_roles):
             continue
         results.append(
             SearchResult(
@@ -453,9 +477,14 @@ def fuse_channels(channels: dict[str, list[SearchResult]], limit: int) -> list[S
 
 
 def access_levels_for_roles(roles: list[str]) -> list[str]:
-    if "admin" in roles:
+    role_set = set(roles)
+    if UserRole.ADMIN.value in role_set:
         return ["public", "internal", "restricted"]
-    if set(roles) & {"researcher", "analyst", "manager"}:
+    if role_set & {
+        UserRole.RESEARCHER.value,
+        UserRole.ANALYST.value,
+        UserRole.MANAGER.value,
+    }:
         return ["public", "internal"]
     return ["public"]
 
@@ -652,14 +681,9 @@ async def search(
         )
     except StorageAdapterNotReady as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
-    items = [
-        item
-        for item in result.items
-        if access_allowed(item.source.access_policy, request.access_roles)
-    ][: request.limit]
     return SearchResultPayload(
-        items=items,
-        total_found=len(items),
+        items=result.items[: request.limit],
+        total_found=min(result.total_found, request.limit),
         warnings=result.warnings,
     )
 
@@ -672,7 +696,7 @@ async def resolve_source(
 ) -> SourcePayload:
     adapter: RetrievalStorageAdapter = app_request.app.state.storage_adapter
     try:
-        source = await adapter.get_source(source_span_id, ["admin"])
+        source = await adapter.get_source(source_span_id, request.access_roles)
     except StorageAdapterNotReady as error:
         raise HTTPException(status_code=503, detail=str(error)) from error
     if source is None:
@@ -709,15 +733,6 @@ def collect_evidence_items(
                 )
             )
     return items
-
-
-def payload_allowed(payload: dict[str, Any], access_roles: list[str]) -> bool:
-    if "admin" in access_roles:
-        return True
-    if payload.get("access_level") == "public":
-        return True
-    allowed_roles = {str(role) for role in payload.get("allowed_roles", [])}
-    return not allowed_roles or bool(allowed_roles & set(access_roles))
 
 
 def retrieval_match(

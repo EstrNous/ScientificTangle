@@ -19,6 +19,7 @@ export function fetchChatMessages(sessionId) {
   return apiGet(`/chat/sessions/${sessionId}/messages`, real).then(normalizeListResponse);
 }
 
-export function sendChatMessage(sessionId, content) {
-  return apiPost(`/chat/sessions/${sessionId}/messages`, { content }, real);
+export function sendChatMessage(sessionId, content, { queryRunId } = {}) {
+  const body = queryRunId ? { content, query_run_id: queryRunId } : { content };
+  return apiPost(`/chat/sessions/${sessionId}/messages`, body, real);
 }

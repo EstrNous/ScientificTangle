@@ -1,6 +1,6 @@
 import { apiDelete, apiGet, apiOptions } from './client.js';
 import { mapApiError } from './errors.js';
-import { mapDeleteDocumentResult, mapDocumentCatalog } from './mappers/productApi.js';
+import { mapDeleteDocumentResult, mapDocumentCatalog, mapDocumentCatalogItem } from './mappers/productApi.js';
 
 export async function deleteDocument(documentId) {
   try {
@@ -8,6 +8,15 @@ export async function deleteDocument(documentId) {
     return mapDeleteDocumentResult(payload ?? { document_id: documentId, status: 'deleted' });
   } catch (error) {
     throw new Error(mapApiError(error, 'delete_failed'));
+  }
+}
+
+export async function fetchDocument(documentId) {
+  try {
+    const payload = await apiGet(`/documents/${encodeURIComponent(documentId)}`, apiOptions());
+    return mapDocumentCatalogItem(payload);
+  } catch (error) {
+    throw new Error(mapApiError(error, 'document_load_failed'));
   }
 }
 
