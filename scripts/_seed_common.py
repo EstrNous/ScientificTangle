@@ -69,6 +69,17 @@ async def ensure_dictionary(
     headers: dict[str, str],
     dictionary_version: str,
 ) -> dict[str, Any]:
+    active = await client.get(f"{api_url}/dictionaries/active", headers=headers)
+    if active.status_code == 200:
+        payload = active.json()
+        if payload.get("version") == dictionary_version:
+            return {
+                "dictionary": payload,
+                "dictionary_task": {
+                    "status": "completed",
+                    "dictionary_version_id": payload["id"],
+                },
+            }
     package = build_dictionary_zip(dictionary_version)
     uploaded = await client.post(
         f"{api_url}/dictionaries/upload",
@@ -76,8 +87,31 @@ async def ensure_dictionary(
         files={"package": ("dictionary-package.zip", package, "application/zip")},
     )
     uploaded.raise_for_status()
-    dictionary_task = await wait_task(client, api_url, headers, uploaded.json()["id"])
-    version_id = dictionary_task["dictionary_version_id"]
+    dictionary_task = await wait_task(
+        client,
+        api_url,
+        headers,
+        uploaded.json()["id"],
+        raise_on_failed=False,
+    )
+    if dictionary_task.get("status") == "failed":
+        listed = await client.get(f"{api_url}/dictionaries", headers=headers)
+        listed.raise_for_status()
+        existing = next(
+            (item for item in listed.json() if item.get("version") == dictionary_version),
+            None,
+        )
+        if existing is None:
+            raise RuntimeError(
+                dictionary_task.get("error_message") or "Dictionary upload failed"
+            )
+        version_id = existing["id"]
+        dictionary_task = {
+            "status": "completed",
+            "dictionary_version_id": version_id,
+        }
+    else:
+        version_id = dictionary_task["dictionary_version_id"]
     activated = await client.post(
         f"{api_url}/dictionaries/{version_id}/activate",
         headers=headers,

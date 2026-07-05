@@ -106,6 +106,8 @@ def build_env(
         _replace_line(lines, "YANDEX_FOLDER_ID", yandex_folder_id)
     elif "YANDEX_FOLDER_ID" in existing:
         _replace_line(lines, "YANDEX_FOLDER_ID", existing["YANDEX_FOLDER_ID"])
+    if yandex_api_key and yandex_folder_id:
+        _replace_line(lines, "LLM_PROVIDER", "yandex")
     _replace_line(lines, "AUTH_ALLOWED_ORIGINS", build_auth_origins(
         host,
         https=https,
