@@ -1,9 +1,9 @@
 import asyncio
 from types import SimpleNamespace
 
+import httpx
 from app.api.health import ready
-from app.api.indexing import index_documents
-from app.api.query import collect_index_links
+from app.api.query import build_index_links_by_span, collect_index_links
 from app.storage import PendingRetrievalStorageAdapter
 from fastapi import Response
 
@@ -13,43 +13,7 @@ from shared.contracts import (
     RetrievalIndexRequest,
     SourceSpan,
     StorageWriteResult,
-    TableBlock,
 )
-
-COLLECTION_NAME = "st_evidence_v1"
-
-
-class FakeStorageAdapter:
-    is_ready = True
-
-    async def index(self, request: RetrievalIndexRequest) -> StorageWriteResult:
-        return StorageWriteResult(
-            backend="qdrant",
-            mode="live",
-            document_ids=[document.id for document in request.documents],
-            records_count=sum(len(document.source_spans) for document in request.documents),
-        )
-
-
-def test_indexing_uses_real_qdrant_adapter() -> None:
-    request = RetrievalIndexRequest(
-        documents=[
-            NormalizedDocument(
-                id="document-1",
-                source_type="docx",
-                title="report.docx",
-                content="Nickel recovery 82 %",
-            )
-        ]
-    )
-    app_request = SimpleNamespace(
-        app=SimpleNamespace(state=SimpleNamespace(storage_adapter=FakeStorageAdapter()))
-    )
-
-    result = asyncio.run(index_documents(request, app_request))
-
-    assert result.vector_write.mode == "live"
-    assert result.vector_write.document_ids == ["document-1"]
 
 
 def test_readiness_is_closed_for_pending_adapter() -> None:
@@ -64,45 +28,6 @@ def test_readiness_is_closed_for_pending_adapter() -> None:
 
     assert response.status_code == 503
     assert result["ready"] is False
-
-
-def test_indexing_returns_explicit_qdrant_mock_counts() -> None:
-    table = TableBlock(
-        id="table-1",
-        document_id="document-1",
-        page=1,
-        headers=["parameter", "value"],
-        rows=[["recovery", "82 %"]],
-    )
-    request = RetrievalIndexRequest(
-        documents=[
-            NormalizedDocument(
-                id="document-1",
-                source_type="docx",
-                title="report.docx",
-                content="Nickel recovery 82 %",
-                source_spans=[
-                    SourceSpan(
-                        document_id="document-1",
-                        page=1,
-                        start_offset=0,
-                        end_offset=20,
-                        text="Nickel recovery 82 %",
-                        source_type="text",
-                    )
-                ],
-                table_blocks=[table],
-            )
-        ]
-    )
-    app_request = SimpleNamespace(
-        app=SimpleNamespace(state=SimpleNamespace(storage_adapter=FakeStorageAdapter()))
-    )
-
-    result = asyncio.run(index_documents(request, app_request))
-
-    assert result.vector_write.mode == "live"
-    assert result.vector_write.records_count == 1
 
 
 def test_collect_index_links_from_knowledge_results() -> None:
@@ -140,3 +65,88 @@ def test_collect_index_links_from_knowledge_results() -> None:
     claim_ids, entity_ids = collect_index_links(request)
     assert claim_ids == ["claim-1", "claim-2"]
     assert entity_ids == ["entity-1"]
+
+
+def test_build_index_links_by_span_maps_graph_write_to_document_spans() -> None:
+    document = NormalizedDocument(
+        id="document-1",
+        source_type="docx",
+        title="report.docx",
+        content="Nickel recovery 82 %",
+        source_spans=[
+            SourceSpan(
+                document_id="document-1",
+                page=1,
+                start_offset=0,
+                end_offset=20,
+                text="Nickel recovery 82 %",
+                source_type="text",
+            )
+        ],
+    )
+    request = RetrievalIndexRequest(
+        documents=[document],
+        knowledge_results=[
+            KnowledgeIngestionResponse(
+                document_id=document.id,
+                graph_write=StorageWriteResult(
+                    backend="neo4j",
+                    mode="live",
+                    document_ids=[document.id],
+                    claim_ids=["claim-1"],
+                    graph_entity_ids=["entity-1"],
+                ),
+            )
+        ],
+    )
+
+    claim_ids_by_span, entity_ids_by_span = build_index_links_by_span(request)
+
+    span_id = document.source_spans[0].id
+    assert claim_ids_by_span[span_id] == ["claim-1"]
+    assert entity_ids_by_span[span_id] == ["entity-1"]
+
+
+def test_qdrant_adapter_index_writes_documents() -> None:
+    document = NormalizedDocument(
+        id="document-1",
+        source_type="docx",
+        title="report.docx",
+        content="Nickel recovery 82 %",
+        source_spans=[
+            SourceSpan(
+                document_id="document-1",
+                page=1,
+                start_offset=0,
+                end_offset=20,
+                text="Nickel recovery 82 %",
+                source_type="text",
+            )
+        ],
+    )
+    request = RetrievalIndexRequest(documents=[document], knowledge_results=[])
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        if req.url.path.endswith("/collections/st_evidence_v1"):
+            return httpx.Response(200, json={"result": {"status": "green"}})
+        if req.url.path.endswith("/index"):
+            return httpx.Response(200, json={"result": {"status": "ok"}})
+        if req.url.path.endswith("/v1/embeddings"):
+            return httpx.Response(
+                200,
+                json={"embeddings": [{"vector": [0.1, 0.2, 0.3]}]},
+            )
+        if req.url.path.endswith("/points") and req.method == "PUT":
+            return httpx.Response(200, json={"result": {"status": "ok"}})
+        return httpx.Response(404)
+
+    async def execute():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            from app.qdrant_adapter import QdrantRetrievalStorageAdapter
+
+            adapter = QdrantRetrievalStorageAdapter(client)
+            return await adapter.index(request)
+
+    result = asyncio.run(execute())
+    assert result.records_count == 1
+    assert result.document_ids == ["document-1"]

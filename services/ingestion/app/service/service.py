@@ -63,6 +63,8 @@ class IngestionService:
         task_id: UUID,
         files: list[UploadFile],
     ) -> IngestionReport:
+        if not files:
+            raise UploadStorageError(422, "invalid_upload", "At least one file is required")
         try:
             sources = await self._storage.store(user_id, task_id, files)
             return IngestionReport(sources=sources)

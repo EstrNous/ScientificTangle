@@ -1,7 +1,9 @@
 import httpx
+import structlog
 from adapters.mapper import artifacts_to_bundle
 from adapters.neo4j_adapter import Neo4jKnowledgeAdapter
 from fastapi import APIRouter, Request
+from prometheus_client import Counter
 from pydantic import BaseModel, Field
 
 from shared.contracts import (
@@ -15,6 +17,12 @@ from ..core.config import settings
 from .dictionaries import _load_version
 
 router = APIRouter(prefix="/v1/documents", tags=["knowledge"])
+logger = structlog.get_logger()
+neo4j_write_failures = Counter(
+    "knowledge_neo4j_write_failures_total",
+    "Количество неуспешных записей в Neo4j при extraction",
+    ["document_id"],
+)
 
 
 class DocumentGraphDeleteResponse(BaseModel):
@@ -31,12 +39,17 @@ async def extract_document(
 ) -> KnowledgeIngestionResponse:
     request_id = getattr(app_request.state, "request_id", None) or generate_request_id()
     client: httpx.AsyncClient = app_request.app.state.http_client
-    response = await client.post(
-        f"{settings.model_url.rstrip('/')}/v1/extraction/structured",
-        json={"document": request.document.model_dump(mode="json")},
-    )
-    response.raise_for_status()
-    extraction = response.json()
+    warnings: list[str] = []
+    try:
+        response = await client.post(
+            f"{settings.model_url.rstrip('/')}/v1/extraction/structured",
+            json={"document": request.document.model_dump(mode="json")},
+        )
+        response.raise_for_status()
+        extraction = response.json()
+    except httpx.HTTPError as exc:
+        extraction = {"confirmed": [], "candidates": []}
+        warnings.append(f"model_extraction_failed:{exc}")
     if request.dictionary_version_id is not None:
         dictionary = await _load_version(app_request, request.dictionary_version_id)
         canonical_by_alias = {}
@@ -62,7 +75,6 @@ async def extract_document(
     candidates = extraction.get("candidates", [])
     records_count = len(confirmed) + len(candidates)
     confirmed_count = len(confirmed)
-    warnings: list[str] = []
     adapter: Neo4jKnowledgeAdapter | None = getattr(app_request.app.state, "neo4j_adapter", None)
     mode: str = "adapter_pending"
     claim_ids: list[str] = []
@@ -77,7 +89,9 @@ async def extract_document(
                 mode = "live"
             else:
                 warnings.append("neo4j_write_empty")
-        except Exception as exc:
+        except (OSError, RuntimeError, TypeError, ValueError) as exc:
+            neo4j_write_failures.labels(document_id=request.document.id).inc()
+            logger.warning("neo4j_write_failed", error=str(exc), document_id=request.document.id)
             warnings.append(f"neo4j_write_failed:{exc}")
     else:
         warnings.append("neo4j_adapter_pending")

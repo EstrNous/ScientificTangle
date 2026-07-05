@@ -8,6 +8,7 @@ import {
   canDeleteAuditDocument,
   resolveDocumentIdFromAuditEvent,
   resolveUploadedDocuments,
+  uploadFiles,
   waitForIngestionTask,
 } from './uploadCore.js';
 
@@ -68,5 +69,27 @@ describe('uploadCore helpers', () => {
     const result = await waitForIngestionTask('task-1', { intervalMs: 1, timeoutMs: 1000 });
     expect(result.status).toBe('completed');
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('throws when upload response is not ok', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 413 }));
+    await expect(uploadFiles([new File(['x'], 'sample.txt')])).rejects.toThrow('upload_failed');
+  });
+
+  it('throws when task polling returns non-ok response', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 502 }));
+    await expect(waitForIngestionTask('task-1', { intervalMs: 1, timeoutMs: 1000 })).rejects.toThrow(
+      'upload_failed',
+    );
+  });
+
+  it('throws when task polling reports failed status', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ status: 'failed' }),
+    }));
+    await expect(waitForIngestionTask('task-1', { intervalMs: 1, timeoutMs: 1000 })).rejects.toThrow(
+      'upload_failed',
+    );
   });
 });

@@ -3,7 +3,7 @@ from uuid import UUID
 import httpx
 
 from shared.contracts import ApiError
-from shared.web import INTERNAL_SERVICE_TOKEN_HEADER
+from shared.web import ACTING_USER_ID_HEADER, INTERNAL_SERVICE_TOKEN_HEADER
 
 
 class OrchestratorServiceError(Exception):
@@ -36,13 +36,16 @@ class BaseService:
         service_name: str,
         authorization: str | None = None,
         internal_auth: bool = False,
+        acting_user_id: UUID | None = None,
         timeout: float | None = None,
     ) -> dict | list:
         headers = {"X-Request-ID": request_id}
-        if authorization is not None:
+        if authorization is not None and not internal_auth:
             headers["Authorization"] = authorization
         if internal_auth:
             headers[INTERNAL_SERVICE_TOKEN_HEADER] = self._internal_service_token
+            if acting_user_id is not None:
+                headers[ACTING_USER_ID_HEADER] = str(acting_user_id)
         try:
             response = await self._client.request(
                 method,
@@ -72,7 +75,12 @@ class BaseService:
         status_code = response.status_code if 400 <= response.status_code < 600 else 502
         try:
             payload = ApiError.model_validate(response.json())
-            return OrchestratorServiceError(status_code, payload.code, payload.message)
+            return OrchestratorServiceError(
+                status_code,
+                payload.code,
+                payload.message,
+                payload.query_run_id,
+            )
         except (ValueError, TypeError):
             return OrchestratorServiceError(
                 status_code,

@@ -15,6 +15,11 @@ from shared.contracts import IngestionReport, UserRole
 from shared.security import AuthenticatedPrincipal
 
 
+def assert_ingestion_internal_auth(request: httpx.Request, user_id: UUID) -> None:
+    assert request.headers["X-Internal-Service-Token"] == "test-internal-token"
+    assert request.headers["X-Acting-User-Id"] == str(user_id)
+
+
 class FakeRepository:
     def __init__(self, task: IngestionTask | None = None) -> None:
         self.task = task
@@ -146,10 +151,10 @@ def test_create_task_runs_complete_ingestion_pipeline() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         calls.append(request.url.path)
         if request.url.path.endswith("/sources"):
-            assert request.headers["Authorization"] == "Bearer token"
+            assert_ingestion_internal_auth(request, repository.task.user_id)
             return httpx.Response(201, json=report_payload())
         if request.url.path.endswith("/normalize"):
-            assert request.headers["Authorization"] == "Bearer token"
+            assert_ingestion_internal_auth(request, repository.task.user_id)
             return httpx.Response(
                 200,
                 json={"documents": [document_payload()], "warnings": ["parser_warning"]},
@@ -522,6 +527,44 @@ def test_mock_storage_adapter_marks_task_failed() -> None:
 
     asyncio.run(run())
     assert repository.transitions == ["pending", "processing", "failed"]
+
+
+def test_create_ingestion_task_accepts_multipart() -> None:
+    from datetime import UTC, datetime
+    from unittest.mock import AsyncMock, MagicMock
+
+    from app.core.dependencies import get_orchestrator_service
+    from app.main import app
+    from fastapi.testclient import TestClient
+
+    task_id = uuid4()
+    now = datetime.now(UTC)
+    payload = {
+        "id": str(task_id),
+        "status": "pending",
+        "report": None,
+        "error_message": None,
+        "created_at": now.isoformat(),
+        "updated_at": now.isoformat(),
+    }
+    mock_service = MagicMock()
+    mock_service.start_ingestion_task = AsyncMock(return_value=(payload, task_id))
+    mock_service.continue_ingestion_task = AsyncMock()
+    app.dependency_overrides[get_orchestrator_service] = lambda: mock_service
+    app.state.jwt_validator = AsyncMock()
+    app.state.jwt_validator.validate = AsyncMock(return_value=principal())
+    app.state.session_factory = MagicMock()
+    try:
+        client = TestClient(app)
+        response = client.post(
+            "/ingestion/tasks",
+            headers={"Authorization": "Bearer test-token"},
+            files=[("files", ("sample.txt", b"data", "text/plain"))],
+        )
+        assert response.status_code == 202
+        assert response.json()["id"] == str(task_id)
+    finally:
+        app.dependency_overrides.clear()
 
 
 def test_task_is_visible_only_to_owner_or_admin() -> None:

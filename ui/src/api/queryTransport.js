@@ -8,7 +8,8 @@ import {
 import { revealMarkdownText } from '../utils/growingMarkdown.js';
 import { normalizeWarnings, pickScientificFields } from '../utils/answerPayload.js';
 
-const STREAM_PATH = import.meta.env.VITE_QUERY_STREAM_PATH || '/query/stream';
+const baseURL = import.meta.env.VITE_API_URL || '/api';
+const STREAM_PATH = import.meta.env.VITE_QUERY_STREAM_PATH || `${baseURL}/query/stream`;
 
 export function isQueryStreamTransportAvailable() {
   return import.meta.env.VITE_QUERY_STREAM_TRANSPORT === 'true';
@@ -148,12 +149,32 @@ export async function runLiveQueryTransport(
   return { ...message, lifecycle: terminalPhase };
 }
 
+export function resolveStreamFailureReason(response, overrides = {}) {
+  return {
+    code: overrides.code ?? 'query_stream_failed',
+    message: overrides.message ?? response?.statusText ?? 'Stream request failed',
+    status: overrides.status ?? response?.status ?? null,
+  };
+}
+
+export function resolveQueryRunIdFromDonePayload(payload) {
+  const value = payload?.id ?? payload?.query_run_id ?? null;
+  return value != null && value !== '' ? String(value) : null;
+}
+
+export function shouldFallbackToChatQuery(streamResult) {
+  if (!streamResult || streamResult.disabled) {
+    return true;
+  }
+  return streamResult.failReason?.status === 404;
+}
+
 export async function tryRunQueryEventStream(
   { question, authorization },
   { onEvent, signal } = {},
 ) {
   if (!isQueryStreamTransportAvailable()) {
-    return null;
+    return { ok: false, disabled: true };
   }
 
   const response = await fetch(STREAM_PATH, {
@@ -168,34 +189,75 @@ export async function tryRunQueryEventStream(
   });
 
   if (!response.ok || !response.body) {
-    return null;
+    console.warn('[queryTransport] stream request failed', {
+      ok: response.ok,
+      status: response.status,
+      statusText: response.statusText,
+      hasBody: Boolean(response.body),
+    });
+    return {
+      ok: false,
+      failReason: resolveStreamFailureReason(response),
+    };
   }
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
+  let streamError = null;
+  let donePayload = null;
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const parts = buffer.split('\n\n');
-    buffer = parts.pop() ?? '';
-    for (const part of parts) {
-      const dataLine = part
-        .split('\n')
-        .find((line) => line.startsWith('data:'));
-      if (!dataLine) continue;
-      const raw = dataLine.slice(5).trim();
-      if (!raw) continue;
-      try {
-        const event = JSON.parse(raw);
-        onEvent?.(event);
-      } catch {
-        continue;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split('\n\n');
+      buffer = parts.pop() ?? '';
+      for (const part of parts) {
+        const dataLine = part
+          .split('\n')
+          .find((line) => line.startsWith('data:'));
+        if (!dataLine) continue;
+        const raw = dataLine.slice(5).trim();
+        if (!raw) continue;
+        try {
+          const event = JSON.parse(raw);
+          if (event?.type === 'phase' && String(event.phase).toLowerCase() === 'error') {
+            streamError = {
+              code: event.code ?? 'query_stream_failed',
+              message: event.message ?? null,
+              status: null,
+            };
+          }
+          if (event?.type === 'done') {
+            donePayload = event.payload ?? null;
+          }
+          onEvent?.(event);
+        } catch {
+          continue;
+        }
       }
     }
+    if (streamError) {
+      return { ok: false, failReason: streamError };
+    }
+    return { ok: true, donePayload };
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      return { ok: true, aborted: true };
+    }
+    console.warn('[queryTransport] stream read failed', {
+      name: error?.name,
+      message: error?.message,
+    });
+    return {
+      ok: false,
+      failReason: {
+        code: 'query_stream_failed',
+        message: error?.message ?? 'Stream read failed',
+        status: null,
+      },
+    };
   }
-
-  return true;
 }

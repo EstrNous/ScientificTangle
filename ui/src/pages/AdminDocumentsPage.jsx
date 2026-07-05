@@ -74,7 +74,7 @@ export default function AdminDocumentsPage() {
       </div>
       {loading ? <p>{t('common.loading')}</p> : null}
       {error ? <p className="text-red-600">{error}</p> : null}
-      {!loading && !error ? <DocumentCatalogTable items={catalog.items} /> : null}
+      {!loading && !error ? <DocumentCatalogTable items={catalog.items ?? []} /> : null}
     </div>
   );
 }

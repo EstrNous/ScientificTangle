@@ -1,9 +1,10 @@
 from typing import Literal
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from shared.contracts import AccessPolicy, NormalizedDocument, SourceSpan, TableBlock
+from shared.web import require_internal_service
 
 from ..normalization import enrich_normalized_document
 
@@ -25,7 +26,7 @@ class NormalizeDocumentResponse(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
-@router.post("/normalize", response_model=NormalizeDocumentResponse)
+@router.post("/normalize", response_model=NormalizeDocumentResponse, dependencies=[Depends(require_internal_service)])
 async def normalize_document(request: NormalizeDocumentRequest) -> NormalizeDocumentResponse:
     document = build_normalized_document(request)
     warnings = []

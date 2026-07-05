@@ -74,7 +74,7 @@ export default function AccessPolicyTable({
                 <td className="border-b border-nn-border px-2 py-2.5 dark:border-slate-700">
                   <div className="flex max-w-[18rem] flex-wrap gap-1">
                     {ROLE_OPTIONS.map((role) => {
-                      const active = policy.roles.includes(role);
+                      const active = (policy.roles ?? []).includes(role);
                       return (
                         <button
                           key={role}

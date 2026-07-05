@@ -52,25 +52,36 @@ class ChatService:
         content: str,
         authorization: str,
         request_id: str,
+        query_run_id: UUID | None = None,
     ) -> dict:
         await self._require_session(principal, session_id)
-        await self._repository.save_message(session_id, "user", content)
+        saved_user = await self._repository.save_message(session_id, "user", content)
 
         try:
-            query_response = await self._gateway_service.run_query(
-                {"question": content, "filters": {}, "limit": 20},
-                authorization,
-                request_id,
-            )
+            if query_run_id is not None:
+                query_response = await self._gateway_service.get_query_run(
+                    query_run_id,
+                    authorization,
+                    request_id,
+                )
+            else:
+                query_response = await self._gateway_service.run_query(
+                    {"question": content, "filters": {}, "limit": 20},
+                    authorization,
+                    request_id,
+                )
         except GatewayServiceError as error:
+            await self._repository.delete_message(saved_user.id)
             raise ChatServiceError(error.status_code, error.code, error.message) from error
 
         await self._maybe_notify_conflicts(principal, query_response, request_id)
         assistant_payload = self._map_query_response(query_response, principal)
+        run_id = query_run_id or query_response.get("id")
         saved = await self._repository.save_message(
             session_id,
             "assistant",
             json.dumps(assistant_payload, ensure_ascii=False),
+            query_run_id=UUID(str(run_id)) if run_id else None,
         )
         return self._message_payload(saved)
 

@@ -71,3 +71,10 @@ class ChatRepository:
         await self._session.commit()
         await self._session.refresh(message)
         return message
+
+    async def delete_message(self, message_id: UUID) -> None:
+        message = await self._session.get(ChatMessage, message_id)
+        if message is None:
+            return
+        await self._session.delete(message)
+        await self._session.commit()

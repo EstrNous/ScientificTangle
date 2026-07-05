@@ -1,4 +1,4 @@
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
@@ -24,7 +24,9 @@ class NotificationEventCreate(BaseModel):
     type: str
     message: str
     reference_id: str | None = None
-    reference_type: str | None = None
+    reference_type: Literal[
+        "document", "source_span", "query_run", "review_item", "ingestion_task", "external"
+    ] | None = None
     match_score: float | None = None
     match_reason: str = ""
     match_payload: dict[str, Any] | None = None

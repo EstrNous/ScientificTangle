@@ -18,9 +18,12 @@ export default function MatrixConfigPanel({ matrixView, config, onChange, availa
   const pairAvailable = (rowAxis, colAxis) =>
     availablePairs?.includes(`${rowAxis}_${colAxis}`) ?? false;
 
+  const matrixRows = matrixView.rows ?? [];
+  const matrixCols = matrixView.cols ?? [];
+
   const isFiltered = config.rowFilter !== 'all' || config.colFilter !== 'all';
-  const rowCount = config.rowFilter === 'all' ? matrixView.rows.length : 1;
-  const colCount = config.colFilter === 'all' ? matrixView.cols.length : 1;
+  const rowCount = config.rowFilter === 'all' ? matrixRows.length : 1;
+  const colCount = config.colFilter === 'all' ? matrixCols.length : 1;
 
   const handleAxisChange = (field, value) => {
     const next = { ...config, [field]: value };
@@ -108,7 +111,7 @@ export default function MatrixConfigPanel({ matrixView, config, onChange, availa
             className={selectClass}
           >
             <option value="all">{t('lab.matrixConfig.allRows')}</option>
-            {matrixView.rows.map((row) => (
+            {matrixRows.map((row) => (
               <option key={row} value={row}>
                 {row}
               </option>
@@ -130,7 +133,7 @@ export default function MatrixConfigPanel({ matrixView, config, onChange, availa
             className={selectClass}
           >
             <option value="all">{t('lab.matrixConfig.allCols')}</option>
-            {matrixView.cols.map((col) => (
+            {matrixCols.map((col) => (
               <option key={col} value={col}>
                 {col}
               </option>
@@ -179,8 +182,8 @@ export default function MatrixConfigPanel({ matrixView, config, onChange, availa
           : t('lab.matrixConfig.fullSummary', {
               rowType: axisLabel(t, matrixView.rowType),
               colType: axisLabel(t, matrixView.colType),
-              rows: matrixView.rows.length,
-              cols: matrixView.cols.length,
+              rows: matrixRows.length,
+              cols: matrixCols.length,
             })}
       </p>
     </div>

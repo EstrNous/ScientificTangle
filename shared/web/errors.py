@@ -77,9 +77,15 @@ async def _validation_error(request: Request, error: RequestValidationError) -> 
     return _response(request, 422, "validation_error", "Request validation failed")
 
 
+def _http_error_code(status_code: int) -> str:
+    if status_code == 405:
+        return "method_not_allowed"
+    return "http_error"
+
+
 async def _http_error(request: Request, error: HTTPException) -> JSONResponse:
     message = error.detail if isinstance(error.detail, str) else "Request failed"
-    return _response(request, error.status_code, "http_error", message)
+    return _response(request, error.status_code, _http_error_code(error.status_code), message)
 
 
 async def _unexpected_error(request: Request, error: Exception) -> JSONResponse:

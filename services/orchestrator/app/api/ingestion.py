@@ -10,10 +10,14 @@ from shared.web import ServiceError, require_principal
 from ..core.dependencies import get_orchestrator_service
 from ..service.orchestrator import OrchestratorService, OrchestratorServiceError
 
-router = APIRouter(prefix="/ingestion/tasks", tags=["ingestion"])
+router = APIRouter(tags=["ingestion"])
 
 
-@router.post("", response_model=IngestionTaskPayload, status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "/ingestion/tasks",
+    response_model=IngestionTaskPayload,
+    status_code=status.HTTP_202_ACCEPTED,
+)
 async def create_ingestion_task(
     request: Request,
     background_tasks: BackgroundTasks,
@@ -36,13 +40,14 @@ async def create_ingestion_task(
             authorization,
             request.state.request_id,
             request.app.state.session_factory,
+            principal.role.value,
         )
         return payload
     except OrchestratorServiceError as error:
         raise ServiceError(error.status_code, error.code, error.message) from error
 
 
-@router.get("/{task_id}", response_model=IngestionTaskPayload)
+@router.get("/ingestion/tasks/{task_id}", response_model=IngestionTaskPayload)
 async def get_ingestion_task(
     task_id: UUID,
     principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],

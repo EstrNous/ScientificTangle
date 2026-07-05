@@ -46,7 +46,7 @@ export function filterSubgraphByNodeTypes(subgraph, activeTypes, query = '') {
   });
 
   const nodeIds = new Set(nodes.map((n) => n.id));
-  const links = subgraph.links.filter(
+  const links = (subgraph.links ?? []).filter(
     (link) => nodeIds.has(link.source) && nodeIds.has(link.target),
   );
 

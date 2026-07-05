@@ -10,6 +10,7 @@ import {
   mapReviewQueue,
   serializeExportRequest,
 } from './mappers/productApi.js';
+import { resolveUploadedDocuments } from './uploadCore.js';
 
 describe('productApi mappers', () => {
   it('maps interests profile from snake_case payload', () => {
@@ -48,6 +49,108 @@ describe('productApi mappers', () => {
     });
     expect(queue.items[0].name).toBe('Ni');
     expect(queue.total).toBe(1);
+  });
+
+  it('maps notification snake_case fields and legacy is_read fallback', () => {
+    const notification = mapNotification({
+      id: 'n2',
+      title: 'match',
+      reason: '',
+      message: 'legacy body',
+      type: 'interest_match',
+      reference_id: 'span-1',
+      reference_type: 'source_span',
+      is_read: true,
+      match_score: 0.91,
+      match_reason: 'term overlap',
+      created_at: '2026-07-04T12:00:00Z',
+    });
+    expect(notification.reason).toBe('legacy body');
+    expect(notification.read).toBe(true);
+    expect(notification.matchScore).toBe(0.91);
+    expect(notification.matchReason).toBe('term overlap');
+  });
+
+  it('maps review queue from contract-shaped payload with total_found', () => {
+    const queue = mapReviewQueue({
+      items: [
+        {
+          id: 'c1',
+          document_id: 'doc-1',
+          source_span_id: 'span-1',
+          status: 'pending',
+          priority: 'high',
+          payload: { candidate_id: 'NiSO4', candidate_type: 'substance', confidence: 0.82 },
+          created_at: '2026-07-04T07:30:00Z',
+        },
+      ],
+      total_found: 1,
+      warnings: ['queue_stale'],
+    });
+    expect(queue.items[0]).toMatchObject({
+      name: 'NiSO4',
+      type: 'substance',
+      confidence: 0.82,
+      documentId: 'doc-1',
+      sourceSpanIds: ['span-1'],
+    });
+    expect(queue.total).toBe(1);
+    expect(queue.warnings).toEqual(['queue_stale']);
+  });
+
+  it('maps review queue empty payload and snake_case conflicts', () => {
+    const queue = mapReviewQueue({});
+    expect(queue.items).toEqual([]);
+    expect(queue.total).toBe(0);
+    expect(queue.warnings).toEqual([]);
+
+    const withConflicts = mapReviewQueue({
+      items: [],
+      total_found: 0,
+      conflicts: [
+        {
+          id: 'conflict-1',
+          claim_a: 'A',
+          claim_b: 'B',
+          condition_a: 'lab',
+          condition_b: 'field',
+          source_a: 'span-1',
+          source_b: 'span-2',
+        },
+      ],
+    });
+    expect(withConflicts.conflicts[0]).toEqual({
+      id: 'conflict-1',
+      claimA: 'A',
+      claimB: 'B',
+      conditionA: 'lab',
+      conditionB: 'field',
+      sourceA: 'span-1',
+      sourceB: 'span-2',
+    });
+  });
+
+  it('resolveUploadedDocuments handles empty report and sources snake_case', () => {
+    expect(resolveUploadedDocuments(null)).toEqual([]);
+    expect(resolveUploadedDocuments({})).toEqual([]);
+    expect(
+      resolveUploadedDocuments({
+        normalized_documents: [],
+        sources: [
+          {
+            original_filename: 'pack.json',
+            sha256: 'a'.repeat(64),
+            content_type: 'application/json',
+          },
+        ],
+      }),
+    ).toEqual([
+      {
+        id: 'a'.repeat(32),
+        filename: 'pack.json',
+        kind: 'dictionary',
+      },
+    ]);
   });
 
   it('maps export and delete payloads', () => {

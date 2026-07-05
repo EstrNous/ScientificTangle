@@ -4,9 +4,14 @@ import argparse
 import asyncio
 import json
 import os
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 import httpx
 
@@ -302,9 +307,13 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def main() -> None:
-    print(json.dumps(asyncio.run(run_batches(parse_args())), ensure_ascii=False, indent=2))
+def main() -> int:
+    summary = asyncio.run(run_batches(parse_args()))
+    print(json.dumps(summary, ensure_ascii=False, indent=2))
+    if summary.get("batches_failed", 0) > 0:
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

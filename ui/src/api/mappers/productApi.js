@@ -35,11 +35,13 @@ export function mapNotification(item = {}) {
   return {
     id: item.id,
     title: item.title ?? '',
-    reason: item.reason ?? item.message ?? '',
+    reason: item.reason || item.message || '',
     type: item.type ?? 'unknown',
     referenceId: item.reference_id ?? item.referenceId ?? null,
     referenceType: item.reference_type ?? item.referenceType ?? null,
     read: Boolean(item.read ?? item.is_read),
+    matchScore: item.match_score ?? item.matchScore ?? null,
+    matchReason: item.match_reason ?? item.matchReason ?? '',
     createdAt: item.created_at ?? item.createdAt ?? null,
   };
 }
@@ -71,8 +73,9 @@ export function mapReviewQueue(payload = {}) {
   const conflicts = payload.conflicts ?? payload.conflict_items ?? [];
   return {
     items: items.map(mapReviewCandidate),
-    total: payload.total ?? payload.total_found ?? items.length,
+    total: payload.total_found ?? payload.total ?? items.length,
     filters: payload.filters ?? {},
+    warnings: payload.warnings ?? [],
     conflicts: conflicts.map((item) => ({
       id: item.id ?? item.conflict_id,
       claimA: item.claim_a ?? item.claimA ?? '',

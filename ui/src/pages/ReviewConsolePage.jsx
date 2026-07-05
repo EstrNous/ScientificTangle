@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useTranslation } from 'react-i18next';
 
@@ -29,6 +30,7 @@ import { fetchSourceDocument, mergeSourceSpan } from '../api/sourceResolver/inde
 import { useAsyncAction } from '../hooks/useAsyncAction.js';
 
 import { collectCandidateConflicts, indexReviewConflicts } from '../utils/reviewConflicts.js';
+import { resolveCandidateIdFromState, clearNavigationState } from '../utils/locationState.js';
 
 
 
@@ -45,6 +47,9 @@ function isAccessDeniedError(error) {
 export default function ReviewConsolePage() {
 
   const { t } = useTranslation();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const pendingCandidateId = resolveCandidateIdFromState(location.state);
 
   const [loading, setLoading] = useState(true);
 
@@ -72,7 +77,7 @@ export default function ReviewConsolePage() {
 
 
 
-  const loadQueue = useCallback(async () => {
+  const loadQueue = useCallback(async ({ isActive = () => true } = {}) => {
 
     setLoading(true);
 
@@ -82,23 +87,32 @@ export default function ReviewConsolePage() {
 
       const queue = await fetchReviewQueue(filters);
 
-      setItems(queue.items);
+      if (!isActive()) return;
+
+      const queueItems = queue.items ?? [];
+
+      setItems(queueItems);
 
       setConflicts(queue.conflicts ?? []);
 
       setSelectedId((current) => {
+        if (pendingCandidateId && queueItems.some((item) => String(item.id) === pendingCandidateId)) {
+          return pendingCandidateId;
+        }
 
-        if (current && queue.items.some((item) => item.id === current)) {
+        if (current && queueItems.some((item) => item.id === current)) {
 
           return current;
 
         }
 
-        return queue.items[0]?.id ?? null;
+        return queueItems[0]?.id ?? null;
 
       });
 
     } catch (loadError) {
+
+      if (!isActive()) return;
 
       setError(loadError?.message ?? 'review_queue_failed');
 
@@ -110,17 +124,40 @@ export default function ReviewConsolePage() {
 
     } finally {
 
-      setLoading(false);
+      if (isActive()) setLoading(false);
 
     }
 
-  }, [filters]);
+  }, [filters, pendingCandidateId]);
 
 
 
   useEffect(() => {
 
-    loadQueue();
+    if (!pendingCandidateId || !items.length) return;
+
+    if (items.some((item) => String(item.id) === pendingCandidateId)) {
+
+      setSelectedId(pendingCandidateId);
+      clearNavigationState(navigate, location.pathname);
+
+    }
+
+  }, [pendingCandidateId, items, location.pathname, navigate]);
+
+
+
+  useEffect(() => {
+
+    let cancelled = false;
+
+    loadQueue({ isActive: () => !cancelled });
+
+    return () => {
+
+      cancelled = true;
+
+    };
 
   }, [loadQueue]);
 

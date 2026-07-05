@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import PageShell from '../components/shared/PageShell.jsx';
 import { ErrorBanner } from '../components/shared/PageState.jsx';
@@ -7,10 +7,16 @@ import { UploadAnalysisPanel, UploadDropzone, UploadEntityPanel } from '../compo
 import { ensureAuth } from '../api/auth.js';
 import {
   deleteDocument,
+  fetchDocument,
   resolveUploadedDocuments,
   uploadFiles,
 } from '../api/upload.js';
 import { deriveEntitiesFromReport } from '../utils/uploadEntities.js';
+import {
+  resolveDocumentIdFromState,
+  resolveIngestionTaskIdFromState,
+  clearNavigationState,
+} from '../utils/locationState.js';
 
 const baseURL = import.meta.env.VITE_API_URL || '/api';
 
@@ -18,27 +24,49 @@ function fileKey(entry) {
   return `${entry.kind}:${entry.file.name}`;
 }
 
+function uploadedDocumentFromCatalogItem(item) {
+  if (!item?.documentId) return null;
+  return {
+    id: item.documentId,
+    filename: item.title || item.sourcePath || item.documentId,
+    kind: item.sourceType?.includes('json') ? 'dictionary' : 'document',
+  };
+}
+
 export default function UploadPage() {
   const { t } = useTranslation();
   const location = useLocation();
+  const navigate = useNavigate();
   const [files, setFiles] = useState([]);
   const [fileStatuses, setFileStatuses] = useState({});
   const [task, setTask] = useState(null);
   const [uploadedDocuments, setUploadedDocuments] = useState([]);
   const [entities, setEntities] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [documentLoading, setDocumentLoading] = useState(false);
   const [deletingDocumentId, setDeletingDocumentId] = useState(null);
   const [error, setError] = useState(null);
+  const mountedRef = useRef(true);
 
-  const pollTask = useCallback(async (taskId, token) => {
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  const pollTask = useCallback(async (taskId, token, { isActive = () => true } = {}) => {
     for (let attempt = 0; attempt < 60; attempt += 1) {
+      if (!isActive()) return null;
       const response = await fetch(`${baseURL}/tasks/${taskId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (!isActive()) return null;
       if (!response.ok) {
         throw new Error('upload_failed');
       }
       const payload = await response.json();
+      if (!isActive()) return null;
       setTask(payload);
       if (payload.status === 'completed' || payload.status === 'failed') {
         return payload;
@@ -48,19 +76,23 @@ export default function UploadPage() {
     return null;
   }, []);
 
+  const ingestionTaskId = resolveIngestionTaskIdFromState(location.state);
+  const focusedDocumentId = resolveDocumentIdFromState(location.state);
+
   useEffect(() => {
-    const taskId = location.state?.ingestionTaskId;
-    if (!taskId) return undefined;
+    if (!ingestionTaskId) return undefined;
     let active = true;
     (async () => {
       try {
         const token = await ensureAuth();
-        const payload = await pollTask(taskId, token);
+        const payload = await pollTask(ingestionTaskId, token, { isActive: () => active });
         if (!active || !payload) return;
+        setTask(payload);
         if (payload.report) {
           setUploadedDocuments(resolveUploadedDocuments(payload.report));
           setEntities(deriveEntitiesFromReport(payload.report));
         }
+        clearNavigationState(navigate, location.pathname);
       } catch {
         if (active) setError('upload_failed');
       }
@@ -68,7 +100,32 @@ export default function UploadPage() {
     return () => {
       active = false;
     };
-  }, [location.state?.ingestionTaskId, pollTask]);
+  }, [ingestionTaskId, location.pathname, navigate, pollTask]);
+
+  useEffect(() => {
+    if (!focusedDocumentId || ingestionTaskId) return undefined;
+    let active = true;
+    (async () => {
+      setError(null);
+      setDocumentLoading(true);
+      try {
+        const item = await fetchDocument(focusedDocumentId);
+        if (!active) return;
+        const document = uploadedDocumentFromCatalogItem(item);
+        if (document) {
+          setUploadedDocuments([document]);
+        }
+        clearNavigationState(navigate, location.pathname);
+      } catch {
+        if (active) setError('document_load_failed');
+      } finally {
+        if (active) setDocumentLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [focusedDocumentId, ingestionTaskId, location.pathname, navigate]);
 
   const handleFilesSelected = (selected, kind) => {
     setError(null);
@@ -160,7 +217,7 @@ export default function UploadPage() {
         if (!batch.length) continue;
         const payload = await uploadFiles(batch, { kind });
         setTask(payload);
-        const completed = await pollTask(payload.id, token);
+        const completed = await pollTask(payload.id, token, { isActive: () => mountedRef.current });
         lastTask = completed ?? payload;
         if (completed?.status === 'failed') {
           throw new Error('upload_failed');
@@ -223,7 +280,9 @@ export default function UploadPage() {
           <UploadAnalysisPanel
             task={task}
             loading={loading}
+            documentLoading={documentLoading}
             uploadedDocuments={uploadedDocuments}
+            focusedDocumentId={focusedDocumentId}
             onDeleteDocument={handleDeleteUploadedDocument}
             deletingDocumentId={deletingDocumentId}
           />

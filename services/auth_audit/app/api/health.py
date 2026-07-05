@@ -1,5 +1,6 @@
 from typing import Any, cast
 
+import structlog
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse
 from infra.postgres.auth_audit_db import HealthResponse
@@ -8,6 +9,7 @@ from sqlalchemy import text
 from ..service.security import KeyStore
 
 router = APIRouter()
+logger = structlog.get_logger()
 
 
 @router.get("/.well-known/jwks.json")
@@ -28,6 +30,7 @@ async def ready(request: Request) -> Response:
         if request.app.state.repository is None:
             async with request.app.state.session_factory() as session:
                 await session.execute(text("SELECT 1"))
-    except Exception:
+    except Exception as exc:
+        logger.warning("readiness_check_failed", error=str(exc))
         return JSONResponse(status_code=503, content={"status": "unavailable"})
     return JSONResponse(content=HealthResponse().model_dump())

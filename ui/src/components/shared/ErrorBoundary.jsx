@@ -5,11 +5,11 @@ import { useMock } from '../../utils/runtimeMode.js';
 export default class ErrorBoundary extends Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false };
+    this.state = { hasError: false, errorMessage: null };
   }
 
-  static getDerivedStateFromError() {
-    return { hasError: true };
+  static getDerivedStateFromError(error) {
+    return { hasError: true, errorMessage: error?.message ?? null };
   }
 
   componentDidCatch(error, errorInfo) {
@@ -17,7 +17,7 @@ export default class ErrorBoundary extends Component {
   }
 
   handleRetry = () => {
-    this.setState({ hasError: false });
+    this.setState({ hasError: false, errorMessage: null });
   };
 
   handleReload = () => {
@@ -34,6 +34,11 @@ export default class ErrorBoundary extends Component {
           <p className="max-w-md text-sm text-nn-gray dark:text-slate-400">
             {i18n.t('errors.boundaryMessage')}
           </p>
+          {!import.meta.env.PROD && this.state.errorMessage && (
+            <p className="max-w-md break-all text-xs font-mono text-red-600 dark:text-red-400">
+              {this.state.errorMessage}
+            </p>
+          )}
           {useMock && import.meta.env.DEV && (
             <p className="max-w-md text-xs text-nn-gray dark:text-slate-500">
               {i18n.t('errors.boundaryMockHint')}

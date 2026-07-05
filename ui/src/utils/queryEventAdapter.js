@@ -111,6 +111,13 @@ export function applyQueryEvent(handlers, event) {
 
   if (normalized.type === QUERY_EVENT_TYPES.PHASE) {
     handlers.onPhaseChange?.(normalized.phase);
+    if (normalized.phase === CHAT_ANSWER_PHASES.ERROR) {
+      handlers.onStreamError?.({
+        code: event.code ?? event.error_code ?? null,
+        message: event.message ?? event.error ?? null,
+        status: event.status ?? null,
+      });
+    }
     return;
   }
 

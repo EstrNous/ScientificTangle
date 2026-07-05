@@ -43,14 +43,17 @@ export function createMatrixConfig() {
 export function applyMatrixConfig(matrixView, config) {
   if (!matrixView || !config) return null;
 
-  const rowIndices = matrixView.rows
+  const sourceRows = matrixView.rows ?? [];
+  const sourceCols = matrixView.cols ?? [];
+
+  const rowIndices = sourceRows
     .map((name, index) => {
       if (config.rowFilter !== 'all' && name !== config.rowFilter) return -1;
       return index;
     })
     .filter((index) => index >= 0);
 
-  const colIndices = matrixView.cols
+  const colIndices = sourceCols
     .map((name, index) => {
       if (config.colFilter !== 'all' && name !== config.colFilter) return -1;
       return index;
@@ -64,8 +67,8 @@ export function applyMatrixConfig(matrixView, config) {
   return {
     rowType: matrixView.rowType,
     colType: matrixView.colType,
-    rows: rowIndices.map((index) => matrixView.rows[index]),
-    cols: colIndices.map((index) => matrixView.cols[index]),
+    rows: rowIndices.map((index) => sourceRows[index]),
+    cols: colIndices.map((index) => sourceCols[index]),
     matrix: rowIndices.map((row) => colIndices.map((col) => matrixView.matrix[row][col])),
     ...(cellSources
       ? {

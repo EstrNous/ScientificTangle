@@ -58,6 +58,16 @@ class PendingRetrievalStorageAdapter:
         raise StorageAdapterNotReady("qdrant_adapter_pending")
 
 
+def payload_access_allowed(payload: dict, access_roles: list[str]) -> bool:
+    return access_allowed(
+        AccessPolicy(
+            level=str(payload.get("access_level") or "internal"),
+            allowed_roles=[str(role) for role in (payload.get("allowed_roles") or [])],
+        ),
+        access_roles,
+    )
+
+
 def access_allowed(policy: AccessPolicy, access_roles: list[str]) -> bool:
     roles = set(access_roles)
     if UserRole.ADMIN.value in roles:

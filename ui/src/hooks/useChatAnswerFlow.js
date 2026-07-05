@@ -5,6 +5,9 @@ import { ensureAuth, authHeaders } from '../api/auth.js';
 import { uploadFiles, waitForIngestionTask } from '../api/uploadCore.js';
 import {
   isQueryStreamTransportAvailable,
+  mapQueryRunToMessage,
+  resolveQueryRunIdFromDonePayload,
+  shouldFallbackToChatQuery,
   tryRunQueryEventStream,
 } from '../api/queryTransport.js';
 import { useChatAnswerStore } from '../stores/chatAnswerStore.js';
@@ -30,10 +33,19 @@ function resolveQueryFailureReason(error) {
 }
 
 function reportQueryFailure(error, failQuery) {
+  if (error?.failReason) {
+    failQuery(error.failReason);
+    return;
+  }
   failQuery(resolveQueryFailureReason(error));
 }
 
-function createQueryEventHandlers({ setPhase, setRetrievalTrace, setStreamingDraft }) {
+function createQueryEventHandlers({
+  setPhase,
+  setRetrievalTrace,
+  setStreamingDraft,
+  onStreamError,
+}) {
   return {
     onEvent: (event) => {
       applyQueryEvent(
@@ -41,6 +53,7 @@ function createQueryEventHandlers({ setPhase, setRetrievalTrace, setStreamingDra
           onPhaseChange: setPhase,
           onRetrievalStep: setRetrievalTrace,
           onStreamingDraft: (draft, complete) => setStreamingDraft(draft, complete),
+          onStreamError,
         },
         event,
       );
@@ -100,46 +113,60 @@ export function useChatAnswerFlow() {
       const queryMode = liveProduction && streamingUxEnabled ? 'live' : 'session';
       beginQuery(queryMode);
 
-      if (files.length > 0) {
-        const task = await uploadFiles(files);
-        if (task?.id) {
-          await waitForIngestionTask(task.id);
-        }
-      }
-
-      let queryText = text.trim();
-      if (!queryText && files.length > 0) {
-        queryText = t('chat.attachmentQuery');
-      }
-
-      if (liveProduction && streamingUxEnabled && isQueryStreamTransportAvailable()) {
-        const handlers = createQueryEventHandlers({
-          setPhase,
-          setRetrievalTrace,
-          setStreamingDraft,
-        });
-        try {
-          const token = await ensureAuth();
-          const controller = new AbortController();
-          const streamPromise = tryRunQueryEventStream(
-            { question: queryText, authorization: authHeaders(token).Authorization },
-            { onEvent: handlers.onEvent, signal: controller.signal },
-          );
-          const reply = await sendChatMessage(sessionId, queryText);
-          controller.abort();
-          await streamPromise;
-          const trace = mapRetrievalTraceFromResponse(reply, t);
-          if (trace) setRetrievalTrace(trace);
-          const terminalPhase = resolveAnswerPhase(reply);
-          completeQuery(terminalPhase);
-          return { ...reply, lifecycle: terminalPhase };
-        } catch (error) {
-          reportQueryFailure(error, failQuery);
-          throw error;
-        }
-      }
-
       try {
+        if (files.length > 0) {
+          const task = await uploadFiles(files);
+          if (task?.id) {
+            await waitForIngestionTask(task.id);
+          }
+        }
+
+        let queryText = text.trim();
+        if (!queryText && files.length > 0) {
+          queryText = t('chat.attachmentQuery');
+        }
+
+        if (liveProduction && streamingUxEnabled && isQueryStreamTransportAvailable()) {
+          let streamError = null;
+          const handlers = createQueryEventHandlers({
+            setPhase,
+            setRetrievalTrace,
+            setStreamingDraft,
+            onStreamError: (reason) => {
+              streamError = reason;
+            },
+          });
+          const token = await ensureAuth();
+          const streamResult = await tryRunQueryEventStream(
+            { question: queryText, authorization: authHeaders(token).Authorization },
+            { onEvent: handlers.onEvent },
+          );
+          const streamFailReason = streamResult?.failReason ?? streamError;
+          const donePayload = streamResult?.donePayload;
+          if (streamResult?.ok && donePayload) {
+            const queryRunId = resolveQueryRunIdFromDonePayload(donePayload);
+            const reply = queryRunId
+              ? await sendChatMessage(sessionId, queryText, { queryRunId })
+              : mapQueryRunToMessage(donePayload, t);
+            const trace = mapRetrievalTraceFromResponse(reply, t);
+            if (trace) setRetrievalTrace(trace);
+            const terminalPhase = resolveAnswerPhase(reply);
+            completeQuery(terminalPhase);
+            return { ...reply, lifecycle: terminalPhase };
+          }
+          if (!shouldFallbackToChatQuery(streamResult)) {
+            const missingReason = streamFailReason ?? {
+              code: 'query_stream_failed',
+              message: 'Stream finished without answer',
+              status: null,
+            };
+            failQuery(missingReason);
+            throw Object.assign(new Error(missingReason.message ?? 'query_stream_failed'), {
+              failReason: missingReason,
+            });
+          }
+        }
+
         const reply = await sendChatMessage(sessionId, queryText);
         if (streamingUxEnabled) {
           const trace = mapRetrievalTraceFromResponse(reply, t);

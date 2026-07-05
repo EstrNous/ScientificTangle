@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
+export PYTHONPATH="$ROOT_DIR"
 
 BASE_URL=""
 HTTPS=0
@@ -275,6 +276,8 @@ check_public_perimeter() {
     "/orchestrator/health"
     "/ingestion/health"
     "/knowledge/health"
+    "/qdrant/collections"
+    "/minio/health"
   )
   code="$(edge_curl "${BASE_URL}/api/health")"
   if [[ "$code" == "200" ]]; then
@@ -341,6 +344,60 @@ check_export_eval_smoke() {
   fi
 }
 
+check_documents_catalog_smoke() {
+  section "Documents catalog smoke"
+  local token code
+  token="$(auth_login)"
+  if [[ -z "$token" ]]; then
+    warn "auth login failed, skipping documents catalog smoke"
+    return
+  fi
+  if [[ "$HTTPS" -eq 1 ]] || [[ "$BASE_URL" == https://* ]]; then
+    code="$(curl -fsSk -o /dev/null -w '%{http_code}' "${BASE_URL}/api/documents?limit=5" -H "Authorization: Bearer ${token}" 2>/dev/null || echo 000)"
+  else
+    code="$(curl -fsS -o /dev/null -w '%{http_code}' "${BASE_URL}/api/documents?limit=5" -H "Authorization: Bearer ${token}" 2>/dev/null || echo 000)"
+  fi
+  printf '/api/documents -> %s\n' "$code"
+  if [[ "$code" == "200" ]]; then
+    ok "documents catalog"
+  elif [[ "$code" == "403" ]]; then
+    warn "documents catalog requires admin role"
+  else
+    fail "/api/documents -> ${code} (expected 200 or 403)"
+  fi
+}
+
+check_upload_smoke() {
+  section "Upload smoke"
+  local token code tmp
+  token="$(auth_login)"
+  if [[ -z "$token" ]]; then
+    fail "auth login failed, upload smoke requires auth"
+    return
+  fi
+  ok "auth login"
+  tmp="$(mktemp /tmp/st-upload-smoke.XXXXXX.txt)"
+  printf 'cloud verify upload smoke\n' >"$tmp"
+  if [[ "$HTTPS" -eq 1 ]] || [[ "$BASE_URL" == https://* ]]; then
+    code="$(curl -sSk -o /dev/null -w '%{http_code}' "${BASE_URL}/api/documents/upload" \
+      -H "Authorization: Bearer ${token}" \
+      -F "files=@${tmp};filename=cloud-verify.txt;type=text/plain" 2>/dev/null || echo 000)"
+  else
+    code="$(curl -sS -o /dev/null -w '%{http_code}' "${BASE_URL}/api/documents/upload" \
+      -H "Authorization: Bearer ${token}" \
+      -F "files=@${tmp};filename=cloud-verify.txt;type=text/plain" 2>/dev/null || echo 000)"
+  fi
+  rm -f "$tmp"
+  printf '/api/documents/upload -> %s\n' "$code"
+  if [[ "$code" == "202" ]]; then
+    ok "document upload accepts multipart"
+  elif [[ "$code" == "405" ]]; then
+    fail "/api/documents/upload -> 405 Method Not Allowed"
+  else
+    fail "/api/documents/upload -> ${code} (expected 202)"
+  fi
+}
+
 check_search_smoke() {
   section "Search smoke"
   local token body total
@@ -381,6 +438,8 @@ main() {
   check_qdrant_counts
   check_public_perimeter
   check_export_eval_smoke
+  check_upload_smoke
+  check_documents_catalog_smoke
   if [[ "$SKIP_SEARCH" -eq 0 ]]; then
     check_search_smoke
   fi

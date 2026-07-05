@@ -7,6 +7,9 @@ from datetime import UTC, datetime
 from difflib import SequenceMatcher
 from typing import Any
 
+import httpx
+import structlog
+
 try:
     from redis import Redis
     from redis.exceptions import RedisError
@@ -69,6 +72,8 @@ from .contracts import (
 )
 from .core.config import settings
 from .yandex_client import YandexModelClient
+
+logger = structlog.get_logger()
 
 DEGRADED_WARNING = "LLM API is not configured; deterministic degraded extraction is active"
 NUMERIC_PATTERN = re.compile(
@@ -377,7 +382,8 @@ def build_embeddings(request: EmbeddingRequest) -> EmbeddingResponse:
                 for index, text, _ in missing
             ]
             mode = "llm"
-        except Exception as exc:
+        except (httpx.HTTPError, RuntimeError, ValueError, TypeError) as exc:
+            logger.warning("yandex_embeddings_failed", error=str(exc))
             warnings.append(f"Yandex embeddings failed, deterministic fallback used: {exc}")
     if not missing_embeddings:
         missing_embeddings = [
@@ -449,7 +455,8 @@ def build_structured_extraction(request: StructuredExtractionRequest) -> Structu
             warnings.extend(llm_response.unsupported_warnings)
             llm_warnings.extend(llm_response.warnings)
             mode = "llm"
-        except Exception as exc:
+        except (httpx.HTTPError, RuntimeError, ValueError, TypeError, KeyError) as exc:
+            logger.warning("yandex_structured_extraction_failed", error=str(exc))
             llm_warnings.append(f"Yandex structured extraction failed, deterministic fallback used: {exc}")
 
     for span_id, span in span_index.items():
@@ -1199,7 +1206,8 @@ def build_query_ir(request: QueryIRBuildRequest) -> QueryIRBuildResponse:
             query_ir.filters = constraints
             mode = "llm"
             warnings.extend(llm_response.warnings)
-        except Exception as exc:
+        except (httpx.HTTPError, RuntimeError, ValueError, TypeError, KeyError) as exc:
+            logger.warning("yandex_query_ir_failed", error=str(exc))
             warnings.append(f"Yandex Query IR failed, deterministic fallback used: {exc}")
     if mode == "deterministic_degraded":
         warnings.append(DEGRADED_WARNING)
@@ -1240,7 +1248,7 @@ def complete_json_with_fallback(
     for model_name in stable_unique([primary_model, *fallback_models]):
         try:
             return client.complete_json(system_prompt, user_prompt, schema, model_name)
-        except Exception as exc:
+        except (httpx.HTTPError, RuntimeError, ValueError, TypeError, KeyError) as exc:
             errors.append(f"{model_name}: {exc}")
     raise RuntimeError("; ".join(errors))
 
@@ -1542,7 +1550,8 @@ def synthesize_answer(request: AnswerSynthesisRequest) -> AnswerSynthesisRespons
                     ),
                     settings.yandex_chat_model,
                 )
-            except Exception as exc:
+            except (httpx.HTTPError, RuntimeError, ValueError, TypeError, KeyError) as exc:
+                logger.warning("yandex_answer_synthesis_failed", error=str(exc))
                 warnings.append(f"Yandex answer synthesis failed, deterministic fallback used: {exc}")
     if not settings.yandex_enabled:
         warnings.append(DEGRADED_WARNING)

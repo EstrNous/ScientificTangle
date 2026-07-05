@@ -43,6 +43,7 @@ from shared.contracts import (
     UserRole,
 )
 from shared.security import AuthenticatedPrincipal
+from shared.web import ACTING_USER_ID_HEADER, INTERNAL_SERVICE_TOKEN_HEADER
 
 from ..core.config import settings
 from .base import BaseService, OrchestratorServiceError
@@ -137,8 +138,8 @@ class OrchestratorService(BaseService):
         try:
             report = await self._store_sources(
                 task.id,
+                principal.user_id,
                 files,
-                authorization,
                 request_id,
             )
             processing_task = await self._repository.mark_processing(task, report)
@@ -219,8 +220,8 @@ class OrchestratorService(BaseService):
     async def _store_sources(
         self,
         task_id: UUID,
+        user_id: UUID,
         files: list[UploadFile],
-        authorization: str,
         request_id: str,
     ) -> IngestionReport:
         multipart = [
@@ -238,7 +239,11 @@ class OrchestratorService(BaseService):
             response = await self._client.post(
                 f"{self._ingestion_url}/ingestion/tasks/{task_id}/sources",
                 files=multipart,
-                headers={"Authorization": authorization, "X-Request-ID": request_id},
+                headers={
+                    "X-Request-ID": request_id,
+                    INTERNAL_SERVICE_TOKEN_HEADER: self._internal_service_token,
+                    ACTING_USER_ID_HEADER: str(user_id),
+                },
                 timeout=self._ingestion_timeout,
             )
         except httpx.TimeoutException as error:
@@ -282,7 +287,8 @@ class OrchestratorService(BaseService):
                 NormalizeStoredSourcesRequest(sources=report.sources).model_dump(mode="json"),
                 request_id,
                 "ingestion",
-                authorization,
+                internal_auth=True,
+                acting_user_id=user_id,
                 timeout=self._ingestion_timeout,
             )
         )

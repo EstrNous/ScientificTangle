@@ -1,6 +1,24 @@
 from app.main import app
 
 
+def test_upload_route_is_registered_before_delete_document() -> None:
+    ordered: list[tuple[int, str, frozenset[str]]] = []
+    for index, route in enumerate(app.routes):
+        path = getattr(route, "path", None)
+        methods = getattr(route, "methods", None)
+        if path in {"/documents/upload", "/documents/{document_id}"} and methods:
+            ordered.append((index, path, frozenset(methods)))
+    upload_index = next(
+        index for index, path, methods in ordered if path == "/documents/upload" and "POST" in methods
+    )
+    delete_index = next(
+        index
+        for index, path, methods in ordered
+        if path == "/documents/{document_id}" and "DELETE" in methods
+    )
+    assert upload_index < delete_index
+
+
 def test_upload_and_task_routes_are_in_openapi() -> None:
     paths = app.openapi()["paths"]
 
@@ -15,6 +33,7 @@ def test_upload_and_task_routes_are_in_openapi() -> None:
     assert "/graph" in paths
     assert "/search" in paths
     assert paths["/documents/upload"]["post"]["responses"]["202"]
+    assert paths["/documents/{document_id}"]["get"]["responses"]["200"]
     assert paths["/documents/{document_id}"]["delete"]["responses"]["200"]
 
 

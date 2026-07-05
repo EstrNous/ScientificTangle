@@ -9,13 +9,17 @@ import SourceRefsPopover from '../shared/SourceRefsPopover.jsx';
 export default function EvidenceTable({ table }) {
   const { t } = useTranslation();
   const { popover, openPopover, closePopover } = useSourceRefsPopover();
-  const text = [table.columns.join('\t'), ...table.rows.map((r) => r.join('\t'))].join('\n');
-  const sourceColumnIndexes = table.columns
+  const columns = table?.columns ?? [];
+  const rows = (table?.rows ?? []).filter((row) => Array.isArray(row));
+  if (!columns.length) return null;
+
+  const text = [columns.join('\t'), ...rows.map((r) => r.join('\t'))].join('\n');
+  const sourceColumnIndexes = columns
     .map((column, index) => (isSourceColumnName(column) ? index : -1))
     .filter((index) => index >= 0);
 
   const openRowSources = (event, row, rowIndex) => {
-    const sources = getEvidenceRowSources(row, table.columns);
+    const sources = getEvidenceRowSources(row, columns);
     const label = row.find((cell, index) => !sourceColumnIndexes.includes(index) && cell) ?? row[0];
     openPopover(event, {
       title: t('source.refsTitle'),
@@ -32,7 +36,7 @@ export default function EvidenceTable({ table }) {
       <table className="w-full border-collapse text-xs">
         <thead>
           <tr>
-            {table.columns.map((c) => (
+            {columns.map((c) => (
               <th
                 key={c}
                 className="border border-nn-border bg-nn-blue-light px-2 py-1 text-left font-semibold text-nn-blue dark:border-slate-600 dark:bg-slate-800"
@@ -43,7 +47,7 @@ export default function EvidenceTable({ table }) {
           </tr>
         </thead>
         <tbody>
-          {table.rows.map((row, i) => (
+          {rows.map((row, i) => (
             <tr key={i}>
               {row.map((cell, j) => (
                 <td key={j} className="border border-nn-border px-2 py-1 text-gray-900 dark:border-slate-600 dark:text-slate-100">
@@ -56,7 +60,7 @@ export default function EvidenceTable({ table }) {
                       className="w-full rounded px-1 py-0.5 text-left transition-colors hover:bg-nn-blue-light/60 dark:hover:bg-slate-800/60"
                       title={t('chat.evidenceCellHint')}
                     >
-                      {cell}
+                      {cell ?? ''}
                     </button>
                   )}
                 </td>

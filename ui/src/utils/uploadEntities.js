@@ -1,7 +1,16 @@
 const ENTITY_PATTERN = /\b[A-ZА-ЯЁ][a-zа-яё]{2,}(?:[-\s][a-zа-яё]{2,})?\b/g;
 
 function uniqueId(prefix) {
-  return `${prefix}-${crypto.randomUUID()}`;
+  if (typeof crypto?.randomUUID === 'function') {
+    return `${prefix}-${crypto.randomUUID()}`;
+  }
+  if (typeof crypto?.getRandomValues === 'function') {
+    const bytes = new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+    return `${prefix}-${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+  }
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 function titleFromFilename(filename) {

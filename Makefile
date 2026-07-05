@@ -1,4 +1,4 @@
-.PHONY: bootstrap bootstrap-prod ensure-env up up-prod prod down down-prod build build-prod logs logs-prod seed seed-prod prod-demo ingest-demo e2e eval eval-offline-quality eval-yandex-live perf-smoke reset-demo lint test test-model test-neo4j-integration test-yandex-live export-demo deploy-cloud cloud-up cloud-ps cloud-logs cloud-down cloud-down-v cloud-verify test-cloud-nginx
+.PHONY: bootstrap bootstrap-prod ensure-env up up-prod prod down down-prod build build-prod logs logs-prod seed seed-prod prod-demo ingest-demo e2e eval eval-offline-quality eval-yandex-live perf-smoke reset-demo lint test test-model test-neo4j-integration test-upload-integration test-yandex-live export-demo deploy-cloud cloud-up cloud-ps cloud-logs cloud-down cloud-down-v cloud-verify test-cloud-nginx
 
 COMPOSE_DEV = docker compose -f docker-compose.yml -f docker-compose.dev.yml
 COMPOSE_PROD = docker compose -f docker-compose.yml -f docker-compose.prod.yml
@@ -100,6 +100,9 @@ test-model:
 
 test-neo4j-integration:
 	cd tests/integration && RUN_NEO4J_INTEGRATION=1 python -m pytest test_neo4j_smoke.py -v
+
+test-upload-integration:
+	cd tests/integration && RUN_UPLOAD_INTEGRATION=1 python -m pytest test_authenticated_upload.py -v
 
 test-yandex-live:
 	RUN_MODEL_TESTS=1 python scripts/yandex_live_smoke.py

@@ -75,6 +75,7 @@ async def send_message(
             payload.content,
             authorization,
             request_id,
+            payload.query_run_id,
         )
     except ChatServiceError as error:
         raise ServiceError(error.status_code, error.code, error.message) from error

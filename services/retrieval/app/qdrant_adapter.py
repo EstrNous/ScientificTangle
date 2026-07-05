@@ -9,9 +9,11 @@ from shared.contracts import (
     SourcePayload,
     SourceSpan,
     StorageWriteResult,
+    UserRole,
 )
 
 from .core.config import settings
+from .storage import StorageAdapterNotReady, payload_access_allowed
 
 COLLECTION_NAME = "st_evidence_v1"
 VECTOR_SIZE = 256
@@ -22,17 +24,7 @@ def qdrant_url(path: str) -> str:
 
 
 def payload_allowed(payload: dict, access_roles: list[str]) -> bool:
-    if "admin" in access_roles:
-        return True
-    if payload.get("access_level") == "public":
-        return True
-    allowed_roles = {str(role) for role in payload.get("allowed_roles", [])}
-    if payload.get("access_level") == "internal":
-        internal = {"researcher", "analyst", "manager", "director"}
-        if allowed_roles:
-            internal &= allowed_roles
-        return bool(set(access_roles) & internal)
-    return bool(allowed_roles and allowed_roles & set(access_roles))
+    return payload_access_allowed(payload, access_roles)
 
 
 def payload_to_span(payload: dict) -> SourceSpan:
@@ -95,7 +87,9 @@ class QdrantRetrievalStorageAdapter:
         self._client = client
 
     async def index(self, request: RetrievalIndexRequest) -> StorageWriteResult:
-        return StorageWriteResult(backend="qdrant", mode="live")
+        from .indexing_ops import write_index
+
+        return await write_index(self._client, request)
 
     async def search(
         self,
@@ -126,8 +120,6 @@ class QdrantRetrievalStorageAdapter:
         items: list[SearchResult] = []
         for point in response.json().get("result", []):
             payload = point.get("payload") or {}
-            if not payload_allowed(payload, access_roles):
-                continue
             items.append(payload_to_search_result(payload, float(point.get("score") or 0.0)))
             if len(items) >= limit:
                 break
@@ -191,8 +183,6 @@ class QdrantRetrievalStorageAdapter:
         if not points:
             return None
         payload = points[0].get("payload") or {}
-        if not payload_allowed(payload, access_roles):
-            return None
         return payload_to_source(payload)
 
     async def _embed(self, text: str, input_type: str) -> list[float]:
@@ -209,10 +199,16 @@ class QdrantRetrievalStorageAdapter:
 
 def build_filter(filters: dict, access_roles: list[str]) -> dict:
     must: list[dict] = []
-    if "admin" not in access_roles:
+    roles = set(access_roles)
+    if UserRole.ADMIN.value not in roles:
         access_should = [{"key": "access_level", "match": {"value": "public"}}]
         if access_roles:
-            if set(access_roles) & {"researcher", "analyst", "manager"}:
+            internal_roles = {
+                UserRole.RESEARCHER.value,
+                UserRole.ANALYST.value,
+                UserRole.MANAGER.value,
+            }
+            if roles & internal_roles:
                 access_should.extend(
                     [
                         {

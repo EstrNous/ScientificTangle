@@ -44,6 +44,7 @@ function deriveStatusIndex(task) {
 }
 
 function deriveDocumentStages(task, t) {
+  if (!task) return [];
   const activeIndex = deriveStatusIndex(task);
   const failed = task.status === 'failed';
 
@@ -63,6 +64,7 @@ function deriveDocumentStages(task, t) {
 }
 
 export function resolveUploadTaskStages(task, t) {
+  if (!task) return [];
   if (task?.stages?.length) {
     return task.stages.map((stage) => mapBackendStage(stage, t));
   }

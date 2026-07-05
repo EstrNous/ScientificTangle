@@ -130,7 +130,7 @@ export default function GraphPage() {
           ? group
           : {
               ...group,
-              rows: group.rows.map((row, ri) =>
+              rows: (group.rows ?? []).map((row, ri) =>
                 ri !== rowIndex ? row : { ...row, [columnKey]: value },
               ),
             },
@@ -151,7 +151,7 @@ export default function GraphPage() {
           ? group
           : {
               ...group,
-              rows: [...group.rows, { ...EMPTY_ROW }],
+              rows: [...(group.rows ?? []), { ...EMPTY_ROW }],
             },
       ),
     );
@@ -162,7 +162,7 @@ export default function GraphPage() {
       prev.map((group, gi) =>
         gi !== groupIndex
           ? group
-          : { ...group, rows: group.rows.filter((_, ri) => ri !== rowIndex) },
+          : { ...group, rows: (group.rows ?? []).filter((_, ri) => ri !== rowIndex) },
       ),
     );
   };

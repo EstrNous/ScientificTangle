@@ -17,6 +17,7 @@ from shared.web import (
     require_forwarded_auth,
     require_internal_service,
     require_principal,
+    require_service_or_principal,
 )
 
 
@@ -65,6 +66,23 @@ def test_missing_bearer_token_has_normalized_error() -> None:
     assert response.json()["request_id"] == response.headers["X-Request-ID"]
 
 
+def test_method_not_allowed_returns_stable_code() -> None:
+    with TestClient(make_app()) as client:
+        response = client.post("/failure", headers={"X-Request-ID": "request-405"})
+
+    assert response.status_code == 405
+    assert response.json()["code"] == "method_not_allowed"
+    assert response.json()["request_id"] == "request-405"
+
+
+def test_not_found_still_returns_http_error_code() -> None:
+    with TestClient(make_app()) as client:
+        response = client.get("/missing-endpoint")
+
+    assert response.status_code == 404
+    assert response.json()["code"] == "http_error"
+
+
 def test_internal_service_token_is_required() -> None:
     with TestClient(make_app()) as client:
         response = client.get("/internal")
@@ -87,6 +105,32 @@ def test_internal_service_token_rejects_invalid_header() -> None:
 
     assert response.status_code == 401
     assert response.json()["code"] == "authentication_required"
+
+
+def test_service_or_principal_accepts_internal_token_with_acting_user() -> None:
+    user_id = uuid4()
+    app = FastAPI()
+    app.middleware("http")(request_id_middleware)
+    install_error_handlers(app)
+    app.state.internal_service_token = "test-internal-token"
+
+    @app.get("/ingestion-like")
+    async def ingestion_like(
+        caller=Depends(require_service_or_principal),
+    ) -> dict[str, str]:
+        return {"user_id": str(caller.user_id), "internal": str(caller.internal)}
+
+    with TestClient(app) as client:
+        response = client.get(
+            "/ingestion-like",
+            headers={
+                "X-Internal-Service-Token": "test-internal-token",
+                "X-Acting-User-Id": str(user_id),
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.json() == {"user_id": str(user_id), "internal": "True"}
 
 
 def test_rate_limit_returns_normalized_error_and_headers() -> None:

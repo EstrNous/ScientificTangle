@@ -146,6 +146,18 @@ class DocumentCatalogRepository:
             )
         await self._session.commit()
 
+    async def get_document(self, document_id: str) -> dict | None:
+        result = await self._session.execute(
+            select(IndexedDocument).where(
+                IndexedDocument.document_id == document_id,
+                IndexedDocument.deletion_status == DocumentDeletionStatus.NONE.value,
+            )
+        )
+        row = result.scalar_one_or_none()
+        if row is None:
+            return None
+        return self._indexed_document_item(row)
+
     async def list_documents(
         self,
         *,

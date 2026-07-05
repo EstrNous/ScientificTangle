@@ -27,6 +27,7 @@ class ChatSessionResponse(BaseModel):
 
 class ChatMessageCreate(BaseModel):
     content: str = Field(min_length=1)
+    query_run_id: UUID | None = None
 
     @field_validator("content")
     @classmethod

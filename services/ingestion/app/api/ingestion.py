@@ -8,8 +8,7 @@ from shared.contracts import (
     NormalizeStoredSourcesRequest,
     NormalizeStoredSourcesResponse,
 )
-from shared.security import AuthenticatedPrincipal
-from shared.web import ServiceError, require_principal
+from shared.web import ServiceCaller, ServiceError, require_service_or_principal
 
 from ..core.dependencies import get_ingestion_service
 from ..service.service import IngestionService, SourceNormalizationError, UploadStorageError
@@ -25,11 +24,11 @@ router = APIRouter(prefix="/ingestion/tasks", tags=["ingestion"])
 async def store_sources(
     task_id: UUID,
     files: Annotated[list[UploadFile], File()],
-    principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],
+    caller: Annotated[ServiceCaller, Depends(require_service_or_principal)],
     service: Annotated[IngestionService, Depends(get_ingestion_service)],
 ) -> IngestionReport:
     try:
-        return await service.store_sources(principal.user_id, task_id, files)
+        return await service.store_sources(caller.user_id, task_id, files)
     except UploadStorageError as error:
         raise ServiceError(error.status_code, error.code, error.message) from error
 
@@ -41,10 +40,10 @@ async def store_sources(
 async def normalize_sources(
     task_id: UUID,
     payload: NormalizeStoredSourcesRequest,
-    principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],
+    caller: Annotated[ServiceCaller, Depends(require_service_or_principal)],
     service: Annotated[IngestionService, Depends(get_ingestion_service)],
 ) -> NormalizeStoredSourcesResponse:
     try:
-        return await service.normalize_sources(principal.user_id, task_id, payload)
+        return await service.normalize_sources(caller.user_id, task_id, payload)
     except SourceNormalizationError as error:
         raise ServiceError(error.status_code, error.code, error.message) from error
