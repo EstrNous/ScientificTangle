@@ -1,18 +1,16 @@
 from app.main import app
 
 
-def _route_method_index(app_instance, path: str, method: str) -> int:
-    for index, route in enumerate(app_instance.routes):
-        route_path = getattr(route, "path", None)
-        methods = getattr(route, "methods", None)
-        if route_path == path and methods and method in methods:
-            return index
-    raise AssertionError(f"Route {method} {path} is not registered")
+def _openapi_path_index(app_instance, path: str) -> int:
+    paths = app_instance.openapi()["paths"]
+    if path not in paths:
+        raise AssertionError(f"Path {path} is not registered in OpenAPI")
+    return list(paths).index(path)
 
 
 def test_upload_route_is_registered_before_delete_document() -> None:
-    upload_index = _route_method_index(app, "/documents/upload", "POST")
-    delete_index = _route_method_index(app, "/documents/{document_id}", "DELETE")
+    upload_index = _openapi_path_index(app, "/documents/upload")
+    delete_index = _openapi_path_index(app, "/documents/{document_id}")
     assert upload_index < delete_index
 
 
