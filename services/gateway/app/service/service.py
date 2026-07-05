@@ -376,7 +376,12 @@ class GatewayService:
                 file_size += len(chunk)
                 total_size += len(chunk)
                 if total_size > self._upload_limit_bytes:
-                    raise GatewayServiceError(413, "upload_too_large", "Upload exceeds the 100 MB limit")
+                    limit_mb = self._upload_limit_bytes // (1024 * 1024)
+                    raise GatewayServiceError(
+                        413,
+                        "upload_too_large",
+                        f"Upload exceeds the {limit_mb} MB limit",
+                    )
             await upload.seek(0)
             if file_size == 0:
                 raise GatewayServiceError(422, "empty_file", "Empty files are not accepted")

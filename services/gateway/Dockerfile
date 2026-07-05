@@ -25,6 +25,7 @@ COPY --from=deps /app/shared /app/shared
 COPY infra/__init__.py /app/infra/__init__.py
 COPY infra/postgres/__init__.py /app/infra/postgres/__init__.py
 COPY infra/postgres/chat_ui_db /app/infra/postgres/chat_ui_db
+COPY eval /app/services/gateway/eval
 COPY services/gateway/app ./app
 
 RUN useradd --create-home --uid 10001 appuser

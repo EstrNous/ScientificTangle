@@ -1,4 +1,4 @@
-import { useMock } from '../api/client.js';
+import { resolveUseMock } from './runtimeMode.js';
 import { fetchInterestsProfile, updateInterestsProfile } from '../api/interests.js';
 import { extractInterests } from './interestsExtract.js';
 import { loadUserInterests, saveUserInterests } from './interestsStorage.js';
@@ -29,7 +29,7 @@ function applyClientExtractionFallback(profile, rawText) {
 }
 
 export async function loadInterestsProfile(userId) {
-  if (useMock) {
+  if (resolveUseMock()) {
     return loadUserInterests(userId);
   }
   const profile = await fetchInterestsProfile();
@@ -45,7 +45,7 @@ export async function loadInterestsProfile(userId) {
 }
 
 export async function saveInterestsProfile(userId, rawText) {
-  if (useMock) {
+  if (resolveUseMock()) {
     const interests = extractInterests(rawText);
     saveUserInterests(userId, rawText, interests);
     return { rawText, interests, extractedEntities: [], warnings: [] };

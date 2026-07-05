@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { useMock } from '../utils/runtimeMode.js';
+import { resolveUseMock } from '../utils/runtimeMode.js';
 import { ROLES, useAuthStore } from '../stores/authStore.js';
 
 const authHttp = axios.create({
@@ -104,7 +104,7 @@ export async function ensureAuth() {
   const state = useAuthStore.getState();
   if (state.accessToken) return state.accessToken;
 
-  if (!useMock) {
+  if (!resolveUseMock()) {
     return restoreLiveSession();
   }
 
@@ -127,7 +127,7 @@ function authorizedConfig() {
 }
 
 export async function fetchCurrentUser() {
-  if (useMock) {
+  if (resolveUseMock()) {
     const state = useAuthStore.getState();
     if (state.user) return state.user;
     const identifier = import.meta.env.VITE_AUTH_USERNAME ?? 'researcher';
@@ -146,7 +146,7 @@ export async function fetchCurrentUser() {
 }
 
 export async function updateProfile({ currentPassword, username, email }) {
-  if (useMock) {
+  if (resolveUseMock()) {
     const state = useAuthStore.getState();
     const user = {
       ...state.user,
@@ -175,7 +175,7 @@ export async function updateProfile({ currentPassword, username, email }) {
 }
 
 export async function changePassword({ currentPassword, newPassword }) {
-  if (useMock) {
+  if (resolveUseMock()) {
     return {
       access_token: useAuthStore.getState().accessToken,
       user: useAuthStore.getState().user,
@@ -193,7 +193,7 @@ export async function changePassword({ currentPassword, newPassword }) {
 export async function logout() {
   let error;
   try {
-    if (!useMock) {
+    if (!resolveUseMock()) {
       await authHttp.post('/api/auth/logout', {}, authorizedConfig());
     }
   } catch (caught) {
@@ -209,7 +209,7 @@ export async function logout() {
 export async function logoutAll() {
   let error;
   try {
-    if (!useMock) {
+    if (!resolveUseMock()) {
       await authHttp.post('/api/auth/logout-all', {}, authorizedConfig());
     }
   } catch (caught) {
@@ -223,7 +223,7 @@ export async function logoutAll() {
 }
 
 export async function deactivateAccount(currentPassword) {
-  if (!useMock) {
+  if (!resolveUseMock()) {
     await authHttp.delete('/api/auth/me', {
       ...authorizedConfig(),
       data: { current_password: currentPassword },

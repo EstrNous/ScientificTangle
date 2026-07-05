@@ -5,7 +5,8 @@ import { useThemeStore } from '../../stores/themeStore.js';
 import { GRAPH_NODE_COLORS } from './graphNodeTypes.js';
 
 export default function KnowledgeGraph({ subgraph, selectedNodeId, onNodeClick, emptyMessage }) {
-  const { t } = useTranslation();  const graphRef = useRef();
+  const { t } = useTranslation();
+  const graphRef = useRef();
   const containerRef = useRef();
   const [size, setSize] = useState({ width: 0, height: 0 });
   const theme = useThemeStore((s) => s.theme);

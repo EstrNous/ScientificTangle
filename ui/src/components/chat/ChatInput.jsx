@@ -1,4 +1,5 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 const ACCEPT = '.pdf,.doc,.docx,.txt,.md,.xlsx,.csv';
 
@@ -16,6 +17,7 @@ function PaperclipIcon() {
 }
 
 const ChatInput = forwardRef(function ChatInput({ onSend, disabled }, ref) {
+  const { t } = useTranslation();
   const fileRef = useRef(null);
   const messageRef = useRef(null);
   const [files, setFiles] = useState([]);
@@ -70,7 +72,7 @@ const ChatInput = forwardRef(function ChatInput({ onSend, disabled }, ref) {
                 type="button"
                 onClick={() => removeFile(file.name)}
                 className="ml-0.5 text-nn-blue hover:text-nn-blue-dark"
-                aria-label={`Убрать ${file.name}`}
+                aria-label={t('chat.removeAttachment', { name: file.name })}
               >
                 ×
               </button>
@@ -96,8 +98,8 @@ const ChatInput = forwardRef(function ChatInput({ onSend, disabled }, ref) {
           onClick={() => fileRef.current?.click()}
           disabled={disabled}
           className="flex shrink-0 items-center justify-center rounded-lg border border-nn-border px-3 text-nn-blue transition-colors hover:border-nn-blue hover:bg-nn-blue-light disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:hover:bg-slate-800"
-          aria-label="Прикрепить файл"
-          title="Прикрепить PDF, DOCX, TXT"
+          aria-label={t('chat.attachFile')}
+          title={t('chat.attachFileHint')}
         >
           <PaperclipIcon />
         </button>
@@ -106,10 +108,10 @@ const ChatInput = forwardRef(function ChatInput({ onSend, disabled }, ref) {
           name="message"
           disabled={disabled}
           className="min-w-0 flex-1 rounded-lg border border-nn-border bg-nn-gray-light px-4 py-2.5 text-sm text-gray-900 outline-none focus:border-nn-blue focus:ring-1 focus:ring-nn-blue disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-          placeholder="Задайте вопрос…"
+          placeholder={t('chat.inputPlaceholder')}
         />
         <button type="submit" disabled={disabled} className="nn-btn-ghost shrink-0 disabled:cursor-not-allowed disabled:opacity-50">
-          Отправить
+          {t('chat.send')}
           <span aria-hidden>›</span>
         </button>
       </div>

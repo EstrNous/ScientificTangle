@@ -30,6 +30,9 @@ class FakeSession:
     async def commit(self) -> None:
         self.committed = True
 
+    async def flush(self) -> None:
+        return None
+
     async def refresh(self, item: object) -> None:
         return None
 
@@ -120,6 +123,37 @@ def test_attach_export_artifacts_commits_when_mark_completed() -> None:
     assert session.begin_count == 0
     assert session.committed is True
     assert job.status == ExportJobStatus.COMPLETED.value
+
+
+def test_complete_audit_csv_export_does_not_begin_nested_transaction() -> None:
+    from infra.postgres.orchestrator_db.models import AuditCsvExport, AuditCsvExportStatus
+
+    session = FakeSession()
+    export_id = uuid4()
+    row = AuditCsvExport(
+        id=export_id,
+        user_id=uuid4(),
+        status=AuditCsvExportStatus.PENDING.value,
+        filter_params={},
+        bucket_name="exports",
+        created_at=datetime.now(UTC),
+    )
+    session._objects[export_id] = row
+    repo = ProductEventsStorageRepository(session)
+
+    result = asyncio.run(
+        repo.complete_audit_csv_export(
+            export_id,
+            storage_key="audit/exports/demo.csv",
+            row_count=3,
+        )
+    )
+
+    assert session.begin_count == 0
+    assert session.committed is True
+    assert result.status == AuditCsvExportStatus.COMPLETED.value
+    assert result.storage_key == "audit/exports/demo.csv"
+    assert result.row_count == 3
 
 
 def test_complete_export_with_artifacts_without_nested_transaction() -> None:

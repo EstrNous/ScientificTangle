@@ -3,6 +3,9 @@ import { ensureAuth } from './auth.js';
 const baseURL = import.meta.env.VITE_API_URL || '/api';
 
 export async function uploadFiles(files, { kind = 'document' } = {}) {
+  if (!files.length) {
+    throw new Error('upload_failed');
+  }
   const token = await ensureAuth();
   const formData = new FormData();
   const path =
@@ -10,9 +13,6 @@ export async function uploadFiles(files, { kind = 'document' } = {}) {
       ? `${baseURL}/dictionaries/upload`
       : `${baseURL}/documents/upload`;
   if (kind === 'dictionary') {
-    if (!files.length) {
-      throw new Error('upload_failed');
-    }
     formData.append('package', files[0]);
   } else {
     files.forEach((file) => formData.append('files', file));
@@ -28,6 +28,31 @@ export async function uploadFiles(files, { kind = 'document' } = {}) {
   return response.json();
 }
 
+export async function waitForIngestionTask(
+  taskId,
+  { timeoutMs = 900000, intervalMs = 1500 } = {},
+) {
+  const token = await ensureAuth();
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    const response = await fetch(`${baseURL}/tasks/${taskId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      throw new Error('upload_failed');
+    }
+    const payload = await response.json();
+    if (payload.status === 'completed') {
+      return payload;
+    }
+    if (payload.status === 'failed') {
+      throw new Error('upload_failed');
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  throw new Error('upload_failed');
+}
+
 export function resolveDocumentIdFromAuditEvent(event) {
   const details = event?.details ?? {};
   if (details.document_id) {
@@ -39,8 +64,10 @@ export function resolveDocumentIdFromAuditEvent(event) {
   return null;
 }
 
+const DELETABLE_UPLOAD_ACTIONS = new Set(['ingestion_upload', 'document_uploaded']);
+
 export function canDeleteAuditDocument(event) {
-  return event?.action === 'ingestion_upload' && resolveDocumentIdFromAuditEvent(event) != null;
+  return DELETABLE_UPLOAD_ACTIONS.has(event?.action) && resolveDocumentIdFromAuditEvent(event) != null;
 }
 
 export function resolveUploadedDocuments(report) {

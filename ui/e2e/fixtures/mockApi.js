@@ -198,6 +198,42 @@ export async function installProductionApiMocks(page) {
       return;
     }
 
+    if (chatSessionMessagesPath(pathname) && method === 'POST') {
+      const sessionId = pathname.split('/')[4];
+      const body = request.postDataJSON();
+      const content = String(body?.content ?? '').trim();
+      const now = Date.now();
+      const userMessage = {
+        id: `msg-${now}`,
+        role: 'user',
+        content,
+      };
+      const assistantMessage = {
+        id: `msg-${now}-assistant`,
+        role: 'assistant',
+        content: 'Ответ сформирован на основе доступных источников.',
+        confidence: 0.82,
+        sources: [
+          {
+            title: 'Шахтные воды',
+            author: 'demo.pdf',
+            date: '2023',
+            confidence_level: 'verified',
+            source_span_id: 'span-public-1',
+          },
+        ],
+        query_run_id: 'run-e2e-1',
+      };
+      const existing = state.chatMessagesBySession[sessionId] ?? [];
+      state.chatMessagesBySession[sessionId] = [...existing, userMessage, assistantMessage];
+      const session = state.chatSessions.find((item) => item.id === sessionId);
+      if (session && !session.title) {
+        session.title = content.slice(0, 64) || 'Новый запрос';
+      }
+      await route.fulfill(json(assistantMessage));
+      return;
+    }
+
     if (chatSessionItemPath(pathname) && method === 'DELETE') {
       const sessionId = pathname.split('/').pop();
       state.chatSessions = state.chatSessions.filter((item) => item.id !== sessionId);

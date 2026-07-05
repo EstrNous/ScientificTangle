@@ -96,9 +96,12 @@ def test_upload_rejects_payload_above_200mb_default_limit() -> None:
                     "request-1",
                 )
             assert error.value.code == "upload_too_large"
+            assert "200 MB" in error.value.message
 
     asyncio.run(run())
 
+
+def test_delete_document_forwards_authentication_and_request_id() -> None:
     captured: dict[str, str] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:

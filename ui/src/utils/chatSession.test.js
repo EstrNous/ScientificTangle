@@ -56,6 +56,19 @@ describe('findReusableEmptyDraftSession', () => {
     ).toBe(draft);
   });
 
+  it('returns null when another draft already has messages', () => {
+    const draftWithMessages = { id: 'draft-2', title: defaultTitle };
+    expect(
+      findReusableEmptyDraftSession(
+        [draft, active, draftWithMessages],
+        'active-1',
+        [{ id: 'm1' }],
+        defaultTitle,
+        { 'draft-2': [{ id: 'm2' }] },
+      ),
+    ).toBe(draft);
+  });
+
   it('returns null when no reusable draft exists', () => {
     expect(
       findReusableEmptyDraftSession([active], 'active-1', [{ id: 'm1' }], defaultTitle),
