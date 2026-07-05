@@ -1,0 +1,43 @@
+# MVP: точка отсечки
+
+Выдержка из `docs/nauchny_klubok_top1_tz.md` §6 и §33. Полный текст — в основном ТЗ.
+
+**Статус реализации (2026-07-04):** ~90% чеклиста закрыт. Детали — [`implementation_quality_report.md`](../agent_context/implementation_quality_report.md), [`feature_readiness_matrix.md`](../agent_context/feature_readiness_matrix.md).
+
+## Когда MVP готов
+
+Команда проходит полный end-to-end без ручных правок в БД и консоли в момент демо.
+
+## Обязательный pipeline
+
+Загрузка файлов/ZIP → исходники → парсинг → NormalizedDocument → SourceSpan → справочники → сущности → числа → claims → Neo4j → Qdrant (chunks/table rows) → Query IR → гибридный + графовый + табличный поиск → fusion → проверка источников → ответ в UI (таблица, источники, локальный граф).
+
+## Обязательные свойства
+
+- Ответы на ≥4 официальных вопроса в базовом виде; каждая ключевая строка — с источником.
+- Числа выделены; география хотя бы: отечественная / зарубежная / неизвестно.
+- Unsupported claims явно помечены.
+- Роли: админ, исследователь, внешний партнёр; access policy на документы.
+- Audit log: запросы, просмотры источников, экспорт.
+- Воспроизводимый запуск: docker compose, `.env.example`, Makefile, seed, healthchecks.
+
+## Чеклист vs код (2026-07-04)
+
+| Пункт | Статус | Комментарий |
+|-------|--------|-------------|
+| Стек поднимается | ✅ | docker-compose + healthchecks + CI e2e job |
+| UI и Gateway отвечают | ✅ | real API в compose (`VITE_USE_MOCK=false`) |
+| ingestion → NormalizedDocument → SourceSpan | ✅ | parsers + MinIO |
+| claims в Neo4j | ✅ | Neo4jKnowledgeAdapter |
+| chunks в Qdrant | ✅ | `st_evidence_v1`, seed_demo |
+| Query IR + retrieval | ✅ | hybrid: dense + lexical + table + graph fusion |
+| ответ в чат с таблицей и графом | ✅ | ChatPage, EvidenceTable, LocalGraph |
+| geo/numeric фильтры базово | ✅ | Query IR + Qdrant filters |
+| audit и роли | ✅ backend / ⚠️ UI | RoleSwitcher только при `VITE_USE_MOCK=true` |
+| export Markdown/JSON/JSON-LD | ✅ | orchestrator → export service → MinIO |
+| export PDF | ❌ | backlog post-MVP |
+| post-ingestion notifications | ❌ | conflict events есть; `ingestion_complete` runtime — нет |
+| demo script готов | ✅ | `make seed`, `make eval`, `scripts/seed_demo.py` |
+| ≥4 официальных вопроса | ⚠️ | dataset + offline gate; pinned live eval artifact — нет |
+
+Оставшиеся ⚠️/❌ — см. план закрытия MVP 100% в [`feature_readiness_matrix.md`](../agent_context/feature_readiness_matrix.md).

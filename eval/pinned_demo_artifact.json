@@ -1,0 +1,52 @@
+{
+  "schema_version": "pinned_demo_artifact.v1",
+  "artifact_id": "top1-e4-demo-eval-20260704",
+  "created_at": "2026-07-04",
+  "description": "Pinned input artifact for Top-1 eval regression without live model outputs.",
+  "update_rules": [
+    "Update only through a dedicated eval regression PR.",
+    "Recompute sha256 for every changed input file.",
+    "Do not commit live model answers into this artifact.",
+    "Keep eval reports separate under eval/reports/."
+  ],
+  "inputs": [
+    {
+      "path": "eval/gold_questions.json",
+      "role": "gold_questions",
+      "schema_version": "gold_questions.v2",
+      "sha256": "0516dc61eaf4b5cb0e369ff76d8a09e5d45bffe9192b01a1c966b84f275ca05d"
+    },
+    {
+      "path": "eval/reviewed_source_fixtures.json",
+      "role": "reviewed_source_fixtures",
+      "schema_version": "reviewed_source_fixtures.v1",
+      "sha256": "2b068eacd81a5c639f6a95878a77f5d4ea9bd2f23698c445903dde5e7c469fd6"
+    },
+    {
+      "path": "eval/regression_suites.json",
+      "role": "regression_suites",
+      "schema_version": "ml_eval_suites.v1",
+      "sha256": "c4b8c502a106791cf702dba44b612f50a79d4267905ffeab99bdcc960c712b45"
+    },
+    {
+      "path": "demo/seed_data/mvp_normalized_documents.json",
+      "role": "normalized_demo_corpus",
+      "sha256": "4b1131075f0219e83138138b63ed4b1ee450e400b074a75c89267de58eeacb08"
+    },
+    {
+      "path": "demo/official_questions.md",
+      "role": "official_questions_mirror",
+      "sha256": "967204c1fbdad4fbc74d725662c53f047aadfc9cf66f0273492adf5f57853a25"
+    }
+  ],
+  "non_pinned_inputs": [
+    {
+      "path": "eval/reports/latest.json",
+      "reason": "Generated per run and must be compared by schema, not treated as source input."
+    },
+    {
+      "path": "eval/yandex_disk_corpus.py output",
+      "reason": "Depends on external public corpus state and local download timing."
+    }
+  ]
+}

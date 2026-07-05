@@ -1,0 +1,76 @@
+{
+  "items": [
+    {
+      "id": "cand-001",
+      "name": "NiSO4",
+      "type": "substance",
+      "status": "pending",
+      "confidence": 0.82,
+      "conflict_ids": ["conflict-003"],
+      "source_span_ids": ["span-101"],
+      "updated_at": "2026-07-04T07:30:00Z"
+    },
+    {
+      "id": "cand-002",
+      "name": "католит",
+      "type": "process_term",
+      "status": "pending",
+      "confidence": 0.74,
+      "conflict_ids": [],
+      "source_span_ids": ["span-205"],
+      "updated_at": "2026-07-03T19:10:00Z"
+    },
+    {
+      "id": "cand-003",
+      "name": "режим A",
+      "type": "numeric_claim",
+      "status": "approved",
+      "confidence": 0.91,
+      "conflict_ids": [],
+      "source_span_ids": ["span-1"],
+      "updated_at": "2026-07-02T11:00:00Z"
+    },
+    {
+      "id": "cand-004",
+      "name": "закрытый процесс",
+      "type": "entity",
+      "status": "pending",
+      "confidence": 0.63,
+      "conflict_ids": [],
+      "source_span_ids": ["span-locked"],
+      "updated_at": "2026-07-01T08:45:00Z"
+    },
+    {
+      "id": "cand-005",
+      "name": "сухой остаток",
+      "type": "numeric_claim",
+      "status": "rejected",
+      "confidence": 0.58,
+      "conflict_ids": [],
+      "source_span_ids": ["span-2"],
+      "updated_at": "2026-06-28T16:20:00Z"
+    },
+    {
+      "id": "cand-006",
+      "name": "плотность тока",
+      "type": "numeric_claim",
+      "status": "deferred",
+      "confidence": 0.67,
+      "conflict_ids": [],
+      "source_span_ids": ["span-3"],
+      "updated_at": "2026-06-25T09:15:00Z"
+    }
+  ],
+  "total": 6,
+  "conflicts": [
+    {
+      "id": "conflict-003",
+      "claim_a": "NiSO4 45–55 г/л",
+      "claim_b": "NiSO4 60–70 г/л",
+      "condition_a": "лабораторный режим электролиза",
+      "condition_b": "промышленный отчёт 2023",
+      "source_a": "span-101",
+      "source_b": "span-3"
+    }
+  ]
+}

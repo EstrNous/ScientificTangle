@@ -1,22 +1,3 @@
 # Claude Code Instructions
 
-Сначала прочитай:
-
-- `AGENTS.md`
-- `docs/nauchny_klubok_top1_tz.md`
-- `docs/agent_prompts/system.md`
-- `docs/agent_prompts/before_implementation.md`
-- `docs/agent_context/project_structure.md`
-- `docs/agent_context/sync_rules.md`
-
-Ключевые правила:
-
-- Основной продуктовый и технический контекст лежит в `docs/nauchny_klubok_top1_tz.md`.
-- Перед имплементацией обязательно коротко обдумать архитектурное место изменения, план, риски и критерии проверки.
-- Комментарии в код не добавлять, кроме обязательных внешним форматом или юридическим требованием.
-- Документацию вести на русском языке.
-- При изменении структуры проекта обновлять `docs/agent_context/project_structure.md`.
-- `README.md` не трогать без отдельного явного запроса.
-- Коммиты писать в формате `feat: сделано то-то`, в одну строку, на русском, без scope.
-- Для проверки слияния веток создать копию `main`, влить туда рабочую ветку, проверить стабильность и только затем обновлять `main` проверенной копией.
-- Если задача стала отдельной или контекст перегружен, предложить новый чат с промптом из `docs/agent_prompts/new_chat.md`.
+Следуй `AGENTS.md` и `docs/agent_context/task_router.md`. Эталон: `docs/agent_prompts/every_chat.md`. Детали: `docs/agent_context/rules_full.md`.

@@ -1,0 +1,19 @@
+{
+  "raw_text": "Никель, электроэкстракция, католит, Россия",
+  "interests": [
+    {
+      "label": "materials",
+      "weight": 0.55,
+      "source_terms": ["никель"]
+    },
+    {
+      "label": "processes",
+      "weight": 0.45,
+      "source_terms": ["электроэкстракция"]
+    }
+  ],
+  "extracted_entities": [
+  ],
+  "warnings": [],
+  "updated_at": "2026-07-04T08:00:00Z"
+}

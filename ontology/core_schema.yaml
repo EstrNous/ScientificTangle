@@ -1,0 +1,141 @@
+ontology:
+  name: scientific-tangle-core
+  version: "0.1.0"
+  description: Базовая онтология системы Научный Клубок
+
+entity_types:
+  - name: Material
+    description: Материал (руды, минералы, сплавы, химические соединения)
+    properties:
+      - name: chemical_formula
+        type: string
+      - name: material_class
+        type: string
+      - name: crystal_system
+        type: string
+
+  - name: Equipment
+    description: Оборудование (печи, мельницы, реакторы, конвертеры)
+    properties:
+      - name: equipment_type
+        type: string
+      - name: manufacturer
+        type: string
+      - name: capacity
+        type: quantity
+
+  - name: Process
+    description: Технологический процесс (обогащение, плавка, рафинирование)
+    properties:
+      - name: process_type
+        type: string
+      - name: temperature_range
+        type: interval
+      - name: pressure_range
+        type: interval
+
+  - name: Property
+    description: Свойство материала (прочность, твёрдость, проводимость)
+    properties:
+      - name: property_type
+        type: string
+      - name: value
+        type: quantity
+      - name: measurement_method
+        type: string
+
+  - name: Measurement
+    description: Результат измерения или эксперимента
+    properties:
+      - name: value
+        type: float
+      - name: unit
+        type: string
+      - name: uncertainty
+        type: float
+      - name: method
+        type: string
+
+  - name: Expert
+    description: Эксперт или исследователь
+    properties:
+      - name: name
+        type: string
+      - name: affiliation
+        type: string
+      - name: expertise_area
+        type: list[string]
+
+  - name: Facility
+    description: Производственный объект (рудник, завод, лаборатория)
+    properties:
+      - name: facility_type
+        type: string
+      - name: location
+        type: geo
+      - name: operator
+        type: string
+
+  - name: Document
+    description: Источник данных (статья, отчёт, патент)
+    properties:
+      - name: title
+        type: string
+      - name: source_type
+        type: string
+      - name: year
+        type: integer
+
+relation_types:
+  - name: CONTAINS_MATERIAL
+    source: Document
+    target: Material
+    description: Документ содержит информацию о материале
+
+  - name: USES_EQUIPMENT
+    source: Process
+    target: Equipment
+    description: Процесс использует оборудование
+
+  - name: HAS_PROPERTY
+    source: Material
+    target: Property
+    description: Материал имеет свойство
+
+  - name: MEASURED_BY
+    source: Measurement
+    target: Expert
+    description: Измерение выполнено экспертом
+
+  - name: LOCATED_AT
+    source: Facility
+    target: geo
+    description: Объект расположен в точке
+
+  - name: DERIVED_FROM
+    source: Material
+    target: Material
+    description: Материал получен из другого материала
+
+  - name: PART_OF
+    source: Process
+    target: Process
+    description: Процесс является частью другого процесса
+
+quantity_types:
+  - name: temperature
+    units: [°C, K, °F]
+  - name: pressure
+    units: [MPa, atm, bar, Pa]
+  - name: mass
+    units: [kg, t, g, mg]
+  - name: length
+    units: [m, mm, cm, μm]
+  - name: concentration
+    units: ["%", ppm, g/t, mol/L]
+  - name: recovery_rate
+    units: ["%", fraction]
+  - name: hardness
+    units: [HB, HRC, HV, MPa]
+  - name: tensile_strength
+    units: [MPa, GPa]

@@ -1,0 +1,94 @@
+{
+  "export_jobs": [
+    {
+      "user_ref": "researcher",
+      "query_run_ref": "e5-query-run-001",
+      "format": "markdown",
+      "artifacts": [
+        {
+          "artifact_kind": "markdown",
+          "storage_key": "exports/e5-query-run-001/report.md",
+          "content_type": "text/markdown",
+          "byte_size": 4096,
+          "checksum": "sha256:e5-markdown-demo"
+        },
+        {
+          "artifact_kind": "json",
+          "storage_key": "exports/e5-query-run-001/report.json",
+          "content_type": "application/json",
+          "byte_size": 8192,
+          "checksum": "sha256:e5-json-demo"
+        }
+      ]
+    }
+  ],
+  "audit_events": [
+    {
+      "user_ref": "researcher",
+      "action": "query_created",
+      "resource_type": "query_run",
+      "resource_id": "e5-query-run-001",
+      "details": {
+        "question": "Оптимальная скорость потока католита"
+      },
+      "request_id": "e5-req-query-001"
+    },
+    {
+      "user_ref": "researcher",
+      "action": "answer_generated",
+      "resource_type": "query_run",
+      "resource_id": "e5-query-run-001",
+      "details": {
+        "status": "completed",
+        "latency_ms": 120
+      },
+      "request_id": "e5-req-answer-001"
+    },
+    {
+      "user_ref": "researcher",
+      "action": "document_exported",
+      "resource_type": "export_job",
+      "resource_id": "e5-export-job-001",
+      "details": {
+        "query_run_id": "e5-query-run-001",
+        "format": "markdown",
+        "role": "researcher",
+        "status": "completed"
+      },
+      "request_id": "e5-req-export-001"
+    }
+  ],
+  "notification_events": [
+    {
+      "user_ref": "researcher",
+      "type": "query_conflict",
+      "message": "Обнаружен конфликт evidence для e5-query-run-001",
+      "reference_id": "e5-query-run-001",
+      "reference_type": "query_run",
+      "match_payload": {
+        "event": "query_conflict",
+        "conflict_ids": ["e5-conflict-001"]
+      }
+    },
+    {
+      "user_ref": "researcher",
+      "type": "ingestion_complete",
+      "message": "Ingestion завершён для e5-doc-demo",
+      "reference_id": "e5-doc-demo",
+      "reference_type": "document",
+      "match_payload": {
+        "event": "ingestion_complete",
+        "document_id": "e5-doc-demo"
+      }
+    }
+  ],
+  "audit_csv_export": {
+    "user_ref": "researcher",
+    "filter_params": {
+      "action": "document_exported",
+      "resource_type": "export_job"
+    },
+    "storage_key": "exports/audit/e5-researcher-audit.csv",
+    "row_count": 3
+  }
+}

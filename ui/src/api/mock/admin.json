@@ -1,0 +1,188 @@
+{
+  "summary": {
+    "users_count": 6,
+    "audit_events_24h": 28,
+    "restricted_documents": 4,
+    "access_denied_24h": 2
+  },
+  "operations": {
+    "latency_p50_ms": 318,
+    "latency_p95_ms": 1240,
+    "errors_24h": 7,
+    "rps_total": 42.6,
+    "updated_at": "2026-07-03T15:00:00Z",
+    "services": [
+      {
+        "id": "gateway",
+        "rps": 18.4,
+        "latency_p50_ms": 42,
+        "latency_p95_ms": 165,
+        "errors_24h": 0,
+        "status": "ok"
+      },
+      {
+        "id": "orchestrator",
+        "rps": 6.2,
+        "latency_p50_ms": 210,
+        "latency_p95_ms": 890,
+        "errors_24h": 1,
+        "status": "ok"
+      },
+      {
+        "id": "ingestion",
+        "rps": 2.1,
+        "latency_p50_ms": 540,
+        "latency_p95_ms": 2100,
+        "errors_24h": 2,
+        "status": "degraded"
+      },
+      {
+        "id": "knowledge",
+        "rps": 3.8,
+        "latency_p50_ms": 380,
+        "latency_p95_ms": 1450,
+        "errors_24h": 0,
+        "status": "ok"
+      },
+      {
+        "id": "retrieval",
+        "rps": 5.5,
+        "latency_p50_ms": 290,
+        "latency_p95_ms": 1180,
+        "errors_24h": 1,
+        "status": "ok"
+      },
+      {
+        "id": "model",
+        "rps": 4.3,
+        "latency_p50_ms": 820,
+        "latency_p95_ms": 3200,
+        "errors_24h": 3,
+        "status": "degraded"
+      },
+      {
+        "id": "auth_audit",
+        "rps": 1.4,
+        "latency_p50_ms": 28,
+        "latency_p95_ms": 95,
+        "errors_24h": 0,
+        "status": "ok"
+      },
+      {
+        "id": "export",
+        "rps": 0.6,
+        "latency_p50_ms": 150,
+        "latency_p95_ms": 420,
+        "errors_24h": 0,
+        "status": "ok"
+      },
+      {
+        "id": "notification",
+        "rps": 0.3,
+        "latency_p50_ms": 35,
+        "latency_p95_ms": 110,
+        "errors_24h": 0,
+        "status": "ok"
+      }
+    ]
+  },
+  "users": [
+    {
+      "id": "u1",
+      "email": "director@corp.local",
+      "name": "Петров И.В.",
+      "role": "director",
+      "active": true
+    },
+    {
+      "id": "u2",
+      "email": "researcher@lab.local",
+      "name": "Иванов А.С.",
+      "role": "researcher",
+      "active": true
+    },
+    {
+      "id": "u3",
+      "email": "analyst@corp.local",
+      "name": "Сидорова М.К.",
+      "role": "analyst",
+      "active": true
+    },
+    {
+      "id": "u4",
+      "email": "admin@corp.local",
+      "name": "Козлов Д.Е.",
+      "role": "admin",
+      "active": true
+    },
+    {
+      "id": "u5",
+      "email": "partner@external.io",
+      "name": "Smith J.",
+      "role": "external_partner",
+      "active": true
+    },
+    {
+      "id": "u6",
+      "email": "reviewer@lab.local",
+      "name": "Новикова Е.П.",
+      "role": "researcher",
+      "active": false
+    }
+  ],
+  "access_policies": [
+    {
+      "id": "pol-1",
+      "document": "nickel_report.pdf",
+      "level": "internal",
+      "roles": ["director", "researcher", "analyst", "admin"],
+      "export_allowed": true
+    },
+    {
+      "id": "pol-2",
+      "document": "water_desalination.docx",
+      "level": "internal",
+      "roles": ["director", "researcher", "analyst", "admin"],
+      "export_allowed": true
+    },
+    {
+      "id": "pol-3",
+      "document": "confidential_process_2024.pdf",
+      "level": "confidential",
+      "roles": ["director", "admin"],
+      "export_allowed": false
+    },
+    {
+      "id": "pol-4",
+      "document": "pilot_hl_nickel.zip",
+      "level": "restricted",
+      "roles": ["admin"],
+      "export_allowed": false
+    },
+    {
+      "id": "pol-5",
+      "document": "public_review_2023.pdf",
+      "level": "public",
+      "roles": ["director", "researcher", "analyst", "admin", "external_partner"],
+      "export_allowed": true
+    }
+  ],
+  "source_spans": {
+    "span-1": {
+      "id": "span-1",
+      "title": "nickel_report.pdf",
+      "page": 12,
+      "section": "Циркуляция католита",
+      "raw_text": "Оптимальная скорость потока католита составляет 2–4 м/ч при температуре электролита 55–60 °C.",
+      "highlight": "скорость потока католита составляет 2–4 м/ч"
+    },
+    "span-2": {
+      "id": "span-2",
+      "title": "water_desalination.docx",
+      "page": 4,
+      "section": "Обессоливание",
+      "raw_text": "При сухом остатке исходной воды 1200 мг/дм³ схема с обратным осмосом обеспечивает выход ≤ 800 мг/дм³.",
+      "highlight": "сухом остатке исходной воды 1200 мг/дм³"
+    }
+  }
+}

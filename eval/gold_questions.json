@@ -1,0 +1,624 @@
+{
+  "schema_version": "gold_questions.v2",
+  "questions": [
+    {
+      "id": "official-001",
+      "split": "mvp",
+      "text": "Какие методы обессоливания воды подходят для обогатительной фабрики при составе воды: сульфаты, хлориды, Ca, Mg, Na по 200-300 мг/л, если требуемый сухой остаток не более 1000 мг/дм3?",
+      "expected_entities": [
+        "сульфаты",
+        "хлориды",
+        "Ca",
+        "Mg",
+        "Na",
+        "обессоливание",
+        "обогатительная фабрика"
+      ],
+      "expected_numeric_constraints": [
+        {
+          "operator": "range",
+          "range_min": 200,
+          "range_max": 300,
+          "unit": "mg/l"
+        },
+        {
+          "operator": "le",
+          "value": 1000,
+          "unit": "mg/dm3"
+        }
+      ],
+      "expected_geo_constraints": [],
+      "expected_time_constraints": {},
+      "expected_source_span_ids": [
+        "fd41e40302889dc4"
+      ],
+      "expected_source_span_review": {
+        "status": "reviewed",
+        "fixture": "eval/reviewed_source_fixtures.json",
+        "reason_codes": []
+      },
+      "answer_outline": [
+        "методы",
+        "применимость",
+        "ограничения",
+        "источники"
+      ],
+      "units_tolerance": [
+        {
+          "unit": "mg/l",
+          "tolerance": 0.0
+        },
+        {
+          "unit": "mg/dm3",
+          "tolerance": 0.0
+        }
+      ],
+      "tags": [
+        "official",
+        "desalination",
+        "numeric",
+        "mvp"
+      ]
+    },
+    {
+      "id": "official-002",
+      "split": "mvp",
+      "text": "Какие технические решения применяются для организации циркуляции католита при электроэкстракции никеля и какая оптимальная скорость потока указана в источниках?",
+      "expected_entities": [
+        "католит",
+        "электроэкстракция никеля",
+        "скорость потока",
+        "циркуляция"
+      ],
+      "expected_numeric_constraints": [],
+      "expected_geo_constraints": [],
+      "expected_time_constraints": {},
+      "expected_source_span_ids": [
+        "5bbd52f818e388f0"
+      ],
+      "expected_source_span_review": {
+        "status": "reviewed",
+        "fixture": "eval/reviewed_source_fixtures.json",
+        "reason_codes": []
+      },
+      "answer_outline": [
+        "оборудование",
+        "условия",
+        "скорость потока",
+        "разногласия"
+      ],
+      "units_tolerance": [
+        {
+          "unit": "m/s",
+          "tolerance": 0.05
+        }
+      ],
+      "tags": [
+        "official",
+        "catholyte",
+        "aliases",
+        "mvp"
+      ]
+    },
+    {
+      "id": "official-003",
+      "split": "mvp",
+      "text": "Какие эксперименты и публикации за последние 5 лет описывают распределение Au, Ag и МПГ между медным или никелевым штейном и шлаком?",
+      "expected_entities": [
+        "Au",
+        "Ag",
+        "МПГ",
+        "медный штейн",
+        "никелевый штейн",
+        "шлак"
+      ],
+      "expected_numeric_constraints": [],
+      "expected_geo_constraints": [],
+      "expected_time_constraints": {
+        "relative_years": 5
+      },
+      "expected_source_span_ids": [
+        "e68ad5f96111645c"
+      ],
+      "expected_source_span_review": {
+        "status": "reviewed",
+        "fixture": "eval/reviewed_source_fixtures.json",
+        "reason_codes": []
+      },
+      "answer_outline": [
+        "эксперименты",
+        "публикации",
+        "штейн",
+        "шлак",
+        "дата"
+      ],
+      "units_tolerance": [],
+      "tags": [
+        "official",
+        "time",
+        "publications",
+        "mvp"
+      ]
+    },
+    {
+      "id": "official-004",
+      "split": "mvp",
+      "text": "Какие способы закачки шахтных вод в глубокие горизонты применяются в России и за рубежом и какие технико-экономические показатели указаны для них?",
+      "expected_entities": [
+        "шахтные воды",
+        "закачка",
+        "глубокие горизонты",
+        "технико-экономические показатели"
+      ],
+      "expected_numeric_constraints": [],
+      "expected_geo_constraints": [
+        "Россия",
+        "зарубежная практика"
+      ],
+      "expected_time_constraints": {},
+      "expected_source_span_ids": [
+        "133421dd573f9d94"
+      ],
+      "expected_source_span_review": {
+        "status": "reviewed",
+        "fixture": "eval/reviewed_source_fixtures.json",
+        "reason_codes": []
+      },
+      "answer_outline": [
+        "отечественная практика",
+        "зарубежная практика",
+        "стоимость",
+        "производительность",
+        "риски"
+      ],
+      "units_tolerance": [],
+      "tags": [
+        "official",
+        "geo",
+        "economics",
+        "mvp"
+      ]
+    }
+  ],
+  "corpus_regression_questions": [
+    {
+      "id": "corpus-001",
+      "split": "corpus_regression",
+      "text": "Какие числовые параметры связаны с Mg, Ni в документе «Cerro Matoso»?",
+      "expected_entities": [
+        "Mg",
+        "Ni"
+      ],
+      "expected_numeric_constraints": [
+        {
+          "operator": "eq",
+          "value": 50.0,
+          "unit": "%"
+        }
+      ],
+      "expected_geo_constraints": [],
+      "expected_time_constraints": {},
+      "expected_source_span_ids": [
+        "4c5e26bc2d8e5b72"
+      ],
+      "expected_forbidden_source_span_ids": [
+        "095a82f7d7676972"
+      ],
+      "answer_outline": [
+        "«Валовая» геохимия большинства единиц обоих профилей имеет типичный латеритовый рисунок: по мере движения вверх MgO и SiO2 становится меньше, а FeO больше. Протолит в обоих карьерах частично (до 50%) представлен серпентизированным гарцбурги"
+      ],
+      "units_tolerance": [
+        {
+          "unit": "%",
+          "tolerance": 0.0
+        }
+      ],
+      "tags": [
+        "corpus-derived"
+      ]
+    },
+    {
+      "id": "corpus-002",
+      "split": "corpus_regression",
+      "text": "Какие числовые параметры связаны с Fe, Ni в документе «Cerro Matoso»?",
+      "expected_entities": [
+        "Fe",
+        "Ni"
+      ],
+      "expected_numeric_constraints": [
+        {
+          "operator": "eq",
+          "value": 3.0,
+          "unit": "%"
+        },
+        {
+          "operator": "range",
+          "range_min": 10.0,
+          "range_max": 15.0,
+          "unit": "%"
+        },
+        {
+          "operator": "eq",
+          "value": 15.0,
+          "unit": "%"
+        },
+        {
+          "operator": "eq",
+          "value": 15.0,
+          "unit": "%"
+        },
+        {
+          "operator": "eq",
+          "value": 10.0,
+          "unit": "%"
+        },
+        {
+          "operator": "eq",
+          "value": 2.7,
+          "unit": "%"
+        },
+        {
+          "operator": "eq",
+          "value": 3.2,
+          "unit": "%"
+        }
+      ],
+      "expected_geo_constraints": [],
+      "expected_time_constraints": {},
+      "expected_source_span_ids": [
+        "095a82f7d7676972"
+      ],
+      "answer_outline": [
+        "В далеком 1979 году (незадолго до ввода проекта в строй) правительство Колумбии обратилось ко Всемирному банку с просьбой о займе 80 млн USD для финансирования работ по проекту. Банк, как и следовало ожидать, выполнил надлежащий анализ прое"
+      ],
+      "units_tolerance": [
+        {
+          "unit": "%",
+          "tolerance": 0.0
+        },
+        {
+          "unit": "%",
+          "tolerance": 0.0
+        },
+        {
+          "unit": "%",
+          "tolerance": 0.0
+        },
+        {
+          "unit": "%",
+          "tolerance": 0.0
+        },
+        {
+          "unit": "%",
+          "tolerance": 0.0
+        },
+        {
+          "unit": "%",
+          "tolerance": 0.0
+        },
+        {
+          "unit": "%",
+          "tolerance": 0.0
+        }
+      ],
+      "tags": [
+        "corpus-derived"
+      ]
+    },
+    {
+      "id": "corpus-003",
+      "split": "corpus_regression",
+      "text": "Какие сущности подтверждены источником в документе «Cerro Matoso» на странице 1?",
+      "expected_entities": [
+        "Ni"
+      ],
+      "expected_numeric_constraints": [],
+      "expected_geo_constraints": [],
+      "expected_time_constraints": {},
+      "expected_source_span_ids": [
+        "852c522483b1bb3d"
+      ],
+      "answer_outline": [
+        "Линия №1 Cerro Matoso была введена в строй в 1982 г., линия №2 – в январе 2001 г. Обе печи – с защищенной дугой, мощностью по 75 МВт и удельной мощностью на поде (общая мощность: площадь пода) в 230 кВт/м2. Номинальная мощность завода – 50 "
+      ],
+      "units_tolerance": [],
+      "tags": [
+        "corpus-derived"
+      ]
+    },
+    {
+      "id": "corpus-004",
+      "split": "corpus_regression",
+      "text": "Какие сущности подтверждены источником в документе «Cerro Matoso» на странице 1?",
+      "expected_entities": [
+        "Ni"
+      ],
+      "expected_numeric_constraints": [],
+      "expected_geo_constraints": [],
+      "expected_time_constraints": {},
+      "expected_source_span_ids": [
+        "4d426ea673928cb5"
+      ],
+      "answer_outline": [
+        "В первые годы эксплуатации Cerro Matoso был самым низкозатратным производителем ферроникеля. После расширения мощностей вдвое (до 50 тыс т/г Ni) в 2001 г. Cerro Matoso стал крупнейшим (на тот момент) ферроникелевым заводом. Однако с тех пор"
+      ],
+      "units_tolerance": [],
+      "tags": [
+        "corpus-derived"
+      ]
+    },
+    {
+      "id": "corpus-005",
+      "split": "corpus_regression",
+      "text": "Какие сущности подтверждены источником в документе «Cerro Matoso» на странице 1?",
+      "expected_entities": [
+        "Ni"
+      ],
+      "expected_numeric_constraints": [],
+      "expected_geo_constraints": [],
+      "expected_time_constraints": {},
+      "expected_source_span_ids": [
+        "1c39f86de5e00350"
+      ],
+      "answer_outline": [
+        "После рекордного 2013 фин.г. с выпуском 50,8 тыс т Ni в FeNi, наблюдается спад производства."
+      ],
+      "units_tolerance": [],
+      "tags": [
+        "corpus-derived"
+      ]
+    },
+    {
+      "id": "corpus-006",
+      "split": "corpus_regression",
+      "text": "Какие числовые параметры связаны с Ni в документе «Cerro Matoso»?",
+      "expected_entities": [
+        "Ni"
+      ],
+      "expected_numeric_constraints": [
+        {
+          "operator": "eq",
+          "value": 1.5,
+          "unit": "%"
+        },
+        {
+          "operator": "eq",
+          "value": 1.1,
+          "unit": "%"
+        },
+        {
+          "operator": "eq",
+          "value": 1.0,
+          "unit": "%"
+        },
+        {
+          "operator": "eq",
+          "value": 0.7,
+          "unit": "%"
+        },
+        {
+          "operator": "eq",
+          "value": 0.6,
+          "unit": "%"
+        },
+        {
+          "operator": "eq",
+          "value": 1.5,
+          "unit": "%"
+        }
+      ],
+      "expected_geo_constraints": [],
+      "expected_time_constraints": {},
+      "expected_source_span_ids": [
+        "b30780ae3c302623"
+      ],
+      "answer_outline": [
+        "По мере снижения сортности оставшейся руды, содержание никеля в отрезе, исходно равнявшееся 1,5%, было понижено до 1,1% в 2001 г., до 1,0% в 2005 г. и 0,7% в 2007 г., а в настоящее время составляет 0,6% (табл.2.1). Вскрышные породы с самого"
+      ],
+      "units_tolerance": [
+        {
+          "unit": "%",
+          "tolerance": 0.0
+        },
+        {
+          "unit": "%",
+          "tolerance": 0.0
+        },
+        {
+          "unit": "%",
+          "tolerance": 0.0
+        },
+        {
+          "unit": "%",
+          "tolerance": 0.0
+        },
+        {
+          "unit": "%",
+          "tolerance": 0.0
+        },
+        {
+          "unit": "%",
+          "tolerance": 0.0
+        }
+      ],
+      "tags": [
+        "corpus-derived"
+      ]
+    },
+    {
+      "id": "corpus-007",
+      "split": "corpus_regression",
+      "text": "Какие числовые параметры связаны с Co, Fe, Ni в документе «Cerro Matoso»?",
+      "expected_entities": [
+        "Co",
+        "Fe",
+        "Ni"
+      ],
+      "expected_numeric_constraints": [
+        {
+          "operator": "eq",
+          "value": 1.8,
+          "unit": "%"
+        },
+        {
+          "operator": "eq",
+          "value": 2.0,
+          "unit": "%"
+        },
+        {
+          "operator": "eq",
+          "value": 2.2,
+          "unit": "%"
+        },
+        {
+          "operator": "eq",
+          "value": 15.0,
+          "unit": "%"
+        }
+      ],
+      "expected_geo_constraints": [],
+      "expected_time_constraints": {},
+      "expected_source_span_ids": [
+        "5c49e497e891030f"
+      ],
+      "answer_outline": [
+        "Помимо снижения сортности руды, большую проблему с точки зрения дальнейшей переработки на ферроникель представляет соотношение SiO2:MgO. Доступность руд с разным содержанием SiO2, MgO, Fe снижается и, соответственно, снижается гибкость по с"
+      ],
+      "units_tolerance": [
+        {
+          "unit": "%",
+          "tolerance": 0.0
+        },
+        {
+          "unit": "%",
+          "tolerance": 0.0
+        },
+        {
+          "unit": "%",
+          "tolerance": 0.0
+        },
+        {
+          "unit": "%",
+          "tolerance": 0.0
+        }
+      ],
+      "tags": [
+        "corpus-derived"
+      ]
+    },
+    {
+      "id": "corpus-008",
+      "split": "corpus_regression",
+      "text": "Какие сущности подтверждены источником в документе «Cerro Matoso» на странице 1?",
+      "expected_entities": [
+        "Ni"
+      ],
+      "expected_numeric_constraints": [],
+      "expected_geo_constraints": [],
+      "expected_time_constraints": {},
+      "expected_source_span_ids": [
+        "cbce5ac7fb1e76dc"
+      ],
+      "answer_outline": [
+        "В 3кв.2018 г. был введен в строй проект Esmeralda. Это небольшое месторождение-спутник (ресурсы 9,3 млн т), но оно немного богаче. В результате, сортность поступающей на переработку руды, начиная уже с 2018 фин.г., временно (2018-2020 фин.г"
+      ],
+      "units_tolerance": [],
+      "tags": [
+        "corpus-derived"
+      ]
+    },
+    {
+      "id": "corpus-009",
+      "split": "corpus_regression",
+      "text": "Какие сущности подтверждены источником в документе «Cerro Matoso» на странице 1?",
+      "expected_entities": [
+        "Ni"
+      ],
+      "expected_numeric_constraints": [],
+      "expected_geo_constraints": [],
+      "expected_time_constraints": {},
+      "expected_source_span_ids": [
+        "ac16c253952076dd"
+      ],
+      "answer_outline": [
+        "В 2013 фин.г. объем производства Ni в FeNi составил рекордные 50,8 тыс т. BHP Billiton имела масштабные планы расширения производства: ввод в строй линий №3 и №4 на ферроникелевом заводе, а также мощностей по кучному выщелачиванию бедной ру"
+      ],
+      "units_tolerance": [],
+      "tags": [
+        "corpus-derived"
+      ]
+    },
+    {
+      "id": "corpus-010",
+      "split": "corpus_regression",
+      "text": "Какие сущности подтверждены источником в документе «Cerro Matoso» на странице 1?",
+      "expected_entities": [
+        "Ni"
+      ],
+      "expected_numeric_constraints": [],
+      "expected_geo_constraints": [],
+      "expected_time_constraints": {},
+      "expected_source_span_ids": [
+        "ec6cab6fda32ea87"
+      ],
+      "answer_outline": [
+        "В период 2006-2012 гг. у BHP Billiton работали пилотные мощности по кучному выщелачиванию руды. В I п/г 2012 г. проект кучного выщелачивания Cerro Matoso «подошел к стадии ТЭО», как писала BHP Billiton в годовом отечете на 2011 фин.г. Однак"
+      ],
+      "units_tolerance": [],
+      "tags": [
+        "corpus-derived"
+      ]
+    },
+    {
+      "id": "corpus-011",
+      "split": "corpus_regression",
+      "text": "Какие сущности подтверждены источником в документе «Cerro Matoso» на странице 1?",
+      "expected_entities": [
+        "Ni"
+      ],
+      "expected_numeric_constraints": [],
+      "expected_geo_constraints": [],
+      "expected_time_constraints": {},
+      "expected_source_span_ids": [
+        "d043e2410e55e692"
+      ],
+      "answer_outline": [
+        "S.A.Gleeson, R.J.Herrington. The Mineralogy and Geochemistry of the Cerro Matoso S.A. Ni Laterite Deposit, Montelibano, Colombia. Economic Geology, v.99, #6, 2004, pp. 1197-1213"
+      ],
+      "units_tolerance": [],
+      "tags": [
+        "corpus-derived"
+      ]
+    },
+    {
+      "id": "corpus-012",
+      "split": "corpus_regression",
+      "text": "Какие числовые параметры подтверждены в документе «Frederic_Descombes_Юридические аспекты работы горных предприятий в Новой Каледонии» на странице 9?",
+      "expected_entities": [],
+      "expected_numeric_constraints": [
+        {
+          "operator": "eq",
+          "value": 35.0,
+          "unit": "%"
+        }
+      ],
+      "expected_geo_constraints": [],
+      "expected_time_constraints": {},
+      "expected_source_span_ids": [
+        "c6729fab4d351cf8"
+      ],
+      "answer_outline": [
+        " IS tax rate: 35% for mining and metallurgical operatives (exploration, extraction,"
+      ],
+      "units_tolerance": [
+        {
+          "unit": "%",
+          "tolerance": 0.0
+        }
+      ],
+      "tags": [
+        "corpus-derived"
+      ]
+    }
+  ]
+}

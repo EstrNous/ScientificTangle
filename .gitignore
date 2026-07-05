@@ -234,6 +234,9 @@ desktop.ini
 # Local data and artifacts
 data/
 artifacts/
+secrets/*.pem
+secrets/tls/*.pem
+infra/deploy/credentials.txt
 tmp/
 *.tmp
 *.bak

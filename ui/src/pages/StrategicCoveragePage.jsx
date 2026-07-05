@@ -1,0 +1,73 @@
+import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import PageShell from '../components/shared/PageShell.jsx';
+import Loader from '../components/shared/Loader.jsx';
+import PdfDownloadButton from '../components/shared/PdfDownloadButton.jsx';
+import { ManagerDashboard, StrategicSubNav } from '../components/strategic/index.js';
+import { ensureAuth } from '../api/auth.js';
+import { getApiErrorMessage } from '../api/errors.js';
+import { fetchStrategicMetrics } from '../api/strategic.js';
+import { exportStrategicCoveragePdf } from '../utils/pagePdfExport.js';
+
+export default function StrategicCoveragePage() {
+  const { t, i18n } = useTranslation();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [manager, setManager] = useState(null);
+  const coverageChartRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      setError(null);
+      try {
+        await ensureAuth();
+        const data = await fetchStrategicMetrics();
+        if (!cancelled) setManager(data);
+      } catch (loadError) {
+        if (!cancelled) {
+          setError(getApiErrorMessage(loadError, 'strategic_load_failed'));
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const handleExportPdf = async () => {
+    const chartImage = (await coverageChartRef.current?.getChartImage?.()) ?? '';
+    await exportStrategicCoveragePdf({
+      manager,
+      t,
+      language: i18n.language,
+      chartImage,
+    });
+  };
+
+  if (loading) return <Loader />;
+
+  if (error) {
+    return (
+      <PageShell>
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
+          {t(`strategic.errors.${error}`, { defaultValue: error })}
+        </div>
+      </PageShell>
+    );
+  }
+
+  return (
+    <PageShell>
+      <div className="flex h-full min-h-0 flex-col gap-3 overflow-hidden">
+        <StrategicSubNav action={<PdfDownloadButton onExport={handleExportPdf} />} />
+        <ManagerDashboard data={manager} fill coverageChartRef={coverageChartRef} />
+      </div>
+    </PageShell>
+  );
+}

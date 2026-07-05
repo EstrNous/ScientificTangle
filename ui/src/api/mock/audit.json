@@ -1,0 +1,83 @@
+{
+  "events": [
+    {
+      "id": "a1",
+      "user": "researcher@lab.local",
+      "role": "researcher",
+      "action": "query_created",
+      "object": "Электроэкстракция никеля — циркуляция католита",
+      "timestamp": "2026-07-03T14:15:00Z",
+      "source_span_id": null
+    },
+    {
+      "id": "a2",
+      "user": "director@corp.local",
+      "role": "director",
+      "action": "document_exported",
+      "object": "report_session_s1.pdf",
+      "timestamp": "2026-07-03T13:40:00Z",
+      "source_span_id": null
+    },
+    {
+      "id": "a3",
+      "user": "analyst@corp.local",
+      "role": "analyst",
+      "action": "source_viewed",
+      "object": "nickel_report.pdf · стр. 12",
+      "timestamp": "2026-07-03T13:22:00Z",
+      "source_span_id": "span-1"
+    },
+    {
+      "id": "a4",
+      "user": "partner@external.io",
+      "role": "external_partner",
+      "action": "access_denied",
+      "object": "confidential_process_2024.pdf",
+      "timestamp": "2026-07-03T12:58:00Z",
+      "source_span_id": null
+    },
+    {
+      "id": "a5",
+      "user": "admin@corp.local",
+      "role": "admin",
+      "action": "role_changed",
+      "object": "partner@external.io → external_partner",
+      "timestamp": "2026-07-03T12:30:00Z",
+      "source_span_id": null
+    },
+    {
+      "id": "a6",
+      "user": "researcher@lab.local",
+      "role": "researcher",
+      "action": "ingestion_upload",
+      "object": "pilot_hl_nickel.zip",
+      "timestamp": "2026-07-03T11:05:00Z",
+      "source_span_id": null,
+      "resource_type": "ingestion_task",
+      "resource_id": "task-pilot-hl-nickel",
+      "details": {
+        "document_id": "doc-pilot-hl-nickel",
+        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "status": "completed"
+      }
+    },
+    {
+      "id": "a7",
+      "user": "director@corp.local",
+      "role": "director",
+      "action": "source_viewed",
+      "object": "water_desalination.docx · стр. 4",
+      "timestamp": "2026-07-03T10:48:00Z",
+      "source_span_id": "span-2"
+    },
+    {
+      "id": "a8",
+      "user": "partner@external.io",
+      "role": "external_partner",
+      "action": "query_created",
+      "object": "Методы обессоливания шахтных вод",
+      "timestamp": "2026-07-03T09:15:00Z",
+      "source_span_id": null
+    }
+  ]
+}

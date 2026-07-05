@@ -1,0 +1,403 @@
+x-postgres-service-env: &postgres-service-env
+  POSTGRES_URL: "postgresql+asyncpg://${POSTGRES_USER:-st_user}:${POSTGRES_PASSWORD:-st_pass}@postgres:5432/${POSTGRES_DB:-scientific_tangle}"
+  AUTH_DATABASE_URL: "postgresql+asyncpg://${POSTGRES_USER:-st_user}:${POSTGRES_PASSWORD:-st_pass}@postgres:5432/${POSTGRES_DB:-scientific_tangle}"
+  GATEWAY_DATABASE_URL: "postgresql+asyncpg://${POSTGRES_USER:-st_user}:${POSTGRES_PASSWORD:-st_pass}@postgres:5432/${POSTGRES_DB:-scientific_tangle}"
+  ORCHESTRATOR_DATABASE_URL: "postgresql+asyncpg://${POSTGRES_USER:-st_user}:${POSTGRES_PASSWORD:-st_pass}@postgres:5432/${POSTGRES_DB:-scientific_tangle}"
+  NOTIFICATION_DATABASE_URL: "postgresql+asyncpg://${POSTGRES_USER:-st_user}:${POSTGRES_PASSWORD:-st_pass}@postgres:5432/${POSTGRES_DB:-scientific_tangle}"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: st-postgres
+    environment:
+      POSTGRES_DB: scientific_tangle
+      POSTGRES_USER: st_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-st_pass}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U st_user -d scientific_tangle"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - st-net
+
+  neo4j:
+    image: neo4j:5-community
+    container_name: st-neo4j
+    environment:
+      NEO4J_AUTH: ${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD:-neo4j_pass}
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    healthcheck:
+      test: ["CMD-SHELL", "cypher-shell -u neo4j -p \"${NEO4J_PASSWORD:-neo4j_pass}\" 'RETURN 1'"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - st-net
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: st-qdrant
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - st-net
+
+  minio:
+    image: minio/minio:latest
+    container_name: st-minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    volumes:
+      - minio_data:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - st-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: st-redis
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - st-net
+
+  ui:
+    build:
+      context: ./ui
+      args:
+        VITE_USE_MOCK: "false"
+        VITE_REVIEW_CONSOLE_ENABLED: "true"
+    container_name: st-ui
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3000/ || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - st-net
+
+  gateway:
+    build:
+      context: .
+      dockerfile: services/gateway/Dockerfile
+    container_name: st-gateway
+    env_file: .env
+    environment:
+      <<: *postgres-service-env
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; r=httpx.get('http://localhost:8000/health'); assert r.status_code == 200"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      auth_audit:
+        condition: service_healthy
+      orchestrator:
+        condition: service_healthy
+      export:
+        condition: service_healthy
+      notification:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - st-net
+
+  auth_audit:
+    build:
+      context: .
+      dockerfile: services/auth_audit/Dockerfile
+    container_name: st-auth-audit
+    env_file: .env
+    environment:
+      <<: *postgres-service-env
+      AUTH_JWT_PRIVATE_KEY_PATH: /run/secrets/auth_private.pem
+      AUTH_JWT_PUBLIC_KEY_PATH: /run/secrets/auth_public.pem
+    secrets:
+      - source: auth_jwt_private
+        target: auth_private.pem
+      - source: auth_jwt_public
+        target: auth_public.pem
+    command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8001"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - st-net
+
+  orchestrator:
+    build:
+      context: .
+      dockerfile: services/orchestrator/Dockerfile
+    container_name: st-orchestrator
+    env_file: .env
+    environment:
+      <<: *postgres-service-env
+      NOTIFICATION_URL: http://notification:8008
+    command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8002"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      auth_audit:
+        condition: service_healthy
+      ingestion:
+        condition: service_healthy
+      retrieval:
+        condition: service_healthy
+      model:
+        condition: service_healthy
+      notification:
+        condition: service_healthy
+      export:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - st-net
+
+  ingestion:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.python-service
+      args:
+        SERVICE_DIR: services/ingestion
+        SERVICE_PORT: 8003
+        RUNTIME_APT_PACKAGES: libreoffice-writer fonts-dejavu-core
+    container_name: st-ingestion
+    env_file: .env
+    environment:
+      <<: *postgres-service-env
+    depends_on:
+      auth_audit:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - st-net
+
+  knowledge:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.python-service
+      args:
+        SERVICE_DIR: services/knowledge
+        SERVICE_PORT: 8004
+    container_name: st-knowledge
+    env_file: .env
+    environment:
+      <<: *postgres-service-env
+    depends_on:
+      model:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - st-net
+
+  retrieval:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.python-service
+      args:
+        SERVICE_DIR: services/retrieval
+        SERVICE_PORT: 8005
+    container_name: st-retrieval
+    env_file: .env
+    environment:
+      <<: *postgres-service-env
+    depends_on:
+      knowledge:
+        condition: service_healthy
+      model:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - st-net
+
+  model:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.python-service
+      args:
+        SERVICE_DIR: services/model
+        SERVICE_PORT: 8006
+    container_name: st-model
+    env_file: .env
+    environment:
+      <<: *postgres-service-env
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - st-net
+
+  export:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.python-service
+      args:
+        SERVICE_DIR: services/export
+        SERVICE_PORT: 8007
+    container_name: st-export
+    env_file: .env
+    environment:
+      <<: *postgres-service-env
+    depends_on:
+      minio:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      auth_audit:
+        condition: service_healthy
+      model:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - st-net
+
+  notification:
+    build:
+      context: .
+      dockerfile: services/notification/Dockerfile
+    container_name: st-notification
+    env_file: .env
+    environment:
+      <<: *postgres-service-env
+      MODEL_URL: ${MODEL_URL:-http://model:8006}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; r=httpx.get('http://localhost:8008/health'); assert r.status_code == 200"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 5
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      auth_audit:
+        condition: service_healthy
+      model:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - st-net
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    container_name: st-prometheus
+    volumes:
+      - ./infra/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    restart: unless-stopped
+    networks:
+      - st-net
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: st-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_SERVER_ROOT_URL: http://localhost/grafana/
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+    volumes:
+      - ./infra/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      prometheus:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - st-net
+
+  nginx:
+    build: ./infra/nginx
+    container_name: st-nginx
+    environment:
+      NGINX_CONFIG: dev
+      GRAFANA_NGINX_BASIC_USER: ${GRAFANA_NGINX_BASIC_USER:-grafana}
+      GRAFANA_NGINX_BASIC_PASSWORD: ${GRAFANA_NGINX_BASIC_PASSWORD:-grafana123}
+    depends_on:
+      gateway:
+        condition: service_healthy
+      auth_audit:
+        condition: service_healthy
+      ui:
+        condition: service_healthy
+      grafana:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - st-net
+
+secrets:
+  auth_jwt_private:
+    file: ${AUTH_JWT_PRIVATE_KEY_HOST_PATH:-./secrets/auth_private.pem}
+  auth_jwt_public:
+    file: ${AUTH_JWT_PUBLIC_KEY_HOST_PATH:-./secrets/auth_public.pem}
+
+volumes:
+  pg_data:
+  neo4j_data:
+  neo4j_logs:
+  qdrant_storage:
+  minio_data:
+  redis_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  st-net:
+    driver: bridge

@@ -1,0 +1,822 @@
+{
+  "app": {
+    "title": "NorSintez"
+  },
+  "nav": {
+    "chat": "AI R&D Assistant",
+    "graph": "Knowledge Graph",
+    "strategic": "Strategic Analytics",
+    "lab": "R&D Lab",
+    "admin": "Administration",
+    "upload": "Upload",
+    "review": "Review console"
+  },
+  "roles": {
+    "director": "Director",
+    "researcher": "Researcher",
+    "analyst": "Analyst",
+    "admin": "Administrator",
+    "external_partner": "External Partner"
+  },
+  "common": {
+    "loading": "Loading…",
+    "accessDenied": "Access denied",
+    "accessDeniedHint": "Contact an administrator if you need access to this section.",
+    "placeholder": "Section under development",
+    "home": "Home",
+    "searchPlaceholder": "Search",
+    "team": "Team",
+    "roleSwitcher": "Role",
+    "profile": "Profile",
+    "downloadPdf": "Download PDF",
+    "downloadingPdf": "PDF…",
+    "exportedAt": "Exported: {{date}}",
+    "retry": "Retry",
+    "mockModeActive": "Mock mode: data comes from local fixtures, not the backend. For live API use npm run dev or VITE_USE_MOCK=false."
+  },
+  "errors": {
+    "boundaryTitle": "Interface error",
+    "boundaryMessage": "An unexpected error occurred. Try again or reload the page.",
+    "boundaryMockHint": "In development you can toggle VITE_USE_MOCK for local debugging.",
+    "retry": "Retry",
+    "reload": "Reload page"
+  },
+  "health": {
+    "label": "Service health",
+    "shortLabel": "Services",
+    "checkFailed": "Failed to check service health",
+    "degradedBanner": "Some services are degraded. Some features may be unavailable.",
+    "degradedBannerError": "Could not reach the backend. Check your connection and try again.",
+    "statuses": {
+      "ok": "All services healthy",
+      "degraded": "Partial degradation",
+      "down": "Services unavailable",
+      "checking": "Checking…"
+    }
+  },
+  "pageState": {
+    "empty": "Nothing to display",
+    "searchEmpty": "No results for this query. Try different wording or filters."
+  },
+  "notifications": {
+    "bell": "Notifications",
+    "title": "Notifications",
+    "empty": "No notifications",
+    "loading": "Loading…",
+    "markAllRead": "Mark all read",
+    "refresh": "Refresh",
+    "refreshing": "Refreshing…",
+    "newTitle": "New notification",
+    "errors": {
+      "notifications_load_failed": "Failed to load notifications",
+      "notification_read_failed": "Failed to mark notification as read",
+      "notifications_read_all_failed": "Failed to mark all notifications as read"
+    },
+    "types": {
+      "interest_match": "Interest match",
+      "ingestion_complete": "Document processing complete",
+      "conflict_detected": "Conflict detected",
+      "review_pending": "Review candidate",
+      "query_conflict": "Answer conflict"
+    }
+  },
+  "auth": {
+    "loginTitle": "Sign in",
+    "loginSubtitle": "Sign in to access the platform",
+    "identifier": "Username or email",
+    "identifierPlaceholder": "ivan.petrov or name@company.com",
+    "loginPasswordPlaceholder": "Enter your password",
+    "loginSubmit": "Sign in",
+    "loggingIn": "Signing in…",
+    "loginAction": "Sign in",
+    "forgotPasswordAction": "Forgot password?",
+    "registerAction": "Sign up",
+    "forgotPasswordTitle": "Password recovery",
+    "forgotPasswordSubtitle": "Self-service password reset is not available yet",
+    "forgotPasswordHint": "Contact your platform administrator to reset your password, or create a new account.",
+    "backToLogin": "Back to sign in",
+    "registerTitle": "Sign up",
+    "registerSubtitle": "Create an account to access the platform",
+    "username": "Username",
+    "usernamePlaceholder": "ivan.petrov",
+    "email": "Email",
+    "emailPlaceholder": "name@company.com",
+    "password": "Password",
+    "passwordPlaceholder": "At least 8 characters",
+    "confirmPassword": "Confirm password",
+    "confirmPasswordPlaceholder": "Repeat password",
+    "passwordHint": "Password: 8+ characters, uppercase, lowercase, and a digit",
+    "registerSubmit": "Create account",
+    "registering": "Signing up…",
+    "errors": {
+      "usernameInvalid": "Username: letters, digits, dot, hyphen or underscore (3+ characters)",
+      "emailInvalid": "Enter a valid email address",
+      "passwordLength": "Password must be 8 to 128 characters",
+      "passwordUppercase": "Password must include an uppercase letter",
+      "passwordLowercase": "Password must include a lowercase letter",
+      "passwordDigit": "Password must include a digit",
+      "passwordMismatch": "Passwords do not match",
+      "identifierRequired": "Enter your username or email",
+      "passwordRequired": "Enter your password",
+      "unauthorized": "Invalid username or password",
+      "identity_already_exists": "A user with this username or email already exists",
+      "validation_error": "Please check the entered data",
+      "forbidden": "Access from this origin is denied",
+      "unknown": "Request failed. Please try again later",
+      "profileNoChanges": "Change your username or email before saving",
+      "passwordSameAsCurrent": "New password must differ from the current one"
+    }
+  },
+  "profile": {
+    "title": "Personal account",
+    "accountTitle": "Account",
+    "roleLabel": "Role",
+    "statusLabel": "Status",
+    "statusActive": "Active",
+    "statusInactive": "Deactivated",
+    "edit": "Edit",
+    "cancel": "Cancel",
+    "editDescription": "Enter your current password to save changes",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "saveChanges": "Save changes",
+    "saving": "Saving…",
+    "saved": "Profile updated",
+    "passwordTitle": "Change password",
+    "passwordMasked": "Password hidden",
+    "changePassword": "Change password",
+    "passwordChanged": "Password changed",
+    "interestsTitle": "Interest profile",
+    "interestsDescription": "Describe topics in natural language — the system extracts entities for personalized notifications",
+    "interestsEmpty": "No interests set",
+    "interestsPlaceholder": "For example: nickel electrowinning, catholyte circulation, mine water desalination",
+    "saveInterests": "Save interests",
+    "interestsSaved": "Interests saved",
+    "interestsExtractionUnavailable": "Text saved, but tags were not extracted: analysis service unavailable",
+    "interestsExtractionFailed": "Text saved, but tags were not extracted: analysis error",
+    "interestsExtractionFallback": "Tags were generated locally without the ML service",
+    "interestsLoading": "Loading interests…",
+    "extractedEntities": "Extracted entities: {{count}}",
+    "errors": {
+      "interests_load_failed": "Failed to load interests",
+      "interests_save_failed": "Failed to save interests"
+    },
+    "securityTitle": "Security",
+    "securitySummary": "Sign out and manage active sessions",
+    "logout": "Sign out",
+    "logoutAll": "Sign out everywhere",
+    "confirmLogoutAll": "End all active sessions on every device?",
+    "deactivateTitle": "Deactivate account",
+    "deactivate": "Deactivate account",
+    "confirmDeactivate": "Your account will be deactivated. Continue?",
+    "dangerHint": "Irreversible actions require password confirmation"
+  },
+  "source": {
+    "title": "Source document",
+    "download": "Download PDF",
+    "downloading": "PDF…",
+    "page": "Page {{page}}",
+    "pageLabel": "Page {{page}}",
+    "pageCount": "{{count}} pages",
+    "totalPages": "{{count}} pages total",
+    "citedFragment": "Cited excerpt",
+    "prevPage": "Previous",
+    "nextPage": "Next",
+    "close": "Close",
+    "pageEmpty": "Page text is not available",
+    "refsTitle": "Source documents",
+    "refsCount": "{{count}} documents",
+    "lockedTitle": "Source unavailable",
+    "lockedHint": "Your role cannot access this document. Contact an administrator if review access is required.",
+    "tableRowHighlight": "Highlighted table row: {{rowId}}"
+  },
+  "chat": {
+    "history": "History",
+    "showHistory": "Query history",
+    "hideHistory": "Hide history",
+    "export": "Export",
+    "downloadMd": "Download MD",
+    "downloadJson": "Download JSON",
+    "downloadJsonLd": "Download JSON-LD",
+    "downloadPdf": "Download PDF",
+    "downloadingPdf": "PDF…",
+    "exporting": "Exporting…",
+    "exportNeedsRun": "Server export requires a completed query run",
+    "exportUnavailable": "unavailable",
+    "exportJsonLdUnavailable": "JSON-LD export is not supported by the server yet",
+    "exportPdfUnavailable": "Server PDF export is backlog",
+    "exportPdfClientHint": "PDF is generated in the browser from the current session",
+    "exportErrors": {
+      "export_failed": "Export failed",
+      "export_no_query_run": "No completed query run to export",
+      "export_format_unavailable": "Export format is unavailable",
+      "export_jsonld_unavailable": "JSON-LD export is unavailable",
+      "export_pdf_unavailable": "Server PDF export is unavailable",
+      "export_backend_required": "Backend connection is required",
+      "export_still_processing": "Export is still processing",
+      "export_empty": "Server returned an empty export file"
+    },
+    "newChat": "New chat",
+    "creatingChat": "Creating…",
+    "newChatShortcut": "New chat ({{shortcut}})",
+    "defaultSessionTitle": "New query",
+    "deleteSession": "Delete query",
+    "inputPlaceholder": "Ask a question…",
+    "send": "Send",
+    "attachFile": "Attach file",
+    "attachFileHint": "Attach PDF, DOCX, TXT",
+    "removeAttachment": "Remove {{name}}",
+    "attachmentQuery": "What is in the attached documents?",
+    "errors": {
+      "chat_load_failed": "Failed to load chat sessions",
+      "chat_messages_failed": "Failed to load messages",
+      "chat_create_failed": "Failed to create chat session",
+      "chat_send_failed": "Failed to send message",
+      "chat_delete_failed": "Failed to delete chat session",
+      "forbidden": "Insufficient permissions for this operation",
+      "not_found": "Chat session not found"
+    },
+    "emptyPrompt": "Ask a question to start the conversation",
+    "retrievalTitle": "Search and processing",
+    "evidenceRow": "Row {{index}}: {{label}}",
+    "evidenceCellHint": "Show source documents for this row",
+    "retrieval": {
+      "analyze": "Analyzing query and extracting key entities",
+      "synonyms": "Expanding synonyms: {{terms}}",
+      "searchFile": "Searching in «{{file}}» — {{method}}",
+      "processFile": "Processing fragments from «{{file}}»",
+      "filterAccess": "Filtering results by access level",
+      "synthesize": "Building answer with source citations",
+      "methodHybrid": "BM25 + semantic search",
+      "retrievedCount": "Retrieved fragments: {{count}}"
+    },
+    "streaming": {
+      "draftTitle": "Building answer"
+    },
+    "lifecycle": {
+      "title": "Answer preparation",
+      "sessionWaiting": "Waiting for server response…",
+      "degraded": "Answer prepared with limited confidence",
+      "error": "Could not complete answer preparation",
+      "errors": {
+        "active_dictionary_required": "No active dictionary. Run demo seed (make seed).",
+        "orchestrator_unavailable": "Query service is unavailable. Check docker compose ps.",
+        "orchestrator_timeout": "The request timed out. Try again later.",
+        "validation_error": "The server rejected the request. Refresh the page and try again."
+      },
+      "phases": {
+        "parsing": "Parsing query",
+        "retrieval": "Corpus retrieval",
+        "verification": "Evidence verification",
+        "synthesis": "Answer synthesis",
+        "citations": "Source citations"
+      }
+    },
+    "answer": {
+      "degradedBanner": "Answer prepared with limited accessible evidence",
+      "partialBanner": "Partial answer — insufficient confirmed observations",
+      "confirmedTitle": "Confirmed observations",
+      "candidateTitle": "Candidates for review",
+      "candidateHint": "Not treated as established facts until verified",
+      "limitationsTitle": "Limitations",
+      "conflictsTitle": "Source conflicts",
+      "gapsTitle": "Data gaps",
+      "followUpTitle": "Follow-up steps",
+      "reasonCodes": {
+        "missing_source_span": "missing source span",
+        "low_confidence": "low confidence",
+        "ambiguous_alias": "ambiguous alias",
+        "conflicting_values": "conflicting values",
+        "needs_unit_check": "unit check needed",
+        "access_filtered": "access filtered",
+        "schema_candidate": "schema candidate",
+        "outside_time_range": "outside time range",
+        "geo_mismatch": "geo mismatch",
+        "unit_mismatch": "unit mismatch",
+        "unsupported_claim": "unsupported claim",
+        "unresolved_alias": "unresolved alias",
+        "inaccessible_source": "inaccessible source",
+        "insufficient_accessible_evidence": "insufficient accessible evidence"
+      }
+    }
+  },
+  "graph": {
+    "searchPlaceholder": "Search nodes, materials and publications",
+    "searchButton": "Search",
+    "searching": "Searching…",
+    "searchResults": "Search results",
+    "searchHint": "Enter a query and apply filters",
+    "noResults": "No results match your filters",
+    "knowledgeMap": "Knowledge map",
+    "stats": "{{nodes}} nodes · {{links}} links",
+    "entities": "Entities",
+    "entityName": "Name",
+    "entityType": "Type",
+    "entityStatus": "Status",
+    "verificationInbox": "Verification candidates",
+    "confidence": "Confidence",
+    "approve": "Approve",
+    "reject": "Reject",
+    "edit": "Edit",
+    "empty": "Graph is empty — upload documents first",
+    "emptyFiltered": "No nodes match the selected types and query",
+    "expandPanel": "Expand to full panel",
+    "collapsePanel": "Collapse",
+    "verificationEmpty": "No verification candidates",
+    "nodeTypeFilters": "Node types",
+    "selectAllTypes": "All types",
+    "resetTypes": "Reset",
+    "tableView": "Table",
+    "graphView": "Graph",
+    "combinationsTitle": "Node combinations",
+    "combinationsEmpty": "No combinations for selected node types",
+    "combinationsNoTypes": "Select at least one node type for the table",
+    "combinationsEditHint": "Edit cells and group names directly",
+    "combinationsAddRow": "Add row",
+    "combinationsDeleteRow": "Delete row",
+    "combinationsCellHint": "Show source documents for this row",
+    "statsFiltered": "{{nodes}} of {{total}} nodes · {{links}} links",
+    "nodeTypes": {
+      "Material": "Materials",
+      "Experiment": "Experiments",
+      "Regime": "Regimes",
+      "Property": "Properties",
+      "Result": "Results",
+      "Lab": "Laboratories",
+      "Author": "Authors",
+      "Document": "Documents"
+    },
+    "filterMaterial": "Material",
+    "filterProcess": "Process",
+    "filterGeo": "Geography",
+    "filterAllMaterials": "All materials",
+    "filterAllProcesses": "All processes",
+    "geo": {
+      "all": "All regions",
+      "domestic": "Domestic",
+      "foreign": "Foreign",
+      "unknown": "Unknown"
+    },
+    "geoLabel": {
+      "domestic": "domestic",
+      "foreign": "foreign",
+      "unknown": "unknown"
+    },
+    "status": {
+      "verified": "verified",
+      "candidate": "candidate",
+      "conflicting": "conflicting"
+    },
+    "errors": {
+      "graph_load_failed": "Failed to load knowledge graph",
+      "forbidden": "Insufficient permissions for this operation",
+      "not_found": "Graph data not found"
+    }
+  },
+  "strategic": {
+    "nav": {
+      "coverage": "Coverage",
+      "quality": "Quality"
+    },
+    "managerTitle": "Knowledge base coverage",
+    "updatedAt": "Updated {{date}}",
+    "coverageTitle": "Coverage by domain",
+    "coverageList": "Direction breakdown",
+    "expandDetails": "Expand breakdown",
+    "collapseDetails": "Collapse breakdown",
+    "coverageValue": "Coverage {{value}}%",
+    "documentsCount": "{{count}} documents",
+    "barClickHint": "Click a bar to see source documents",
+    "metricValue": "Value: {{value}}",
+    "sourcesLine": "Sources: {{actual}} of {{expected}}",
+    "lowCoverage": "Knowledge gaps",
+    "highConflict": "Conflict zones",
+    "alertHint": "Require priority source ingestion or expert review",
+    "evaluationTitle": "Answer quality evaluation",
+    "evaluationSubtitle": "{{count}} official MVP questions",
+    "sources": "Sources",
+    "missingEvidence": "Missing evidence",
+    "unsupportedClaims": "Unsupported",
+    "latency": "Latency",
+    "status": {
+      "pass": "ok",
+      "warn": "review"
+    },
+    "reportStatus": {
+      "pass": "offline gate: pass",
+      "warn": "offline gate: review",
+      "fail": "offline gate: fail",
+      "blocked_by_policy": "live checks deferred (blocked_by_policy)",
+      "blocked_by_data": "report unavailable (blocked_by_data)"
+    },
+    "blockedChecks": "Blocked checks: {{checks}}",
+    "metrics": {
+      "documents": "Documents",
+      "claims": "Claims",
+      "verified_claims": "Confirmed by sources",
+      "candidates": "Pending confirmation",
+      "gaps": "Knowledge gaps",
+      "conflicts": "Conflicts between sources"
+    },
+    "direction": "Direction",
+    "pdfMetric": "Metric",
+    "pdfValue": "Value",
+    "evalMetrics": {
+      "citation_coverage": "Citation coverage",
+      "numeric_correctness": "Numeric correctness",
+      "latency": "Avg latency",
+      "unsupported_rate": "Unsupported rate",
+      "entity_f1": "Entity F1",
+      "recall_at_5": "Recall@5"
+    },
+    "errors": {
+      "strategic_load_failed": "Failed to load strategic analytics",
+      "eval_report_load_failed": "Failed to load evaluation report",
+      "forbidden": "Insufficient permissions for this operation",
+      "not_found": "Analytics data not found"
+    }
+  },
+  "admin": {
+    "nav": {
+      "management": "Management",
+      "stats": "Statistics",
+      "audit": "Audit log",
+      "documents": "Documents"
+    },
+    "documents": {
+      "title": "Document catalog",
+      "subtitle": "Total records: {{total}}",
+      "filters": {
+        "all": "All",
+        "completed": "Indexed",
+        "failed": "Failed",
+        "noIndex": "No index",
+        "noSourceSpans": "No source spans"
+      }
+    },
+    "stats": {
+      "summaryTitle": "Summary"
+    },
+    "summary": {
+      "users": "Users",
+      "audit24h": "Events (24h)",
+      "restricted": "Restricted docs",
+      "denied24h": "Access denied"
+    },
+    "usersTitle": "Users and roles",
+    "usersHint": "Status shows whether the user can sign in. Click the status badge to block or unblock access.",
+    "userName": "Name",
+    "userEmail": "Email",
+    "userRole": "Role",
+    "userStatus": "System access",
+    "userStatusHint": "Whether the user is allowed to sign in",
+    "statusActive": "Sign-in allowed",
+    "statusInactive": "Sign-in blocked",
+    "statusActiveHint": "Click to block sign-in",
+    "statusInactiveHint": "Click to allow sign-in",
+    "userActions": "Actions",
+    "deleteUser": "Delete user",
+    "confirmDeleteUser": "Delete user «{{name}}»?",
+    "usersEmpty": "No users",
+    "expandPanel": "Expand to full page",
+    "collapsePanel": "Collapse",
+    "accessTitle": "Document access policies",
+    "accessHint": "Edit access level, roles, and export directly in the table. Click a role to allow or deny document access.",
+    "roleAddHint": "Allow access for role «{{role}}»",
+    "roleRemoveHint": "Deny access for role «{{role}}»",
+    "exportEnableHint": "Allow document export",
+    "exportDisableHint": "Deny document export",
+    "document": "Document",
+    "accessLevel": "Access level",
+    "allowedRoles": "Roles",
+    "export": "Export",
+    "exportYes": "allowed",
+    "exportNo": "denied",
+    "levels": {
+      "public": "public",
+      "internal": "internal",
+      "confidential": "confidential",
+      "restricted": "restricted"
+    },
+    "levelDescriptions": {
+      "public": "Available to all authorized roles, including external partners",
+      "internal": "Company employees only",
+      "confidential": "Limited to leadership and administrators",
+      "restricted": "Maximum protection, administrators only"
+    },
+    "auditTitle": "Audit log",
+    "auditTime": "Time",
+    "auditUser": "User",
+    "auditAction": "Action",
+    "auditObject": "Object",
+    "auditActions": "Actions",
+    "auditEmpty": "No audit events found",
+    "auditDetailTitle": "Event details",
+    "auditResource": "Resource",
+    "auditRequestId": "Request ID",
+    "auditOpenTarget": "Open linked object",
+    "exportCsv": "Export CSV",
+    "loadMoreAudit": "Load more",
+    "deleteDocument": "Delete document",
+    "confirmDeleteDocument": "Delete document «{{name}}» from the database?",
+    "saveRow": "Save",
+    "saveAll": "Save all ({{count}})",
+    "saving": "Saving…",
+    "savingAll": "Saving…",
+    "saved": "Changes saved",
+    "errors": {
+      "admin_load_failed": "Failed to load admin data",
+      "admin_user_save_failed": "Failed to save user",
+      "admin_policy_save_failed": "Failed to save access policy",
+      "admin_save_failed": "Failed to save changes",
+      "forbidden": "Insufficient permissions for this operation",
+      "dictionaries_load_failed": "Failed to load dictionary versions",
+      "dictionaries_active_failed": "Failed to load active dictionary",
+      "dictionary_activate_failed": "Failed to activate dictionary",
+      "audit_load_failed": "Failed to load audit log"
+    },
+    "filterAll": "All actions",
+    "actions": {
+      "query_created": "query",
+      "answer_generated": "answer",
+      "source_opened": "source open",
+      "source_viewed": "source view",
+      "document_uploaded": "document upload",
+      "document_deleted": "document delete",
+      "document_exported": "export",
+      "review_decision": "review decision",
+      "access_denied": "access denied",
+      "admin_setting_changed": "admin setting",
+      "ingestion_upload": "upload",
+      "role_changed": "role change"
+    },
+    "sourceTitle": "Source fragment",
+    "dictionariesTitle": "Dictionary versions",
+    "dictionariesEmpty": "No dictionaries uploaded yet",
+    "dictionaryActivate": "Activate",
+    "dictionaryActivating": "Activating…",
+    "dictionaryColumns": {
+      "version": "Version",
+      "status": "Status",
+      "files": "Files",
+      "created": "Created",
+      "actions": "Actions"
+    },
+    "dictionaryStatus": {
+      "active": "active",
+      "inactive": "inactive",
+      "validated": "validated",
+      "validation_failed": "validation failed"
+    },
+    "sourceEmpty": "Select an audit event linked to a source",
+    "sourceMeta": "Page {{page}} · {{section}}",
+    "ops": {
+      "title": "Operational metrics",
+      "updatedAt": "Updated {{date}}",
+      "latencyP50": "Latency p50",
+      "latencyP95": "Latency p95",
+      "errors24h": "Errors (24h)",
+      "rpsTotal": "Total RPS",
+      "servicesTitle": "Per-service metrics",
+      "service": "Service",
+      "rps": "RPS",
+      "errors": "Errors",
+      "status": "Health",
+      "statusHint": "Microservice health based on the last 24 hours. Hover a badge for details.",
+      "statuses": {
+        "ok": "Healthy",
+        "degraded": "Degraded",
+        "down": "Unavailable"
+      },
+      "statusDescriptions": {
+        "ok": "latency and errors within normal range",
+        "degraded": "elevated latency or occasional errors",
+        "down": "service not responding or critical error rate"
+      },
+      "serviceNames": {
+        "gateway": "Gateway",
+        "auth_audit": "Auth / Audit",
+        "orchestrator": "Orchestrator",
+        "ingestion": "Ingestion",
+        "knowledge": "Knowledge",
+        "retrieval": "Retrieval",
+        "model": "Model",
+        "export": "Export",
+        "notification": "Notification"
+      }
+    }
+  },
+  "lab": {
+    "nav": {
+      "matrix": "Link matrix",
+      "insights": "Gaps and contradictions"
+    },
+    "nodeTypes": {
+      "Material": "Materials",
+      "Process": "Processes",
+      "Experiment": "Experiments",
+      "Lab": "Laboratories",
+      "Regime": "Regimes",
+      "Author": "Authors",
+      "Document": "Documents"
+    },
+    "matrixTitle": "Matrix «{{row}} × {{col}}»",
+    "expandMatrix": "Expand matrix",
+    "collapseMatrix": "Collapse matrix",
+    "matrixConfig": {
+      "rowAxis": "Rows (node type)",
+      "colAxis": "Columns (node type)",
+      "rowFilter": "Row: {{type}}",
+      "colFilter": "Column: {{type}}",
+      "display": "Cell values",
+      "allRows": "All rows",
+      "allCols": "All columns",
+      "displayHover": "On hover",
+      "displayAlways": "Always",
+      "reset": "Reset",
+      "fullSummary": "{{rowType}} × {{colType}}: {{rows}} × {{cols}}",
+      "filteredSummary": "Filter: {{rowType}} × {{colType}}, {{rows}} × {{cols}}"
+    },
+    "experimentsCount": "{{count}} links",
+    "cellTooltip": "{{row}} × {{col}}: {{count}} links",
+    "cellClickHint": "Click a cell to see source documents",
+    "legend": {
+      "none": "no data",
+      "low": "low",
+      "mid": "medium",
+      "high": "high"
+    },
+    "gapsTitle": "Knowledge gaps",
+    "conflictsTitle": "Data contradictions",
+    "process": "Process",
+    "relatedCases": "Related cases",
+    "experts": "Experts and labs",
+    "conflictNote": "Experiment conditions differ — not a direct conflict without comparison",
+    "summary": {
+      "gaps": "Topics without coverage",
+      "conflicts": "Conflicts",
+      "sparse": "Cells without links",
+      "links": "Links in matrix"
+    },
+    "risk": {
+      "high": "high",
+      "medium": "medium",
+      "low": "low"
+    },
+    "errors": {
+      "lab_load_failed": "Failed to load lab analytics",
+      "forbidden": "Insufficient permissions for this operation",
+      "not_found": "Lab data not found"
+    }
+  },
+  "pages": {
+    "chat": "Semantic search and reports",
+    "graph": "Knowledge structure and data upload",
+    "strategic": "Management analytics",
+    "lab": "Deep dependency analysis",
+    "admin": "Security and audit",
+    "upload": "Document upload",
+    "search": "Filtered search"
+  },
+  "upload": {
+    "subtitle": "Upload documents, review analysis, and manage extracted entities",
+    "dropTitle": "Drop files here",
+    "dropActive": "Release to upload files",
+    "dropHint": "PDF, DOCX, or TXT — up to 200 MB per batch. Dictionaries — JSON.",
+    "selectFiles": "Select files",
+    "selectDictionary": "Upload dictionary",
+    "filesCount": "Files: {{count}}",
+    "startUpload": "Upload",
+    "uploading": "Uploading…",
+    "removeFile": "Remove",
+    "analysisTitle": "Analysis",
+    "analysisEmpty": "Upload documents to see analysis results",
+    "taskStatus": "Task status",
+    "sourcesTitle": "Sources",
+    "warningsTitle": "Warnings",
+    "entitiesTitle": "New entities",
+    "entitiesEmpty": "Extracted entities will appear here after processing",
+    "addEntity": "Add",
+    "saveEntity": "Save",
+    "cancelEntity": "Cancel",
+    "deleteEntity": "Delete",
+    "deleteDocument": "Delete document",
+    "confirmDeleteDocument": "Delete document «{{name}}» from the database?",
+    "entityNamePlaceholder": "Entity name",
+    "fileKinds": {
+      "document": "document",
+      "dictionary": "dictionary"
+    },
+    "fileStatus": {
+      "queued": "queued",
+      "uploading": "uploading",
+      "completed": "done",
+      "failed": "failed"
+    },
+    "taskStatuses": {
+      "pending": "pending",
+      "processing": "processing",
+      "completed": "completed",
+      "failed": "failed"
+    },
+    "metrics": {
+      "documents": "Documents",
+      "spans": "Spans",
+      "tables": "Tables",
+      "claims": "Claims",
+      "candidates": "Candidates",
+      "indexed": "Indexed"
+    },
+    "stagesTitle": "Processing stages",
+    "stages": {
+      "upload": "Upload",
+      "parse": "Document parsing",
+      "extract": "Entity extraction",
+      "index": "Indexing",
+      "complete": "Complete",
+      "dictionary": "Dictionary"
+    },
+    "stageStatuses": {
+      "pending": "pending",
+      "active": "in progress",
+      "done": "done",
+      "failed": "failed"
+    },
+    "errors": {
+      "upload_failed": "Failed to upload files",
+      "delete_failed": "Failed to delete document",
+      "forbidden": "Insufficient permissions to delete this document",
+      "not_found": "Document not found",
+      "document_delete_not_implemented": "Document deletion is not yet available on the server"
+    }
+  },
+  "search": {
+    "resultsCount": "Showing {{shown}} of {{total}}",
+    "loadMore": "Load more",
+    "loadingMore": "Loading…",
+    "errors": {
+      "search_failed": "Search failed"
+    },
+    "filters": {
+      "geo": "Geography",
+      "geoPlaceholder": "Russia, Norilsk",
+      "yearFrom": "Year from",
+      "yearTo": "Year to",
+      "numeric": "Numeric filter",
+      "sourceTypes": "Source type"
+    },
+    "sourceTypes": {
+      "text": "text",
+      "table": "table",
+      "figure": "figure",
+      "caption": "caption"
+    }
+  },
+  "review": {
+    "title": "Review console",
+    "subtitle": "Candidates, conflicts, and source bindings",
+    "emptyQueue": "No candidates match the selected filters",
+    "noConflicts": "No conflicts selected",
+    "conflictsTitle": "Value conflict",
+    "sourcePanelTitle": "Candidate source",
+    "sourceEmpty": "Select a candidate with a source binding",
+    "actionsBlocked": "Decisions require the review console flag and a connected backend",
+    "errors": {
+      "review_queue_failed": "Failed to load review queue",
+      "review_decision_failed": "Failed to save decision",
+      "review_storage_not_implemented": "Backend review workflow is not connected yet"
+    },
+    "filters": {
+      "status": "Status",
+      "type": "Type",
+      "from": "From",
+      "to": "To",
+      "all": "All"
+    },
+    "columns": {
+      "name": "Name",
+      "type": "Type",
+      "status": "Status",
+      "confidence": "Confidence",
+      "conflicts": "Conflicts",
+      "updated": "Updated"
+    },
+    "status": {
+      "pending": "pending",
+      "approved": "approved",
+      "rejected": "rejected",
+      "deferred": "deferred"
+    },
+    "types": {
+      "substance": "substance",
+      "process_term": "process term",
+      "numeric_claim": "numeric claim",
+      "entity": "entity"
+    },
+    "decisions": {
+      "approved": "Approve",
+      "rejected": "Reject",
+      "deferred": "Defer"
+    }
+  }
+}

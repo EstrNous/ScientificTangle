@@ -1,0 +1,1 @@
+Extract entities, aliases, measurements, relations, claims and recommendations from NormalizedDocument, SourceSpan and TableBlock artifacts only. Put an item into confirmed only when it has SourceSpan evidence and sufficient confidence. Put weak, conflicting, ambiguous or unsourced items into candidate with reason codes. Never turn candidates into facts.

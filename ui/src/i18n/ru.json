@@ -1,0 +1,822 @@
+{
+  "app": {
+    "title": "НорСинтез"
+  },
+  "nav": {
+    "chat": "AI R&D Ассистент",
+    "graph": "Граф знаний",
+    "strategic": "Аналитика",
+    "lab": "R&D Лаборатория",
+    "admin": "Администрирование",
+    "upload": "Загрузка",
+    "review": "Проверка кандидатов"
+  },
+  "roles": {
+    "director": "Директор",
+    "researcher": "Научный сотрудник",
+    "analyst": "Аналитик",
+    "admin": "Администратор",
+    "external_partner": "Внешний партнёр"
+  },
+  "common": {
+    "loading": "Загрузка…",
+    "accessDenied": "Нет доступа к этой странице",
+    "accessDeniedHint": "Обратитесь к администратору, если вам нужен доступ к этому разделу.",
+    "placeholder": "Раздел в разработке",
+    "home": "Главная",
+    "searchPlaceholder": "Поиск",
+    "team": "Команда",
+    "roleSwitcher": "Роль",
+    "profile": "Профиль",
+    "downloadPdf": "Скачать PDF",
+    "downloadingPdf": "PDF…",
+    "exportedAt": "Экспорт: {{date}}",
+    "retry": "Повторить",
+    "mockModeActive": "Режим mock: данные из локальных заглушек, не с backend. Для live API используйте npm run dev или VITE_USE_MOCK=false."
+  },
+  "errors": {
+    "boundaryTitle": "Ошибка интерфейса",
+    "boundaryMessage": "Произошла непредвиденная ошибка. Попробуйте повторить действие или обновить страницу.",
+    "boundaryMockHint": "В режиме разработки можно переключить VITE_USE_MOCK для локальной отладки.",
+    "retry": "Повторить",
+    "reload": "Обновить страницу"
+  },
+  "health": {
+    "label": "Состояние сервисов",
+    "shortLabel": "Сервисы",
+    "checkFailed": "Не удалось проверить состояние сервисов",
+    "degradedBanner": "Часть сервисов работает с ограничениями. Некоторые функции могут быть недоступны.",
+    "degradedBannerError": "Не удалось связаться с backend. Проверьте подключение и повторите попытку.",
+    "statuses": {
+      "ok": "Все сервисы доступны",
+      "degraded": "Частичная деградация",
+      "down": "Сервисы недоступны",
+      "checking": "Проверка…"
+    }
+  },
+  "pageState": {
+    "empty": "Нет данных для отображения",
+    "searchEmpty": "По запросу ничего не найдено. Измените формулировку или фильтры."
+  },
+  "notifications": {
+    "bell": "Уведомления",
+    "title": "Уведомления",
+    "empty": "Нет уведомлений",
+    "loading": "Загрузка…",
+    "markAllRead": "Прочитать все",
+    "refresh": "Обновить",
+    "refreshing": "Обновление…",
+    "newTitle": "Новое уведомление",
+    "errors": {
+      "notifications_load_failed": "Не удалось загрузить уведомления",
+      "notification_read_failed": "Не удалось отметить уведомление прочитанным",
+      "notifications_read_all_failed": "Не удалось отметить все уведомления прочитанными"
+    },
+    "types": {
+      "interest_match": "Совпадение с интересами",
+      "ingestion_complete": "Обработка документа завершена",
+      "conflict_detected": "Обнаружено противоречие",
+      "review_pending": "Кандидат на проверку",
+      "query_conflict": "Конфликт в ответе"
+    }
+  },
+  "auth": {
+    "loginTitle": "Вход",
+    "loginSubtitle": "Войдите в аккаунт для доступа к платформе",
+    "identifier": "Имя пользователя или email",
+    "identifierPlaceholder": "ivan.petrov или name@company.com",
+    "loginPasswordPlaceholder": "Введите пароль",
+    "loginSubmit": "Войти",
+    "loggingIn": "Вход…",
+    "loginAction": "Войти",
+    "forgotPasswordAction": "Забыли пароль?",
+    "registerAction": "Зарегистрироваться",
+    "forgotPasswordTitle": "Восстановление пароля",
+    "forgotPasswordSubtitle": "Сброс пароля через интерфейс пока недоступен",
+    "forgotPasswordHint": "Обратитесь к администратору платформы для сброса пароля или создайте новый аккаунт.",
+    "backToLogin": "Вернуться ко входу",
+    "registerTitle": "Регистрация",
+    "registerSubtitle": "Создайте аккаунт для доступа к платформе",
+    "username": "Имя пользователя",
+    "usernamePlaceholder": "ivan.petrov",
+    "email": "Email",
+    "emailPlaceholder": "name@company.com",
+    "password": "Пароль",
+    "passwordPlaceholder": "Минимум 8 символов",
+    "confirmPassword": "Подтверждение пароля",
+    "confirmPasswordPlaceholder": "Повторите пароль",
+    "passwordHint": "Пароль: не менее 8 символов, заглавная и строчная буква, цифра",
+    "registerSubmit": "Зарегистрироваться",
+    "registering": "Регистрация…",
+    "errors": {
+      "usernameInvalid": "Имя пользователя: латиница, цифры, точка, дефис или подчёркивание (от 3 символов)",
+      "emailInvalid": "Укажите корректный email",
+      "passwordLength": "Пароль должен содержать от 8 до 128 символов",
+      "passwordUppercase": "Пароль должен содержать заглавную букву",
+      "passwordLowercase": "Пароль должен содержать строчную букву",
+      "passwordDigit": "Пароль должен содержать цифру",
+      "passwordMismatch": "Пароли не совпадают",
+      "identifierRequired": "Укажите имя пользователя или email",
+      "passwordRequired": "Введите пароль",
+      "unauthorized": "Неверное имя пользователя или пароль",
+      "identity_already_exists": "Пользователь с таким именем или email уже существует",
+      "validation_error": "Проверьте корректность введённых данных",
+      "forbidden": "Доступ с этого адреса запрещён",
+      "unknown": "Не удалось выполнить запрос. Попробуйте позже",
+      "profileNoChanges": "Измените имя пользователя или email перед сохранением",
+      "passwordSameAsCurrent": "Новый пароль должен отличаться от текущего"
+    }
+  },
+  "profile": {
+    "title": "Личный кабинет",
+    "accountTitle": "Аккаунт",
+    "roleLabel": "Роль",
+    "statusLabel": "Статус",
+    "statusActive": "Активен",
+    "statusInactive": "Деактивирован",
+    "edit": "Редактировать",
+    "cancel": "Отмена",
+    "editDescription": "Для сохранения изменений укажите текущий пароль",
+    "currentPassword": "Текущий пароль",
+    "newPassword": "Новый пароль",
+    "saveChanges": "Сохранить изменения",
+    "saving": "Сохранение…",
+    "saved": "Профиль обновлён",
+    "passwordTitle": "Смена пароля",
+    "passwordMasked": "Пароль скрыт",
+    "changePassword": "Сменить пароль",
+    "passwordChanged": "Пароль изменён",
+    "interestsTitle": "Профиль интересов",
+    "interestsDescription": "Опишите темы на естественном языке — система выделит сущности для персональных уведомлений",
+    "interestsEmpty": "Интересы не заданы",
+    "interestsPlaceholder": "Например: электроэкстракция никеля, циркуляция католита, обессоливание шахтных вод",
+    "saveInterests": "Сохранить интересы",
+    "interestsSaved": "Интересы сохранены",
+    "interestsExtractionUnavailable": "Текст сохранён, но теги не извлечены: сервис анализа недоступен",
+    "interestsExtractionFailed": "Текст сохранён, но теги не извлечены: ошибка анализа",
+    "interestsExtractionFallback": "Теги сформированы локально без ML-сервиса",
+    "interestsLoading": "Загрузка интересов…",
+    "extractedEntities": "Извлечено сущностей: {{count}}",
+    "errors": {
+      "interests_load_failed": "Не удалось загрузить интересы",
+      "interests_save_failed": "Не удалось сохранить интересы"
+    },
+    "securityTitle": "Безопасность",
+    "securitySummary": "Выход из аккаунта и управление сессиями",
+    "logout": "Выйти",
+    "logoutAll": "Выйти на всех устройствах",
+    "confirmLogoutAll": "Завершить все активные сессии на всех устройствах?",
+    "deactivateTitle": "Деактивация аккаунта",
+    "deactivate": "Деактивировать аккаунт",
+    "confirmDeactivate": "Аккаунт будет деактивирован. Продолжить?",
+    "dangerHint": "Необратимые действия требуют подтверждения паролем"
+  },
+  "source": {
+    "title": "Документ-источник",
+    "download": "Скачать PDF",
+    "downloading": "PDF…",
+    "page": "Стр. {{page}}",
+    "pageLabel": "Страница {{page}}",
+    "pageCount": "{{count}} стр.",
+    "totalPages": "всего {{count}} стр.",
+    "citedFragment": "Цитируемый фрагмент",
+    "prevPage": "Назад",
+    "nextPage": "Вперёд",
+    "close": "Закрыть",
+    "pageEmpty": "Текст страницы недоступен",
+    "refsTitle": "Документы-источники",
+    "refsCount": "{{count}} документов",
+    "lockedTitle": "Источник недоступен",
+    "lockedHint": "У вашей роли нет доступа к этому документу. Обратитесь к администратору, если доступ нужен для проверки.",
+    "tableRowHighlight": "Выделена строка таблицы: {{rowId}}"
+  },
+  "chat": {
+    "history": "История",
+    "showHistory": "История запросов",
+    "hideHistory": "Скрыть историю",
+    "export": "Экспорт",
+    "downloadMd": "Скачать MD",
+    "downloadJson": "Скачать JSON",
+    "downloadJsonLd": "Скачать JSON-LD",
+    "downloadPdf": "Скачать PDF",
+    "downloadingPdf": "PDF…",
+    "exporting": "Экспорт…",
+    "exportNeedsRun": "Серверный экспорт доступен после завершённого запроса с query run",
+    "exportUnavailable": "недоступно",
+    "exportJsonLdUnavailable": "JSON-LD экспорт пока не поддерживается сервером",
+    "exportPdfUnavailable": "PDF экспорт на сервере в backlog",
+    "exportPdfClientHint": "PDF формируется в браузере из текущей сессии",
+    "exportErrors": {
+      "export_failed": "Не удалось выполнить экспорт",
+      "export_no_query_run": "Нет завершённого запроса для экспорта",
+      "export_format_unavailable": "Формат экспорта недоступен",
+      "export_jsonld_unavailable": "JSON-LD экспорт недоступен",
+      "export_pdf_unavailable": "PDF экспорт недоступен на сервере",
+      "export_backend_required": "Требуется подключение к backend",
+      "export_still_processing": "Экспорт ещё выполняется",
+      "export_empty": "Сервер вернул пустой файл экспорта"
+    },
+    "newChat": "Новый чат",
+    "creatingChat": "Создание…",
+    "newChatShortcut": "Новый чат ({{shortcut}})",
+    "defaultSessionTitle": "Новый запрос",
+    "deleteSession": "Удалить запрос",
+    "inputPlaceholder": "Задайте вопрос…",
+    "send": "Отправить",
+    "attachFile": "Прикрепить файл",
+    "attachFileHint": "Прикрепить PDF, DOCX, TXT",
+    "removeAttachment": "Убрать {{name}}",
+    "attachmentQuery": "Что содержится в прикреплённых документах?",
+    "errors": {
+      "chat_load_failed": "Не удалось загрузить список чатов",
+      "chat_messages_failed": "Не удалось загрузить сообщения",
+      "chat_create_failed": "Не удалось создать чат",
+      "chat_send_failed": "Не удалось отправить сообщение",
+      "chat_delete_failed": "Не удалось удалить чат",
+      "forbidden": "Недостаточно прав для этой операции",
+      "not_found": "Чат не найден"
+    },
+    "emptyPrompt": "Задайте вопрос, чтобы начать диалог",
+    "retrievalTitle": "Поиск и обработка",
+    "evidenceRow": "Строка {{index}}: {{label}}",
+    "evidenceCellHint": "Показать документы-источники строки",
+    "retrieval": {
+      "analyze": "Анализирую запрос и выделяю ключевые сущности",
+      "synonyms": "Расширяю синонимы: {{terms}}",
+      "searchFile": "Ищу в «{{file}}» — {{method}}",
+      "processFile": "Обрабатываю фрагменты из «{{file}}»",
+      "filterAccess": "Фильтрую результаты по уровню доступа",
+      "synthesize": "Формирую ответ с привязкой к источникам",
+      "methodHybrid": "BM25 + семантический поиск",
+      "retrievedCount": "Найдено фрагментов: {{count}}"
+    },
+    "streaming": {
+      "draftTitle": "Формирование ответа"
+    },
+    "lifecycle": {
+      "title": "Подготовка ответа",
+      "sessionWaiting": "Ожидание ответа сервера…",
+      "degraded": "Ответ сформирован с ограниченной уверенностью",
+      "error": "Не удалось завершить подготовку ответа",
+      "errors": {
+        "active_dictionary_required": "Нет активного справочника. Запустите seed демо-данных (make seed).",
+        "orchestrator_unavailable": "Сервис обработки запросов недоступен. Проверьте docker compose ps.",
+        "orchestrator_timeout": "Превышено время ожидания ответа. Повторите запрос позже.",
+        "validation_error": "Запрос отклонён сервером. Обновите страницу и повторите."
+      },
+      "phases": {
+        "parsing": "Разбор запроса",
+        "retrieval": "Поиск по корпусу",
+        "verification": "Проверка доказательств",
+        "synthesis": "Синтез ответа",
+        "citations": "Привязка источников"
+      }
+    },
+    "answer": {
+      "degradedBanner": "Ответ сформирован с ограничениями по доступным доказательствам",
+      "partialBanner": "Ответ неполный — подтверждённых наблюдений недостаточно",
+      "confirmedTitle": "Подтверждённые наблюдения",
+      "candidateTitle": "Кандидаты на проверку",
+      "candidateHint": "Не считаются установленными фактами до верификации",
+      "limitationsTitle": "Ограничения",
+      "conflictsTitle": "Конфликты в источниках",
+      "gapsTitle": "Пробелы в данных",
+      "followUpTitle": "Следующие шаги",
+      "reasonCodes": {
+        "missing_source_span": "нет привязки к источнику",
+        "low_confidence": "низкая уверенность",
+        "ambiguous_alias": "неоднозначный синоним",
+        "conflicting_values": "противоречивые значения",
+        "needs_unit_check": "требуется проверка единиц",
+        "access_filtered": "отфильтровано по доступу",
+        "schema_candidate": "кандидат схемы",
+        "outside_time_range": "вне временного диапазона",
+        "geo_mismatch": "несовпадение географии",
+        "unit_mismatch": "несовпадение единиц",
+        "unsupported_claim": "неподтверждённое утверждение",
+        "unresolved_alias": "неразрешённый синоним",
+        "inaccessible_source": "источник недоступен",
+        "insufficient_accessible_evidence": "недостаточно доступных доказательств"
+      }
+    }
+  },
+  "graph": {
+    "searchPlaceholder": "Поиск по узлам, материалам и публикациям",
+    "searchButton": "Найти",
+    "searching": "Поиск…",
+    "searchResults": "Результаты поиска",
+    "searchHint": "Задайте запрос и примените фильтры",
+    "noResults": "Ничего не найдено по заданным условиям",
+    "knowledgeMap": "Карта знаний",
+    "stats": "{{nodes}} узлов · {{links}} связей",
+    "entities": "Сущности",
+    "entityName": "Имя",
+    "entityType": "Тип",
+    "entityStatus": "Статус",
+    "verificationInbox": "Кандидаты на верификацию",
+    "confidence": "Достоверность",
+    "approve": "Подтвердить",
+    "reject": "Отклонить",
+    "edit": "Править",
+    "empty": "Граф пуст — загрузите документы",
+    "emptyFiltered": "Нет узлов по выбранным типам и запросу",
+    "expandPanel": "Развернуть на всю панель",
+    "collapsePanel": "Свернуть",
+    "verificationEmpty": "Нет кандидатов на верификацию",
+    "nodeTypeFilters": "Типы узлов",
+    "selectAllTypes": "Все типы",
+    "resetTypes": "Сбросить",
+    "tableView": "Таблица",
+    "graphView": "Граф",
+    "combinationsTitle": "Сочетания узлов",
+    "combinationsEmpty": "Нет сочетаний по выбранным типам узлов",
+    "combinationsNoTypes": "Выберите хотя бы один тип узла для таблицы",
+    "combinationsEditHint": "Ячейки и названия групп редактируются напрямую",
+    "combinationsAddRow": "Добавить строку",
+    "combinationsDeleteRow": "Удалить строку",
+    "combinationsCellHint": "Показать документы-источники строки",
+    "statsFiltered": "{{nodes}} из {{total}} узлов · {{links}} связей",
+    "nodeTypes": {
+      "Material": "Материалы",
+      "Experiment": "Эксперименты",
+      "Regime": "Режимы",
+      "Property": "Свойства",
+      "Result": "Результаты",
+      "Lab": "Лаборатории",
+      "Author": "Авторы",
+      "Document": "Документы"
+    },
+    "filterMaterial": "Материал",
+    "filterProcess": "Процесс",
+    "filterGeo": "География",
+    "filterAllMaterials": "Все материалы",
+    "filterAllProcesses": "Все процессы",
+    "geo": {
+      "all": "Вся география",
+      "domestic": "Отечественная",
+      "foreign": "Зарубежная",
+      "unknown": "Неизвестно"
+    },
+    "geoLabel": {
+      "domestic": "отечественная",
+      "foreign": "зарубежная",
+      "unknown": "неизвестно"
+    },
+    "status": {
+      "verified": "подтверждено",
+      "candidate": "кандидат",
+      "conflicting": "конфликт"
+    },
+    "errors": {
+      "graph_load_failed": "Не удалось загрузить граф знаний",
+      "forbidden": "Недостаточно прав для этой операции",
+      "not_found": "Данные графа не найдены"
+    }
+  },
+  "strategic": {
+    "nav": {
+      "coverage": "Покрытие",
+      "quality": "Качество"
+    },
+    "managerTitle": "Покрытие базы знаний",
+    "updatedAt": "Обновлено {{date}}",
+    "coverageTitle": "Покрытие по направлениям",
+    "coverageList": "Детализация по направлениям",
+    "expandDetails": "Развернуть детализацию",
+    "collapseDetails": "Свернуть детализацию",
+    "coverageValue": "Покрытие {{value}}%",
+    "documentsCount": "{{count}} документов",
+    "barClickHint": "Клик по столбцу — список документов",
+    "metricValue": "Значение: {{value}}",
+    "sourcesLine": "Источники: {{actual}} из {{expected}}",
+    "lowCoverage": "Пробелы в знаниях",
+    "highConflict": "Зоны конфликтов",
+    "alertHint": "Требуют приоритетной загрузки источников или экспертной проверки",
+    "evaluationTitle": "Оценка качества ответов",
+    "evaluationSubtitle": "{{count}} официальных вопросов MVP",
+    "sources": "Источники",
+    "missingEvidence": "Без доказательств",
+    "unsupportedClaims": "Неподтверждённые",
+    "latency": "Задержка",
+    "status": {
+      "pass": "норма",
+      "warn": "внимание"
+    },
+    "reportStatus": {
+      "pass": "offline gate: pass",
+      "warn": "offline gate: review",
+      "fail": "offline gate: fail",
+      "blocked_by_policy": "live-проверки отложены (blocked_by_policy)",
+      "blocked_by_data": "отчёт недоступен (blocked_by_data)"
+    },
+    "blockedChecks": "Заблокированные проверки: {{checks}}",
+    "metrics": {
+      "documents": "Документы",
+      "claims": "Утверждения",
+      "verified_claims": "Подтверждено источниками",
+      "candidates": "Кандидаты на подтверждение",
+      "gaps": "Пробелы в знаниях",
+      "conflicts": "Конфликты между источниками"
+    },
+    "direction": "Направление",
+    "pdfMetric": "Показатель",
+    "pdfValue": "Значение",
+    "evalMetrics": {
+      "citation_coverage": "Покрытие источниками",
+      "numeric_correctness": "Точность чисел",
+      "latency": "Средняя задержка",
+      "unsupported_rate": "Неподтверждённые",
+      "entity_f1": "Entity F1",
+      "recall_at_5": "Recall@5"
+    },
+    "errors": {
+      "strategic_load_failed": "Не удалось загрузить стратегическую аналитику",
+      "eval_report_load_failed": "Не удалось загрузить отчёт оценки",
+      "forbidden": "Недостаточно прав для этой операции",
+      "not_found": "Данные аналитики не найдены"
+    }
+  },
+  "admin": {
+    "nav": {
+      "management": "Управление",
+      "stats": "Статистика",
+      "audit": "Журнал аудита",
+      "documents": "Документы"
+    },
+    "documents": {
+      "title": "Каталог документов",
+      "subtitle": "Всего записей: {{total}}",
+      "filters": {
+        "all": "Все",
+        "completed": "Проиндексированы",
+        "failed": "Ошибки",
+        "noIndex": "Без индекса",
+        "noSourceSpans": "Без source spans"
+      }
+    },
+    "stats": {
+      "summaryTitle": "Сводка"
+    },
+    "summary": {
+      "users": "Пользователи",
+      "audit24h": "События за 24 ч",
+      "restricted": "Закрытые документы",
+      "denied24h": "Отказы доступа"
+    },
+    "usersTitle": "Пользователи и роли",
+    "usersHint": "Статус показывает, может ли пользователь входить в систему. Нажмите на статус, чтобы заблокировать или разблокировать вход.",
+    "userName": "Имя",
+    "userEmail": "Email",
+    "userRole": "Роль",
+    "userStatus": "Доступ в системе",
+    "userStatusHint": "Разрешён ли вход пользователя в систему",
+    "statusActive": "Вход разрешён",
+    "statusInactive": "Вход заблокирован",
+    "statusActiveHint": "Нажмите, чтобы заблокировать вход",
+    "statusInactiveHint": "Нажмите, чтобы разрешить вход",
+    "userActions": "Действия",
+    "deleteUser": "Удалить пользователя",
+    "confirmDeleteUser": "Удалить пользователя «{{name}}»?",
+    "usersEmpty": "Нет пользователей",
+    "expandPanel": "Развернуть на всю страницу",
+    "collapsePanel": "Свернуть",
+    "accessTitle": "Политики доступа к документам",
+    "accessHint": "Уровень доступа, роли и экспорт редактируются прямо в таблице. Нажмите на роль, чтобы разрешить или запретить чтение документа.",
+    "roleAddHint": "Разрешить доступ для роли «{{role}}»",
+    "roleRemoveHint": "Запретить доступ для роли «{{role}}»",
+    "exportEnableHint": "Разрешить экспорт документа",
+    "exportDisableHint": "Запретить экспорт документа",
+    "document": "Документ",
+    "accessLevel": "Уровень доступа",
+    "allowedRoles": "Роли",
+    "export": "Экспорт",
+    "exportYes": "разрешён",
+    "exportNo": "запрещён",
+    "levels": {
+      "public": "публичный",
+      "internal": "внутренний",
+      "confidential": "конфиденциальный",
+      "restricted": "ограниченный"
+    },
+    "levelDescriptions": {
+      "public": "Доступен всем авторизованным ролям, включая внешних партнёров",
+      "internal": "Только для сотрудников компании",
+      "confidential": "Ограниченный круг: руководство и администраторы",
+      "restricted": "Максимальная защита, только администраторы"
+    },
+    "auditTitle": "Журнал аудита",
+    "auditTime": "Время",
+    "auditUser": "Пользователь",
+    "auditAction": "Действие",
+    "auditObject": "Объект",
+    "auditActions": "Действия",
+    "auditEmpty": "События аудита не найдены",
+    "auditDetailTitle": "Детали события",
+    "auditResource": "Ресурс",
+    "auditRequestId": "Request ID",
+    "auditOpenTarget": "Открыть связанный объект",
+    "exportCsv": "Экспорт CSV",
+    "loadMoreAudit": "Загрузить ещё",
+    "deleteDocument": "Удалить документ",
+    "confirmDeleteDocument": "Удалить документ «{{name}}» из базы?",
+    "saveRow": "Сохранить",
+    "saveAll": "Сохранить все ({{count}})",
+    "saving": "Сохранение…",
+    "savingAll": "Сохранение…",
+    "saved": "Изменения сохранены",
+    "errors": {
+      "admin_load_failed": "Не удалось загрузить данные администрирования",
+      "admin_user_save_failed": "Не удалось сохранить пользователя",
+      "admin_policy_save_failed": "Не удалось сохранить политику доступа",
+      "admin_save_failed": "Не удалось сохранить изменения",
+      "forbidden": "Недостаточно прав для этой операции",
+      "dictionaries_load_failed": "Не удалось загрузить версии словарей",
+      "dictionaries_active_failed": "Не удалось загрузить активный словарь",
+      "dictionary_activate_failed": "Не удалось активировать словарь",
+      "audit_load_failed": "Не удалось загрузить журнал аудита"
+    },
+    "filterAll": "Все действия",
+    "actions": {
+      "query_created": "запрос",
+      "answer_generated": "ответ",
+      "source_opened": "открытие источника",
+      "source_viewed": "просмотр источника",
+      "document_uploaded": "загрузка документа",
+      "document_deleted": "удаление документа",
+      "document_exported": "экспорт",
+      "review_decision": "решение проверки",
+      "access_denied": "отказ доступа",
+      "admin_setting_changed": "изменение настроек",
+      "ingestion_upload": "загрузка",
+      "role_changed": "смена роли"
+    },
+    "sourceTitle": "Фрагмент источника",
+    "dictionariesTitle": "Версии словарей",
+    "dictionariesEmpty": "Словари ещё не загружались",
+    "dictionaryActivate": "Активировать",
+    "dictionaryActivating": "Активация…",
+    "dictionaryColumns": {
+      "version": "Версия",
+      "status": "Статус",
+      "files": "Файлы",
+      "created": "Создана",
+      "actions": "Действия"
+    },
+    "dictionaryStatus": {
+      "active": "активна",
+      "inactive": "неактивна",
+      "validated": "проверена",
+      "validation_failed": "ошибка проверки"
+    },
+    "sourceEmpty": "Выберите событие с источником в журнале аудита",
+    "sourceMeta": "Стр. {{page}} · {{section}}",
+    "ops": {
+      "title": "Операционные метрики",
+      "updatedAt": "Обновлено {{date}}",
+      "latencyP50": "Отклик p50",
+      "latencyP95": "Отклик p95",
+      "errors24h": "Ошибки за 24 ч",
+      "rpsTotal": "RPS всего",
+      "servicesTitle": "Метрики по сервисам",
+      "service": "Сервис",
+      "rps": "RPS",
+      "errors": "Ошибки",
+      "status": "Состояние",
+      "statusHint": "Состояние микросервиса по метрикам за последние 24 часа. Наведите на бейдж для подробностей.",
+      "statuses": {
+        "ok": "Работает нормально",
+        "degraded": "Частичная деградация",
+        "down": "Недоступен"
+      },
+      "statusDescriptions": {
+        "ok": "задержки и ошибки в пределах нормы",
+        "degraded": "повышенные задержки или единичные ошибки",
+        "down": "сервис не отвечает или критический уровень ошибок"
+      },
+      "serviceNames": {
+        "gateway": "Gateway",
+        "auth_audit": "Auth / Audit",
+        "orchestrator": "Orchestrator",
+        "ingestion": "Ingestion",
+        "knowledge": "Knowledge",
+        "retrieval": "Retrieval",
+        "model": "Model",
+        "export": "Export",
+        "notification": "Notification"
+      }
+    }
+  },
+  "lab": {
+    "nav": {
+      "matrix": "Матрица связей",
+      "insights": "Пробелы и противоречия"
+    },
+    "nodeTypes": {
+      "Material": "Материалы",
+      "Process": "Процессы",
+      "Experiment": "Эксперименты",
+      "Lab": "Лаборатории",
+      "Regime": "Режимы",
+      "Author": "Авторы",
+      "Document": "Документы"
+    },
+    "matrixTitle": "Матрица «{{row}} × {{col}}»",
+    "expandMatrix": "Развернуть матрицу",
+    "collapseMatrix": "Свернуть матрицу",
+    "matrixConfig": {
+      "rowAxis": "Строки (тип узла)",
+      "colAxis": "Столбцы (тип узла)",
+      "rowFilter": "Строка: {{type}}",
+      "colFilter": "Столбец: {{type}}",
+      "display": "Числа в ячейках",
+      "allRows": "Все строки",
+      "allCols": "Все столбцы",
+      "displayHover": "При наведении",
+      "displayAlways": "Всегда",
+      "reset": "Сбросить",
+      "fullSummary": "{{rowType}} × {{colType}}: {{rows}} × {{cols}}",
+      "filteredSummary": "Фильтр: {{rowType}} × {{colType}}, {{rows}} × {{cols}}"
+    },
+    "experimentsCount": "{{count}} связей",
+    "cellTooltip": "{{row}} × {{col}}: {{count}} связей",
+    "cellClickHint": "Клик по ячейке — список документов",
+    "legend": {
+      "none": "нет данных",
+      "low": "мало",
+      "mid": "средне",
+      "high": "много"
+    },
+    "gapsTitle": "Пробелы в знаниях",
+    "conflictsTitle": "Противоречия в данных",
+    "process": "Процесс",
+    "relatedCases": "Близкие кейсы",
+    "experts": "Эксперты и лаборатории",
+    "conflictNote": "Условия эксперимента различаются — прямой конфликт не подтверждён без сопоставления",
+    "summary": {
+      "gaps": "Темы без покрытия",
+      "conflicts": "Конфликты",
+      "sparse": "Ячейки без связей",
+      "links": "Связей в матрице"
+    },
+    "risk": {
+      "high": "высокий",
+      "medium": "средний",
+      "low": "низкий"
+    },
+    "errors": {
+      "lab_load_failed": "Не удалось загрузить данные лаборатории",
+      "forbidden": "Недостаточно прав для этой операции",
+      "not_found": "Данные лаборатории не найдены"
+    }
+  },
+  "pages": {
+    "chat": "Семантический поиск и отчёты",
+    "graph": "Структура знаний и загрузка данных",
+    "strategic": "Управленческая аналитика",
+    "lab": "Глубокий анализ зависимостей",
+    "admin": "Безопасность и аудит",
+    "upload": "Загрузка документов",
+    "search": "Поиск с фильтрами"
+  },
+  "upload": {
+    "subtitle": "Загрузка документов, анализ содержимого и проверка извлечённых сущностей",
+    "dropTitle": "Перетащите файлы сюда",
+    "dropActive": "Отпустите файлы для загрузки",
+    "dropHint": "PDF, DOCX или TXT — до 200 МБ на пакет. Словари — JSON.",
+    "selectFiles": "Выбрать файлы",
+    "selectDictionary": "Загрузить словарь",
+    "filesCount": "Файлов: {{count}}",
+    "startUpload": "Загрузить",
+    "uploading": "Загрузка…",
+    "removeFile": "Убрать",
+    "analysisTitle": "Анализ",
+    "analysisEmpty": "Загрузите документы, чтобы увидеть результаты анализа",
+    "taskStatus": "Статус задачи",
+    "sourcesTitle": "Источники",
+    "warningsTitle": "Предупреждения",
+    "entitiesTitle": "Новые сущности",
+    "entitiesEmpty": "После обработки здесь появятся извлечённые сущности",
+    "addEntity": "Добавить",
+    "saveEntity": "Сохранить",
+    "cancelEntity": "Отмена",
+    "deleteEntity": "Удалить",
+    "deleteDocument": "Удалить документ",
+    "confirmDeleteDocument": "Удалить документ «{{name}}» из базы?",
+    "entityNamePlaceholder": "Название сущности",
+    "fileKinds": {
+      "document": "документ",
+      "dictionary": "словарь"
+    },
+    "fileStatus": {
+      "queued": "в очереди",
+      "uploading": "загрузка",
+      "completed": "готово",
+      "failed": "ошибка"
+    },
+    "taskStatuses": {
+      "pending": "ожидание",
+      "processing": "обработка",
+      "completed": "завершено",
+      "failed": "ошибка"
+    },
+    "metrics": {
+      "documents": "Документы",
+      "spans": "Фрагменты",
+      "tables": "Таблицы",
+      "claims": "Утверждения",
+      "candidates": "Кандидаты",
+      "indexed": "Индекс"
+    },
+    "stagesTitle": "Этапы обработки",
+    "stages": {
+      "upload": "Загрузка",
+      "parse": "Разбор документа",
+      "extract": "Извлечение сущностей",
+      "index": "Индексация",
+      "complete": "Готово",
+      "dictionary": "Словарь"
+    },
+    "stageStatuses": {
+      "pending": "ожидание",
+      "active": "в процессе",
+      "done": "готово",
+      "failed": "ошибка"
+    },
+    "errors": {
+      "upload_failed": "Не удалось загрузить файлы",
+      "delete_failed": "Не удалось удалить документ",
+      "forbidden": "Недостаточно прав для удаления документа",
+      "not_found": "Документ не найден",
+      "document_delete_not_implemented": "Удаление документа пока недоступно на сервере"
+    }
+  },
+  "search": {
+    "resultsCount": "Показано {{shown}} из {{total}}",
+    "loadMore": "Загрузить ещё",
+    "loadingMore": "Загрузка…",
+    "errors": {
+      "search_failed": "Не удалось выполнить поиск"
+    },
+    "filters": {
+      "geo": "География",
+      "geoPlaceholder": "Россия, Norilsk",
+      "yearFrom": "Год от",
+      "yearTo": "Год до",
+      "numeric": "Числовой фильтр",
+      "sourceTypes": "Тип источника"
+    },
+    "sourceTypes": {
+      "text": "текст",
+      "table": "таблица",
+      "figure": "рисунок",
+      "caption": "подпись"
+    }
+  },
+  "review": {
+    "title": "Консоль проверки",
+    "subtitle": "Кандидаты, конфликты и привязка к источникам",
+    "emptyQueue": "Нет кандидатов по выбранным фильтрам",
+    "noConflicts": "Конфликты не выбраны",
+    "conflictsTitle": "Конфликт значений",
+    "sourcePanelTitle": "Источник кандидата",
+    "sourceEmpty": "Выберите кандидата с привязкой к источнику",
+    "actionsBlocked": "Решения доступны при включённом флаге review console и подключённом backend",
+    "errors": {
+      "review_queue_failed": "Не удалось загрузить очередь проверки",
+      "review_decision_failed": "Не удалось сохранить решение",
+      "review_storage_not_implemented": "Backend review workflow ещё не подключён"
+    },
+    "filters": {
+      "status": "Статус",
+      "type": "Тип",
+      "from": "С даты",
+      "to": "По дату",
+      "all": "Все"
+    },
+    "columns": {
+      "name": "Название",
+      "type": "Тип",
+      "status": "Статус",
+      "confidence": "Уверенность",
+      "conflicts": "Конфликты",
+      "updated": "Обновлено"
+    },
+    "status": {
+      "pending": "ожидает",
+      "approved": "подтверждён",
+      "rejected": "отклонён",
+      "deferred": "отложен"
+    },
+    "types": {
+      "substance": "вещество",
+      "process_term": "термин процесса",
+      "numeric_claim": "числовое утверждение",
+      "entity": "сущность"
+    },
+    "decisions": {
+      "approved": "Подтвердить",
+      "rejected": "Отклонить",
+      "deferred": "Отложить"
+    }
+  }
+}

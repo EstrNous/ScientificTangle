@@ -1,0 +1,12 @@
+{
+  "никель": ["nickel", "Ni"],
+  "nickel": ["никель", "Ni"],
+  "ПВП": ["flash furnace", "flash smelting"],
+  "flash furnace": ["ПВП", "flash smelting"],
+  "электроэкстракция": ["electrowinning", "electroextraction"],
+  "electrowinning": ["электроэкстракция", "electroextraction"],
+  "штейн": ["matte"],
+  "matte": ["штейн"],
+  "шлак": ["slag"],
+  "slag": ["шлак"]
+}

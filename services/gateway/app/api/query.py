@@ -1,0 +1,207 @@
+from typing import Annotated, Any
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, Header, Query, Request, status
+from fastapi.responses import Response, StreamingResponse
+from pydantic import BaseModel, Field
+
+from shared.contracts import (
+    ExportPayload,
+    GraphSubgraph,
+    QueryRunPayload,
+    SearchResultPayload,
+    SourcePayload,
+)
+from shared.security import AuthenticatedPrincipal
+from shared.web import ServiceError, forwarded_auth, require_principal
+
+from ..core.config import settings
+from ..core.dependencies import get_gateway_service
+from ..service.service import GatewayService, GatewayServiceError
+
+router = APIRouter(tags=["query"])
+
+
+class QueryRequest(BaseModel):
+    question: str = Field(min_length=1)
+    filters: dict[str, Any] = Field(default_factory=dict)
+    limit: int = Field(default=20, ge=1, le=100)
+
+
+class ExportRequest(BaseModel):
+    query_run_id: UUID
+    format: str = Field(pattern="^(markdown|json|jsonld)$")
+
+
+def raise_service_error(error: GatewayServiceError) -> None:
+    raise ServiceError(
+        error.status_code,
+        error.code,
+        error.message,
+        query_run_id=error.query_run_id,
+    ) from error
+
+
+@router.post("/query", response_model=QueryRunPayload)
+async def query(
+    payload: QueryRequest,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],
+    service: Annotated[GatewayService, Depends(get_gateway_service)],
+) -> QueryRunPayload:
+    authorization, request_id = forwarded_auth()
+    try:
+        response = await service.run_query(
+            payload.model_dump(mode="json"),
+            authorization,
+            request_id,
+        )
+        return QueryRunPayload.model_validate(response)
+    except GatewayServiceError as error:
+        raise_service_error(error)
+
+
+@router.post("/query/stream")
+async def query_stream(
+    payload: QueryRequest,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],
+    service: Annotated[GatewayService, Depends(get_gateway_service)],
+) -> StreamingResponse:
+    authorization, request_id = forwarded_auth()
+    if not settings.top1_live_stream_enabled:
+        raise ServiceError(
+            status.HTTP_404_NOT_FOUND,
+            "stream_disabled",
+            "Live query stream is disabled",
+        )
+    try:
+        return StreamingResponse(
+            service.stream_query(
+                payload.model_dump(mode="json"),
+                authorization,
+                request_id,
+            ),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+    except GatewayServiceError as error:
+        raise_service_error(error)
+
+
+@router.get("/runs/{run_id}", response_model=QueryRunPayload)
+async def get_run(
+    run_id: UUID,
+    request: Request,
+    authorization: Annotated[str, Header()],
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],
+    service: Annotated[GatewayService, Depends(get_gateway_service)],
+) -> QueryRunPayload:
+    try:
+        return QueryRunPayload.model_validate(
+            await service.get_query_run(run_id, authorization, request.state.request_id)
+        )
+    except GatewayServiceError as error:
+        raise_service_error(error)
+
+
+@router.post("/export", response_model=ExportPayload)
+async def export_run(
+    payload: ExportRequest,
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],
+    service: Annotated[GatewayService, Depends(get_gateway_service)],
+) -> ExportPayload:
+    authorization, request_id = forwarded_auth()
+    try:
+        return ExportPayload.model_validate(
+            await service.export_query_run(
+                payload.model_dump(mode="json"),
+                authorization,
+                request_id,
+            )
+        )
+    except GatewayServiceError as error:
+        raise_service_error(error)
+
+
+@router.get("/export/jobs/{job_id}/artifact")
+async def download_export_artifact(
+    job_id: UUID,
+    request: Request,
+    authorization: Annotated[str, Header()],
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],
+    service: Annotated[GatewayService, Depends(get_gateway_service)],
+) -> Response:
+    try:
+        downstream = await service.download_export_artifact(
+            job_id,
+            authorization,
+            request.state.request_id,
+        )
+        return Response(
+            content=downstream.content,
+            media_type=downstream.headers.get("content-type", "application/octet-stream"),
+            headers={
+                key: value
+                for key, value in downstream.headers.items()
+                if key.lower() in {"content-disposition", "content-type"}
+            },
+        )
+    except GatewayServiceError as error:
+        raise_service_error(error)
+
+
+@router.get("/source/{source_span_id}", response_model=SourcePayload)
+async def get_source(
+    source_span_id: str,
+    request: Request,
+    authorization: Annotated[str, Header()],
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],
+    service: Annotated[GatewayService, Depends(get_gateway_service)],
+) -> SourcePayload:
+    try:
+        return SourcePayload.model_validate(
+            await service.get_source(
+                source_span_id,
+                authorization,
+                request.state.request_id,
+            )
+        )
+    except GatewayServiceError as error:
+        raise_service_error(error)
+
+
+@router.get("/graph/subgraph", response_model=GraphSubgraph)
+async def get_subgraph(
+    run_id: UUID,
+    request: Request,
+    authorization: Annotated[str, Header()],
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],
+    service: Annotated[GatewayService, Depends(get_gateway_service)],
+) -> GraphSubgraph:
+    try:
+        return GraphSubgraph.model_validate(
+            await service.get_subgraph(run_id, authorization, request.state.request_id)
+        )
+    except GatewayServiceError as error:
+        raise_service_error(error)
+
+
+@router.get("/search", response_model=SearchResultPayload)
+async def search(
+    request: Request,
+    authorization: Annotated[str, Header()],
+    principal: Annotated[AuthenticatedPrincipal, Depends(require_principal)],
+    service: Annotated[GatewayService, Depends(get_gateway_service)],
+    question: str = Query(default=""),
+    source_type: list[str] = Query(default=[]),
+    geo: list[str] = Query(default=[]),
+    limit: int = Query(default=20, ge=1, le=100),
+) -> SearchResultPayload:
+    params = [("question", question), ("limit", str(limit))]
+    params.extend(("source_type", value) for value in source_type)
+    params.extend(("geo", value) for value in geo)
+    try:
+        return SearchResultPayload.model_validate(
+            await service.search(params, authorization, request.state.request_id)
+        )
+    except GatewayServiceError as error:
+        raise_service_error(error)

@@ -1,0 +1,35 @@
+{
+  "sessions": [
+    { "id": "s1", "title": "Электроэкстракция никеля", "updated_at": "2026-07-01T10:00:00Z" },
+    { "id": "s2", "title": "Обессоливание шахтных вод", "updated_at": "2026-06-28T14:30:00Z" }
+  ],
+  "messages": [
+    {
+      "id": "m1",
+      "role": "user",
+      "content": "Технические решения циркуляции католита при электроэкстракции никеля"
+    },
+    {
+      "id": "m2",
+      "role": "assistant",
+      "content": "В мировой практике применяются схемы с перекачкой католита через анодные камеры.",
+      "expanded_synonyms": ["electrowinning", "электроэкстракция", "nickel", "никель"],
+      "confidence": 0.82,
+      "sources": [
+        {
+          "title": "Catholyte circulation in nickel electrowinning",
+          "author": "Smith J.",
+          "date": "2023",
+          "confidence_level": "verified",
+          "source_span_id": "span-1"
+        }
+      ],
+      "evidence_table": {
+        "columns": ["Параметр", "Значение", "Источник"],
+        "rows": [
+          ["Скорость потока", "2–4 м/ч", "Smith J., 2023"]
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+FROM python:3.12-slim AS deps
+
+WORKDIR /app
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+ARG SERVICE_DIR
+ARG SERVICE_PORT
+
+COPY shared /app/shared
+COPY infra/neo4j /app/infra/neo4j
+COPY ontology /app/ontology
+COPY dictionaries /app/dictionaries
+COPY ${SERVICE_DIR} /tmp/service_src
+RUN mkdir -p /app/services/service && \
+    cp -r /tmp/service_src/app /app/services/service/app && \
+    cp /tmp/service_src/pyproject.toml /app/services/service/pyproject.toml && \
+    if [ -d /tmp/service_src/adapters ]; then cp -r /tmp/service_src/adapters /app/services/service/adapters; else mkdir -p /app/services/service/adapters && touch /app/services/service/adapters/__init__.py; fi
+WORKDIR /app/services/service
+
+RUN uv sync --no-dev
+
+FROM python:3.12-slim AS runtime
+
+ARG SERVICE_DIR
+ARG SERVICE_PORT
+ARG RUNTIME_APT_PACKAGES=""
+
+RUN if [ -n "$RUNTIME_APT_PACKAGES" ]; then \
+        export DEBIAN_FRONTEND=noninteractive && \
+        apt-get update && \
+        apt-get install -y --no-install-recommends $RUNTIME_APT_PACKAGES && \
+        rm -rf /var/lib/apt/lists/*; \
+    fi
+
+WORKDIR /app/services/service
+
+COPY --from=deps /app/services/service/.venv /app/services/service/.venv
+COPY --from=deps /app/shared /app/shared
+COPY --from=deps /app/infra/neo4j /app/infra/neo4j
+COPY --from=deps /app/ontology /app/ontology
+COPY --from=deps /app/dictionaries /app/dictionaries
+COPY ${SERVICE_DIR} /tmp/service_src
+RUN cp -r /tmp/service_src/app ./app && \
+    if [ -d /tmp/service_src/adapters ]; then cp -r /tmp/service_src/adapters ./adapters; else mkdir -p ./adapters && touch ./adapters/__init__.py; fi
+
+ENV PATH="/app/services/service/.venv/bin:$PATH"
+ENV PYTHONPATH=/app:/app/services/service
+
+ENV SERVICE_PORT=${SERVICE_PORT}
+
+EXPOSE ${SERVICE_PORT}
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD python -c "import httpx, os; port=os.environ['SERVICE_PORT']; r=httpx.get(f'http://localhost:{port}/health'); assert r.status_code == 200"
+
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port \"$SERVICE_PORT\""]

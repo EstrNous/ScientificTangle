@@ -1,0 +1,17 @@
+export const CONTRACT_NAMES = [
+  'NormalizedDocument',
+  'SourceSpan',
+  'TableBlock',
+  'Claim',
+  'QueryIR',
+  'EvidenceBundle',
+  'AnswerPayload',
+  'GraphSubgraph',
+  'IngestionReport',
+  'IngestionTaskPayload',
+  'SearchResultPayload',
+  'UserRolePayload',
+  'AccessPolicy',
+  'AuditEvent',
+  'ExportPayload',
+];

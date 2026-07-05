@@ -1,0 +1,40 @@
+from shared.web.auth import (
+    ACTING_USER_ID_HEADER,
+    INTERNAL_SERVICE_TOKEN_HEADER,
+    AuthorizedContext,
+    ServiceCaller,
+    authorization_header_from_request,
+    forwarded_auth,
+    get_http_request,
+    get_request_id,
+    require_authorization_header,
+    require_forwarded_auth,
+    require_internal_service,
+    require_principal,
+    require_service_or_principal,
+)
+from shared.web.errors import ServiceError, install_error_handlers
+from shared.web.rate_limit import RateLimiter, RateLimitRule, install_rate_limit_middleware
+from shared.web.request_id import request_id_middleware
+
+__all__ = [
+    "ACTING_USER_ID_HEADER",
+    "INTERNAL_SERVICE_TOKEN_HEADER",
+    "ServiceCaller",
+    "RateLimiter",
+    "RateLimitRule",
+    "ServiceError",
+    "install_rate_limit_middleware",
+    "install_error_handlers",
+    "request_id_middleware",
+    "AuthorizedContext",
+    "authorization_header_from_request",
+    "forwarded_auth",
+    "get_http_request",
+    "get_request_id",
+    "require_forwarded_auth",
+    "require_authorization_header",
+    "require_internal_service",
+    "require_principal",
+    "require_service_or_principal",
+]

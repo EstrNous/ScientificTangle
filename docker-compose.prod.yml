@@ -1,0 +1,148 @@
+services:
+  gateway:
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  auth_audit:
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  orchestrator:
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  ingestion:
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  knowledge:
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  retrieval:
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  model:
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 1024m
+          cpus: "1.0"
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  export:
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 512m
+          cpus: "0.5"
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  notification:
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 256m
+          cpus: "0.25"
+    restart: always
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
+
+  grafana:
+    environment:
+      GF_SERVER_ROOT_URL: https://${NGINX_SERVER_NAME:-localhost}/grafana/
+
+  nginx:
+    ports:
+      - "${NGINX_HTTP_PORT:-80}:80"
+      - "${NGINX_HTTPS_PORT:-443}:443"
+    environment:
+      NGINX_CONFIG: prod
+      NGINX_SERVER_NAME: ${NGINX_SERVER_NAME:-localhost}
+      TLS_CERT_FILE: ${TLS_CERT_FILE:-/etc/nginx/tls/fullchain.pem}
+      TLS_KEY_FILE: ${TLS_KEY_FILE:-/etc/nginx/tls/privkey.pem}
+    volumes:
+      - ${TLS_CERT_DIR:-./secrets/tls}:/etc/nginx/tls:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --no-check-certificate --spider https://127.0.0.1/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s

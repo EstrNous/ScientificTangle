@@ -1,0 +1,8 @@
+node_modules/
+.npm-cache/
+.tmp/
+dist/
+.env.local
+playwright-report/
+test-results/
+blob-report/
