@@ -214,6 +214,35 @@ python3 scripts/seed_corpus_batches.py \
 - `YOUR_PUBLIC_IP` — публичный IP VM (известен после создания, можно вторым заходом по SSH);
 - или запустите cloud-init только для установки Docker, а deploy вручную шагом 4.
 
+## Диагностика ingestion (curl, не wget)
+
+Внутри контейнеров `wget` обычно отсутствует. Для health и API используйте `curl` с хоста VM или `python -c` / `curl` внутри контейнера:
+
+```bash
+curl -fsS http://127.0.0.1/api/health
+curl -fsS http://127.0.0.1/api/health/all | python3 -m json.tool
+
+docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloud.yml -f docker-compose.cloud.http.yml logs --tail=200 orchestrator retrieval model ingestion | rg -i "error|embedding|internal_error|validation"
+
+docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloud.yml -f docker-compose.cloud.http.yml exec -T postgres psql -U st_user -d scientific_tangle -c "select id,status,error_message,created_at from ingestion_tasks order by created_at desc limit 5;"
+
+docker compose -f docker-compose.yml -f docker-compose.prod.yml -f docker-compose.cloud.yml -f docker-compose.cloud.http.yml exec -T retrieval python -c "import httpx; r=httpx.get('http://qdrant:6333/collections/st_evidence_v1', timeout=10); print(r.json().get('result',{}).get('points_count',0))"
+```
+
+Повтор batch-индексации после исправления:
+
+```bash
+ADMIN_PASS="$(grep AUTH_SEED_ADMIN_PASSWORD .env | cut -d= -f2-)"
+ADMIN_PASS="${ADMIN_PASS:-admin}"
+python3 scripts/seed_corpus_batches.py \
+  --api-url http://127.0.0.1/api \
+  --corpus-dir demo/seed_data/yandex_disk_corpus \
+  --username admin \
+  --password "$ADMIN_PASS" \
+  --resume \
+  --skip-dictionary
+```
+
 ## Частые проблемы
 
 | Симптом | Решение |

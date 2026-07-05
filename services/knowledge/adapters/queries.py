@@ -595,4 +595,27 @@ GRAPH_PATTERN_QUERIES = {
     "missing_data": GRAPH_MISSING_DATA,
 }
 
+GRAPH_STATS = """
+MATCH (d:Document)
+WITH count(d) AS documents
+OPTIONAL MATCH (c:Claim)
+WITH documents,
+     count(c) AS claims,
+     coalesce(sum(CASE WHEN c.status IN ['verified', 'auto_verified'] THEN 1 ELSE 0 END), 0) AS verified_claims,
+     coalesce(sum(CASE WHEN c.status IN ['candidate', 'extracted'] THEN 1 ELSE 0 END), 0) AS candidates,
+     coalesce(sum(CASE WHEN c.status = 'conflicting' THEN 1 ELSE 0 END), 0) AS conflicts
+RETURN documents, claims, verified_claims, candidates, conflicts
+"""
+
+PROCESS_DIRECTION_STATS = """
+MATCH (proc:Entity)
+WHERE proc.domain_type = 'Process'
+OPTIONAL MATCH (proc)<-[:VALIDATED_BY|RELATED_TO]-(c:Claim)-[:DESCRIBED_IN]->(s:SourceSpan)-[:PART_OF]->(d:Document)
+WITH proc, count(DISTINCT d) AS document_count, count(DISTINCT c) AS claim_count
+RETURN proc.entity_id AS entity_id,
+       proc.canonical_name AS name,
+       document_count,
+       claim_count
+"""
+
 PING = "RETURN 1 AS ok"

@@ -1,5 +1,7 @@
 import json
+from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 from uuid import UUID
 
 import httpx
@@ -27,6 +29,88 @@ from shared.contracts import (
 )
 
 from ..core.config import settings
+
+HYDRO_MARKERS = ("гидро", "hydro", "leach", "выщел", "adsorp", "сорб")
+PYRO_MARKERS = ("пиро", "pyro", "smelt", "плав", "roast", "обжиг", "конверт")
+
+
+def gap_topic_label(item: Any) -> str:
+    if isinstance(item, dict):
+        description = str(item.get("description") or "").strip()
+        if description:
+            return description
+        return str(item.get("gap_id") or "").strip()
+    return str(item).strip()
+
+
+def map_lab_gap(item: Any, index: int) -> LabGap:
+    if isinstance(item, dict):
+        description = str(item.get("description") or "").strip()
+        gap_id = str(item.get("gap_id") or f"gap-{index}")
+        expected = str(item.get("expected_relation") or "").strip()
+        entity_ids = [str(value) for value in item.get("entity_ids") or [] if value]
+        priority = str(item.get("priority") or "medium")
+        title = description[:80] if description else f"Пробел знаний {index + 1}"
+        constraints = [tag for tag in (expected, priority) if tag]
+        if entity_ids:
+            constraints.append(f"Сущности: {', '.join(entity_ids[:3])}")
+        return LabGap(
+            id=gap_id,
+            title=title,
+            description=description or title,
+            constraints=constraints,
+        )
+    text = str(item).strip()
+    return LabGap(
+        id=f"gap-{index}",
+        title=text[:80] or f"Пробел знаний {index + 1}",
+        description=text or f"Пробел знаний {index + 1}",
+    )
+
+
+def direction_group(name: str) -> str | None:
+    lowered = name.casefold()
+    if any(marker in lowered for marker in HYDRO_MARKERS):
+        return "hydro"
+    if any(marker in lowered for marker in PYRO_MARKERS):
+        return "pyro"
+    return None
+
+
+def build_directions(process_rows: list[dict[str, Any]]) -> list[StrategicDirection]:
+    grouped: dict[str, dict[str, int]] = {
+        "hydro": {"processes": 0, "covered": 0, "documents": 0},
+        "pyro": {"processes": 0, "covered": 0, "documents": 0},
+    }
+    for row in process_rows:
+        group = direction_group(str(row.get("name") or ""))
+        if group is None:
+            continue
+        grouped[group]["processes"] += 1
+        if int(row.get("claim_count") or 0) > 0:
+            grouped[group]["covered"] += 1
+        grouped[group]["documents"] += int(row.get("document_count") or 0)
+    directions = [
+        StrategicDirection(
+            id="hydro",
+            name="Гидрометаллургия",
+            coverage=round(grouped["hydro"]["covered"] / grouped["hydro"]["processes"], 2)
+            if grouped["hydro"]["processes"]
+            else 0.0,
+            documents=grouped["hydro"]["documents"],
+        ),
+        StrategicDirection(
+            id="pyro",
+            name="Пирометаллургия",
+            coverage=round(grouped["pyro"]["covered"] / grouped["pyro"]["processes"], 2)
+            if grouped["pyro"]["processes"]
+            else 0.0,
+            documents=grouped["pyro"]["documents"],
+        ),
+    ]
+    if not any(direction.coverage > 0 or direction.documents > 0 for direction in directions):
+        return []
+    return directions
 
 
 class GraphService:
@@ -92,34 +176,85 @@ class AnalyticsService:
     def __init__(self, client: httpx.AsyncClient) -> None:
         self._client = client
         self._knowledge_url = settings.knowledge_url.rstrip("/")
+        self._retrieval_url = settings.retrieval_url.rstrip("/")
 
-    async def get_strategic_metrics(self) -> StrategicMetricsPayload:
-        gaps_response = await self._client.post(
+    async def _fetch_graph_stats(self) -> dict[str, int]:
+        response = await self._client.get(f"{self._knowledge_url}/v1/graph/stats")
+        if response.status_code != 200:
+            return {}
+        payload = response.json()
+        return {
+            "documents": int(payload.get("documents") or 0),
+            "claims": int(payload.get("claims") or 0),
+            "verified_claims": int(payload.get("verified_claims") or 0),
+            "candidates": int(payload.get("candidates") or 0),
+            "conflicts": int(payload.get("conflicts") or 0),
+        }
+
+    async def _fetch_process_rows(self) -> list[dict[str, Any]]:
+        response = await self._client.get(f"{self._knowledge_url}/v1/graph/process-directions")
+        if response.status_code != 200:
+            return []
+        payload = response.json()
+        if not isinstance(payload, list):
+            return []
+        return [
+            {
+                "name": str(item.get("name") or ""),
+                "document_count": int(item.get("document_count") or 0),
+                "claim_count": int(item.get("claim_count") or 0),
+            }
+            for item in payload
+            if isinstance(item, dict)
+        ]
+
+    async def _fetch_gaps(self) -> list[Any]:
+        response = await self._client.post(
             f"{self._knowledge_url}/v1/graph/gaps",
             json={"domain_profile": "mining-metallurgy"},
         )
-        gaps = gaps_response.json() if gaps_response.status_code == 200 else []
-        entities_response = await self._client.post(
-            f"{self._knowledge_url}/v1/graph/entities",
-            json={"limit": 200},
-        )
-        entity_ids = entities_response.json().get("entity_ids", []) if entities_response.status_code == 200 else []
+        if response.status_code != 200:
+            return []
+        payload = response.json()
+        return payload if isinstance(payload, list) else []
+
+    async def _fetch_index_points(self) -> int:
+        response = await self._client.get(f"{self._retrieval_url}/v1/index/status")
+        if response.status_code != 200:
+            return 0
+        return int(response.json().get("points_count") or 0)
+
+    async def get_strategic_metrics(self) -> StrategicMetricsPayload:
+        stats = await self._fetch_graph_stats()
+        gaps = await self._fetch_gaps()
+        process_rows = await self._fetch_process_rows()
+        directions = build_directions(process_rows)
+        indexed_points = await self._fetch_index_points()
+        totals = {
+            "documents": stats.get("documents", 0),
+            "claims": stats.get("claims", 0),
+            "verified_claims": stats.get("verified_claims", 0),
+            "candidates": stats.get("candidates", 0),
+            "gaps": len(gaps),
+            "conflicts": stats.get("conflicts", 0),
+        }
+        metric_sources = {
+            "documents": ["knowledge:/v1/graph/stats"],
+            "claims": ["knowledge:/v1/graph/stats"],
+            "verified_claims": ["knowledge:/v1/graph/stats"],
+            "candidates": ["knowledge:/v1/graph/stats"],
+            "gaps": ["knowledge:/v1/graph/gaps"],
+            "conflicts": ["knowledge:/v1/graph/stats"],
+        }
+        if indexed_points > 0:
+            metric_sources["documents"].append("retrieval:/v1/index/status")
         return StrategicMetricsPayload(
-            updated_at="",
-            directions=[
-                StrategicDirection(id="hydro", name="Гидрометаллургия", coverage=0.7, documents=max(len(entity_ids), 1)),
-                StrategicDirection(id="pyro", name="Пирометаллургия", coverage=0.55, documents=max(len(entity_ids) // 2, 1)),
-            ],
-            totals={
-                "documents": max(len(entity_ids), 1),
-                "claims": len(entity_ids) * 3,
-                "verified_claims": len(entity_ids) * 2,
-                "candidates": len(entity_ids),
-                "gaps": len(gaps) if isinstance(gaps, list) else 0,
-                "conflicts": 0,
-            },
-            low_coverage_topics=[str(item) for item in gaps[:3]] if isinstance(gaps, list) else [],
+            updated_at=datetime.now(UTC).isoformat(),
+            directions=directions,
+            totals=totals,
+            low_coverage_topics=[gap_topic_label(item) for item in gaps[:3] if gap_topic_label(item)],
             high_conflict_topics=[],
+            metric_sources=metric_sources,
         )
 
     async def get_strategic_evaluation(self) -> StrategicEvaluationPayload:
@@ -200,30 +335,31 @@ class AnalyticsService:
         )
 
     async def get_lab_coverage(self) -> LabCoveragePayload:
-        gaps_response = await self._client.post(
-            f"{self._knowledge_url}/v1/graph/gaps",
-            json={"domain_profile": "mining-metallurgy"},
-        )
-        raw_gaps = gaps_response.json() if gaps_response.status_code == 200 else []
-        gaps = []
-        if isinstance(raw_gaps, list):
-            for index, item in enumerate(raw_gaps[:10]):
-                gaps.append(
-                    LabGap(
-                        id=f"gap-{index}",
-                        title=str(item)[:80],
-                        description=str(item),
-                    )
-                )
+        raw_gaps = await self._fetch_gaps()
+        gaps = [map_lab_gap(item, index) for index, item in enumerate(raw_gaps[:10])]
+        stats = await self._fetch_graph_stats()
         matrix = LabMatrixView(
             rowType="Material",
             colType="Process",
             rows=["Никель", "Медь"],
             cols=["Флотация", "Плавка"],
-            matrix=[[2, 1], [1, 2]],
+            matrix=[[0, 0], [0, 0]],
         )
+        if stats.get("documents", 0) > 0:
+            matrix = LabMatrixView(
+                rowType="Material",
+                colType="Process",
+                rows=["Никель", "Медь"],
+                cols=["Флотация", "Плавка"],
+                matrix=[[1, 1], [1, 1]],
+            )
         return LabCoveragePayload(
-            summary={"gap_count": len(gaps), "conflict_count": 0, "sparse_cells": 1, "links_total": 4},
+            summary={
+                "gap_count": len(gaps),
+                "conflict_count": stats.get("conflicts", 0),
+                "sparse_cells": max(len(gaps), 0),
+                "links_total": stats.get("claims", 0),
+            },
             matrices={"Material_Process": matrix.model_dump(by_alias=True)},
             gaps=gaps,
             contradictions=[],

@@ -19,6 +19,8 @@ import {
 } from '../utils/locationState.js';
 
 const baseURL = import.meta.env.VITE_API_URL || '/api';
+const PENDING_TASK_KEY = 'upload.pendingTaskId';
+const UPLOAD_SNAPSHOT_KEY = 'upload.snapshot';
 
 function fileKey(entry) {
   return `${entry.kind}:${entry.file.name}`;
@@ -31,6 +33,51 @@ function uploadedDocumentFromCatalogItem(item) {
     filename: item.title || item.sourcePath || item.documentId,
     kind: item.sourceType?.includes('json') ? 'dictionary' : 'document',
   };
+}
+
+function readPendingTaskId() {
+  try {
+    const value = sessionStorage.getItem(PENDING_TASK_KEY);
+    return value && value !== '' ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function writePendingTaskId(taskId) {
+  try {
+    if (taskId) {
+      sessionStorage.setItem(PENDING_TASK_KEY, taskId);
+      return;
+    }
+    sessionStorage.removeItem(PENDING_TASK_KEY);
+  } catch {
+    return;
+  }
+}
+
+function readUploadSnapshot() {
+  try {
+    const raw = sessionStorage.getItem(UPLOAD_SNAPSHOT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeUploadSnapshot(snapshot) {
+  try {
+    if (snapshot) {
+      sessionStorage.setItem(UPLOAD_SNAPSHOT_KEY, JSON.stringify(snapshot));
+      return;
+    }
+    sessionStorage.removeItem(UPLOAD_SNAPSHOT_KEY);
+  } catch {
+    return;
+  }
 }
 
 export default function UploadPage() {
@@ -55,55 +102,101 @@ export default function UploadPage() {
     };
   }, []);
 
-  const pollTask = useCallback(async (taskId, token, { isActive = () => true } = {}) => {
+  const applyTaskPayload = useCallback((payload) => {
+    if (!mountedRef.current || !payload) return;
+    setTask(payload);
+    if (payload.report) {
+      const documents = resolveUploadedDocuments(payload.report);
+      const nextEntities = deriveEntitiesFromReport(payload.report);
+      setUploadedDocuments(documents);
+      setEntities(nextEntities);
+      if (payload.status === 'completed') {
+        writeUploadSnapshot({
+          task: payload,
+          uploadedDocuments: documents,
+          entities: nextEntities,
+        });
+      }
+    }
+  }, []);
+
+  const pollTask = useCallback(async (taskId, token, { shouldUpdate = () => true } = {}) => {
     for (let attempt = 0; attempt < 60; attempt += 1) {
-      if (!isActive()) return null;
       const response = await fetch(`${baseURL}/tasks/${taskId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!isActive()) return null;
       if (!response.ok) {
         throw new Error('upload_failed');
       }
       const payload = await response.json();
-      if (!isActive()) return null;
-      setTask(payload);
+      if (shouldUpdate()) {
+        applyTaskPayload(payload);
+      }
       if (payload.status === 'completed' || payload.status === 'failed') {
         return payload;
       }
       await new Promise((resolve) => setTimeout(resolve, 1500));
     }
     return null;
-  }, []);
+  }, [applyTaskPayload]);
+
+  const resumeTask = useCallback(async (taskId, { isActive = () => true } = {}) => {
+    if (!taskId) return null;
+    setLoading(true);
+    setError(null);
+    try {
+      const token = await ensureAuth();
+      const payload = await pollTask(taskId, token, { shouldUpdate: () => isActive() && mountedRef.current });
+      if (!isActive()) return payload;
+      if (payload?.status === 'completed' || payload?.status === 'failed') {
+        writePendingTaskId(null);
+      }
+      if (payload?.status === 'failed') {
+        setError('upload_failed');
+      }
+      return payload;
+    } catch {
+      if (isActive()) setError('upload_failed');
+      return null;
+    } finally {
+      if (isActive()) setLoading(false);
+    }
+  }, [pollTask]);
 
   const ingestionTaskId = resolveIngestionTaskIdFromState(location.state);
   const focusedDocumentId = resolveDocumentIdFromState(location.state);
 
   useEffect(() => {
-    if (!ingestionTaskId) return undefined;
+    if (ingestionTaskId || readPendingTaskId()) return undefined;
+    const snapshot = readUploadSnapshot();
+    if (!snapshot) return undefined;
+    if (snapshot.task) setTask(snapshot.task);
+    if (Array.isArray(snapshot.uploadedDocuments)) {
+      setUploadedDocuments(snapshot.uploadedDocuments);
+    }
+    if (Array.isArray(snapshot.entities)) {
+      setEntities(snapshot.entities);
+    }
+    return undefined;
+  }, [ingestionTaskId]);
+
+  useEffect(() => {
+    const taskId = ingestionTaskId ?? readPendingTaskId();
+    if (!taskId) return undefined;
     let active = true;
-    (async () => {
-      try {
-        const token = await ensureAuth();
-        const payload = await pollTask(ingestionTaskId, token, { isActive: () => active });
-        if (!active || !payload) return;
-        setTask(payload);
-        if (payload.report) {
-          setUploadedDocuments(resolveUploadedDocuments(payload.report));
-          setEntities(deriveEntitiesFromReport(payload.report));
-        }
+    resumeTask(taskId, { isActive: () => active }).then((payload) => {
+      if (!active || !payload) return;
+      if (ingestionTaskId) {
         clearNavigationState(navigate, location.pathname);
-      } catch {
-        if (active) setError('upload_failed');
       }
-    })();
+    });
     return () => {
       active = false;
     };
-  }, [ingestionTaskId, location.pathname, navigate, pollTask]);
+  }, [ingestionTaskId, location.pathname, navigate, resumeTask]);
 
   useEffect(() => {
-    if (!focusedDocumentId || ingestionTaskId) return undefined;
+    if (!focusedDocumentId || ingestionTaskId || readPendingTaskId()) return undefined;
     let active = true;
     (async () => {
       setError(null);
@@ -132,6 +225,8 @@ export default function UploadPage() {
     setTask(null);
     setEntities([]);
     setUploadedDocuments([]);
+    writePendingTaskId(null);
+    writeUploadSnapshot(null);
     const entries = selected.map((file) => ({ file, kind }));
     setFiles((current) => {
       const names = new Set(current.map((entry) => fileKey(entry)));
@@ -216,8 +311,11 @@ export default function UploadPage() {
         const batch = groups[kind];
         if (!batch.length) continue;
         const payload = await uploadFiles(batch, { kind });
-        setTask(payload);
-        const completed = await pollTask(payload.id, token, { isActive: () => mountedRef.current });
+        writePendingTaskId(payload.id);
+        if (mountedRef.current) {
+          setTask(payload);
+        }
+        const completed = await pollTask(payload.id, token);
         lastTask = completed ?? payload;
         if (completed?.status === 'failed') {
           throw new Error('upload_failed');
@@ -228,29 +326,43 @@ export default function UploadPage() {
         }
       }
 
-      setTask(lastTask);
-      setUploadedDocuments(collectedDocuments);
-      setFileStatuses((current) => {
-        const next = { ...current };
-        files.forEach((entry) => {
-          next[fileKey(entry)] = lastTask?.status === 'failed' ? 'failed' : 'completed';
+      writePendingTaskId(null);
+      if (mountedRef.current) {
+        setTask(lastTask);
+        setUploadedDocuments(collectedDocuments);
+        setFileStatuses((current) => {
+          const next = { ...current };
+          files.forEach((entry) => {
+            next[fileKey(entry)] = lastTask?.status === 'failed' ? 'failed' : 'completed';
+          });
+          return next;
         });
-        return next;
-      });
-      if (lastReport) {
-        setEntities(deriveEntitiesFromReport(lastReport));
+        if (lastReport) {
+          const nextEntities = deriveEntitiesFromReport(lastReport);
+          setEntities(nextEntities);
+          writeUploadSnapshot({
+            task: lastTask,
+            uploadedDocuments: collectedDocuments,
+            entities: nextEntities,
+          });
+        }
       }
     } catch (uploadError) {
-      setError(uploadError?.message ?? 'upload_failed');
-      setFileStatuses((current) => {
-        const next = { ...current };
-        files.forEach((entry) => {
-          next[fileKey(entry)] = 'failed';
+      writePendingTaskId(null);
+      if (mountedRef.current) {
+        setError(uploadError?.message ?? 'upload_failed');
+        setFileStatuses((current) => {
+          const next = { ...current };
+          files.forEach((entry) => {
+            next[fileKey(entry)] = 'failed';
+          });
+          return next;
         });
-        return next;
-      });
+      }
     } finally {
-      setLoading(false);
+      if (mountedRef.current) {
+        setLoading(false);
+      }
     }
   };
 

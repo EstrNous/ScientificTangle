@@ -86,6 +86,11 @@ class QdrantRetrievalStorageAdapter:
     def __init__(self, client: httpx.AsyncClient) -> None:
         self._client = client
 
+    async def _ensure_collection(self) -> None:
+        from .api.query import ensure_collection
+
+        await ensure_collection(self._client)
+
     async def index(self, request: RetrievalIndexRequest) -> StorageWriteResult:
         from .indexing_ops import write_index
 
@@ -114,6 +119,12 @@ class QdrantRetrievalStorageAdapter:
             qdrant_url(f"/collections/{COLLECTION_NAME}/points/search"),
             json=request_payload,
         )
+        if response.status_code == 404:
+            await self._ensure_collection()
+            response = await self._client.post(
+                qdrant_url(f"/collections/{COLLECTION_NAME}/points/search"),
+                json=request_payload,
+            )
         if response.status_code == 404:
             return SearchResultPayload(items=[], total_found=0, warnings=["collection_not_found"])
         response.raise_for_status()
@@ -145,6 +156,12 @@ class QdrantRetrievalStorageAdapter:
             qdrant_url(f"/collections/{COLLECTION_NAME}/points/scroll"),
             json={"filter": query_filter, "limit": max(limit * 3, limit), "with_payload": True},
         )
+        if response.status_code == 404:
+            await self._ensure_collection()
+            response = await self._client.post(
+                qdrant_url(f"/collections/{COLLECTION_NAME}/points/scroll"),
+                json={"filter": query_filter, "limit": max(limit * 3, limit), "with_payload": True},
+            )
         if response.status_code == 404:
             return SearchResultPayload(warnings=["collection_not_found"])
         response.raise_for_status()

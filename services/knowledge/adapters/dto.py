@@ -273,6 +273,21 @@ class GraphExactSearchResultDTO(BaseModel):
     spec_patterns: list[str] = Field(default_factory=list)
 
 
+class GraphStatsDTO(BaseModel):
+    documents: int = 0
+    claims: int = 0
+    verified_claims: int = 0
+    candidates: int = 0
+    conflicts: int = 0
+
+
+class ProcessDirectionStatDTO(BaseModel):
+    entity_id: str
+    name: str
+    document_count: int = 0
+    claim_count: int = 0
+
+
 class BootstrapResultDTO(BaseModel):
     schema_version: str
     seeded_entity_types: int = 0

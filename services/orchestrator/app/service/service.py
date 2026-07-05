@@ -303,9 +303,15 @@ class OrchestratorService(BaseService):
                     warnings,
                 ),
             )
-        if task.dictionary_version_id is not None:
+        dictionary_version_id = task.dictionary_version_id
+        if dictionary_version_id is None:
+            try:
+                dictionary_version_id = (await self._fetch_active_dictionary(request_id)).id
+            except OrchestratorServiceError:
+                dictionary_version_id = None
+        if dictionary_version_id is not None:
             for document in normalized.documents:
-                document.metadata["dictionary_version_id"] = str(task.dictionary_version_id)
+                document.metadata["dictionary_version_id"] = str(dictionary_version_id)
         knowledge_results = []
         for document in normalized.documents:
             knowledge_results.append(
@@ -316,7 +322,7 @@ class OrchestratorService(BaseService):
                         "/v1/documents/extract",
                         KnowledgeIngestionRequest(
                             document=document,
-                            dictionary_version_id=task.dictionary_version_id,
+                            dictionary_version_id=dictionary_version_id,
                         ).model_dump(mode="json"),
                         request_id,
                         "knowledge",
@@ -513,18 +519,10 @@ class OrchestratorService(BaseService):
                     entries_count=sum(len(item.entries) for item in dictionary_package.files),
                 ),
             )
-            version = DictionaryVersionPayload.model_validate(
-                await self._request_downstream(
-                    "POST",
-                    self._knowledge_url,
-                    "/v1/dictionaries",
-                    {
-                        "package": dictionary_package.model_dump(mode="json"),
-                        "uploaded_by": str(principal.user_id),
-                    },
-                    request_id,
-                    "knowledge",
-                )
+            version = await self._create_or_resolve_dictionary_version(
+                dictionary_package,
+                principal,
+                request_id,
             )
             task.dictionary_version_id = version.id
             report = DictionaryIngestionReport(
@@ -558,6 +556,34 @@ class OrchestratorService(BaseService):
             if isinstance(error, OrchestratorServiceError):
                 raise
             raise OrchestratorServiceError(502, "invalid_dictionary_response", message) from error
+
+    async def _create_or_resolve_dictionary_version(
+        self,
+        dictionary_package: DictionaryPackagePayload,
+        principal: AuthenticatedPrincipal,
+        request_id: str,
+    ) -> DictionaryVersionPayload:
+        try:
+            return DictionaryVersionPayload.model_validate(
+                await self._request_downstream(
+                    "POST",
+                    self._knowledge_url,
+                    "/v1/dictionaries",
+                    {
+                        "package": dictionary_package.model_dump(mode="json"),
+                        "uploaded_by": str(principal.user_id),
+                    },
+                    request_id,
+                    "knowledge",
+                )
+            )
+        except OrchestratorServiceError as error:
+            if error.code != "dictionary_version_exists":
+                raise
+            for version in await self.list_dictionaries(request_id):
+                if version.version == dictionary_package.version:
+                    return version
+            raise
 
     async def list_dictionaries(self, request_id: str) -> list[DictionaryVersionPayload]:
         payload = await self._request_downstream(

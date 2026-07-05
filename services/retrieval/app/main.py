@@ -22,6 +22,12 @@ async def lifespan(app: FastAPI):
     http_client = httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=5.0))
     app.state.http_client = http_client
     app.state.storage_adapter = QdrantRetrievalStorageAdapter(http_client)
+    try:
+        from .api.query import ensure_collection
+
+        await ensure_collection(http_client)
+    except httpx.HTTPError:
+        logger.warning("qdrant_bootstrap_failed", service=settings.service_name)
     logger.info("service_started", service=settings.service_name, port=settings.port)
     yield
     await http_client.aclose()

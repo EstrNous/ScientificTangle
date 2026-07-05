@@ -219,6 +219,7 @@ def test_create_task_runs_complete_ingestion_pipeline() -> None:
     assert repository.transitions == ["pending", "processing", "completed"]
     assert calls[1:] == [
         f"/ingestion/tasks/{repository.task.id}/normalize",
+        "/v1/dictionaries/active",
         "/v1/documents/extract",
         "/v1/documents/index",
         "/internal/v1/events",

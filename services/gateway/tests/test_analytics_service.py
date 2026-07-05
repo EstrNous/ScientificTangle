@@ -139,19 +139,52 @@ def test_get_eval_report_summary_blocked_when_missing(monkeypatch, tmp_path: Pat
 
 def test_analytics_service_builds_strategic_metrics_from_knowledge() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/v1/graph/stats"):
+            return httpx.Response(
+                200,
+                json={
+                    "documents": 4,
+                    "claims": 8,
+                    "verified_claims": 5,
+                    "candidates": 3,
+                    "conflicts": 1,
+                },
+            )
         if request.url.path.endswith("/v1/graph/gaps"):
-            return httpx.Response(200, json=["gap-a", "gap-b"])
-        if request.url.path.endswith("/v1/graph/entities"):
-            return httpx.Response(200, json={"entity_ids": ["Ni", "Cu", "Co", "Fe"]})
+            return httpx.Response(
+                200,
+                json=[
+                    {
+                        "gap_id": "gap-a",
+                        "description": "Нет измерения выхода",
+                        "expected_relation": "PRODUCES_OUTPUT",
+                        "entity_ids": ["proc-1", "mat-1"],
+                        "priority": "medium",
+                    }
+                ],
+            )
+        if request.url.path.endswith("/v1/graph/process-directions"):
+            return httpx.Response(
+                200,
+                json=[
+                    {"entity_id": "p1", "name": "Гидрометаллургия", "document_count": 2, "claim_count": 1},
+                    {"entity_id": "p2", "name": "Пирометаллургия", "document_count": 1, "claim_count": 0},
+                ],
+            )
+        if request.url.path.endswith("/v1/index/status"):
+            return httpx.Response(200, json={"points_count": 12, "collection": "st_evidence_v1"})
         return httpx.Response(404)
 
     async def run() -> None:
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
             payload = await AnalyticsService(client).get_strategic_metrics()
             assert payload.totals["documents"] == 4
-            assert payload.totals["gaps"] == 2
-            assert len(payload.directions) == 2
-            assert payload.low_coverage_topics == ["gap-a", "gap-b"]
+            assert payload.totals["claims"] == 8
+            assert payload.totals["gaps"] == 1
+            assert payload.totals["conflicts"] == 1
+            assert payload.low_coverage_topics == ["Нет измерения выхода"]
+            assert payload.directions[0].coverage == 1.0
+            assert payload.metric_sources["documents"][0] == "knowledge:/v1/graph/stats"
 
     asyncio.run(run())
 
@@ -159,14 +192,29 @@ def test_analytics_service_builds_strategic_metrics_from_knowledge() -> None:
 def test_analytics_service_builds_lab_coverage_from_gaps() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path.endswith("/v1/graph/gaps"):
-            return httpx.Response(200, json=["Ni flotation gap", "Cu leaching gap"])
+            return httpx.Response(
+                200,
+                json=[
+                    {
+                        "gap_id": "gap-1",
+                        "description": "Ni flotation gap",
+                        "expected_relation": "PRODUCES_OUTPUT",
+                        "entity_ids": ["proc-ni", "mat-ni"],
+                        "priority": "high",
+                    }
+                ],
+            )
+        if request.url.path.endswith("/v1/graph/stats"):
+            return httpx.Response(200, json={"documents": 0, "claims": 0, "conflicts": 0})
         return httpx.Response(404)
 
     async def run() -> None:
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
             payload = await AnalyticsService(client).get_lab_coverage()
-            assert payload.summary["gap_count"] == 2
-            assert payload.gaps[0].title.startswith("Ni")
+            assert payload.summary["gap_count"] == 1
+            assert payload.gaps[0].title == "Ni flotation gap"
+            assert payload.gaps[0].description == "Ni flotation gap"
+            assert "PRODUCES_OUTPUT" in payload.gaps[0].constraints
 
     asyncio.run(run())
 

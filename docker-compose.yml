@@ -92,6 +92,7 @@ services:
       context: ./ui
       args:
         VITE_USE_MOCK: "false"
+        VITE_REVIEW_CONSOLE_ENABLED: "true"
     container_name: st-ui
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3000/ || exit 1"]

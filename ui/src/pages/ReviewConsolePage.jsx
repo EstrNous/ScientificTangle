@@ -289,13 +289,9 @@ export default function ReviewConsolePage() {
 
     {
 
-      onSuccess: (result) => {
+      onSuccess: () => {
 
-        if (result?.status !== 'accepted') {
-
-          loadQueue();
-
-        }
+        loadQueue();
 
       },
 

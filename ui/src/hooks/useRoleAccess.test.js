@@ -17,4 +17,11 @@ describe('useRoleAccess', () => {
     const { result } = renderHook(() => useRoleAccess());
     expect(result.current.canAccess('upload')).toBe(true);
   });
+
+  it('allows admin tab for director role', () => {
+    useAuthStore.setState({ role: ROLES.DIRECTOR });
+    const { result } = renderHook(() => useRoleAccess());
+    expect(result.current.canAccess('admin')).toBe(true);
+    expect(result.current.canAccess('strategic')).toBe(true);
+  });
 });

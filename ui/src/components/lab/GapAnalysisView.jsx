@@ -1,9 +1,14 @@
 import { useTranslation } from 'react-i18next';
+import { normalizeGap } from './normalizeGap.js';
 
 export default function GapAnalysisView({ gaps, fill = false }) {
   const { t } = useTranslation();
 
-  if (!gaps?.length) return null;
+  const items = (gaps ?? [])
+    .map((gap, index) => normalizeGap(gap, index))
+    .filter(Boolean);
+
+  if (!items.length) return null;
 
   return (
     <div
@@ -15,7 +20,7 @@ export default function GapAnalysisView({ gaps, fill = false }) {
       <ul
         className={`space-y-3 ${fill ? 'scrollbar-thin scrollbar-thumb-nn-border dark:scrollbar-thumb-slate-600 min-h-0 flex-1 overflow-y-auto pr-1' : ''}`}
       >
-        {gaps.map((gap) => (
+        {items.map((gap) => (
           <li
             key={gap.id}
             className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 dark:border-amber-900/60 dark:bg-amber-950/30"

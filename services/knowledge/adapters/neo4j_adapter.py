@@ -18,6 +18,8 @@ from .dto import (
     FactVersionHistoryDTO,
     GapDTO,
     GraphExactSearchResultDTO,
+    GraphStatsDTO,
+    ProcessDirectionStatDTO,
     GraphNeighborhood,
     GraphSubgraphDTO,
     GroupComparisonDTO,
@@ -148,6 +150,37 @@ class Neo4jKnowledgeAdapter:
                 )
             )
         return gaps
+
+    async def get_graph_stats(self, request_id: str | None = None) -> GraphStatsDTO:
+        async with self._driver.session() as session:
+            result = await session.run(queries.GRAPH_STATS)
+            record = await result.single()
+        if record is None:
+            return GraphStatsDTO()
+        return GraphStatsDTO(
+            documents=int(record.get("documents") or 0),
+            claims=int(record.get("claims") or 0),
+            verified_claims=int(record.get("verified_claims") or 0),
+            candidates=int(record.get("candidates") or 0),
+            conflicts=int(record.get("conflicts") or 0),
+        )
+
+    async def get_process_direction_stats(
+        self,
+        request_id: str | None = None,
+    ) -> list[ProcessDirectionStatDTO]:
+        async with self._driver.session() as session:
+            result = await session.run(queries.PROCESS_DIRECTION_STATS)
+            records = [record async for record in result]
+        return [
+            ProcessDirectionStatDTO(
+                entity_id=str(record.get("entity_id") or ""),
+                name=str(record.get("name") or ""),
+                document_count=int(record.get("document_count") or 0),
+                claim_count=int(record.get("claim_count") or 0),
+            )
+            for record in records
+        ]
 
     async def build_subgraph(
         self,

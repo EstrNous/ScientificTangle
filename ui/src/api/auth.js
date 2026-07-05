@@ -13,6 +13,7 @@ const ROLE_MAP = {
   researcher: ROLES.RESEARCHER,
   analyst: ROLES.ANALYST,
   manager: ROLES.DIRECTOR,
+  director: ROLES.DIRECTOR,
   external_partner: ROLES.EXTERNAL_PARTNER,
 };
 

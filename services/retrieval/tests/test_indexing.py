@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import httpx
 from app.api.health import ready
-from app.api.query import build_index_links_by_span, collect_index_links
+from app.api.query import EMBEDDING_BATCH_SIZE, build_embeddings, build_index_links_by_span, collect_index_links
 from app.storage import PendingRetrievalStorageAdapter
 from fastapi import Response
 
@@ -150,3 +150,26 @@ def test_qdrant_adapter_index_writes_documents() -> None:
     result = asyncio.run(execute())
     assert result.records_count == 1
     assert result.document_ids == ["document-1"]
+
+
+def test_build_embeddings_chunks_requests_above_model_limit() -> None:
+    import json
+
+    calls: list[int] = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        texts = json.loads(req.content.decode("utf-8")).get("texts", [])
+        calls.append(len(texts))
+        return httpx.Response(
+            200,
+            json={"embeddings": [{"vector": [0.1, 0.2]} for _ in texts]},
+        )
+
+    async def execute():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            texts = [f"chunk-{index}" for index in range(EMBEDDING_BATCH_SIZE + 3)]
+            return await build_embeddings(client, texts, "document")
+
+    result = asyncio.run(execute())
+    assert len(result["vectors"]) == EMBEDDING_BATCH_SIZE + 3
+    assert calls == [EMBEDDING_BATCH_SIZE, 3]
