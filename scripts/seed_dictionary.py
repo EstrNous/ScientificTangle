@@ -38,8 +38,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("--api-url", default=os.getenv("DEMO_API_URL", DEFAULT_API_URL))
     parser.add_argument("--dictionary-version", default=DEFAULT_DICTIONARY_VERSION)
-    parser.add_argument("--username", default=os.getenv("DEMO_ADMIN_USERNAME", "admin"))
-    parser.add_argument("--password", default=os.getenv("DEMO_ADMIN_PASSWORD", "admin123"))
+    parser.add_argument("--username", default=os.getenv("AUTH_SEED_ADMIN_USERNAME", os.getenv("DEMO_ADMIN_USERNAME", "admin")))
+    parser.add_argument("--password", default=os.getenv("AUTH_SEED_ADMIN_PASSWORD", os.getenv("DEMO_ADMIN_PASSWORD", "admin")))
     return parser.parse_args()
 
 

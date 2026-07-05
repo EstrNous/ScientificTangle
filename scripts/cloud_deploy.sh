@@ -8,7 +8,8 @@ export PYTHONPATH="$ROOT_DIR"
 HOST=""
 HTTPS=0
 WITH_DEMO=0
-SKIP_CORPUS=0
+SKIP_CORPUS=1
+WITH_CORPUS=0
 INSTALL_DOCKER=0
 EXPOSE_PORTS=0
 HTTP_PORT=80
@@ -24,13 +25,14 @@ usage() {
   cat <<'EOF'
 Usage: ./scripts/cloud_deploy.sh <PUBLIC_IP_OR_DOMAIN> [options]
 
-Одна команда: .env, стек, пользователи, умный полный корпус (скачать и проиндексировать при необходимости).
+Одна команда: .env, стек, пользователи, словарь. Корпус по умолчанию не скачивается — загрузите документы через UI.
 
 Options:
   --https                  PUBLIC_URL=https://HOST, secure refresh cookie
   --with-demo              маленький demo corpus через seed_demo.py (вместо полного корпуса)
   --no-demo                то же, что поведение по умолчанию
-  --skip-corpus            не скачивать и не индексировать корпус
+  --with-corpus            скачать и проиндексировать полный корпус (5GB+, долго)
+  --skip-corpus            не скачивать и не индексировать корпус (поведение по умолчанию)
   --install-docker         установить Docker на Ubuntu (нужен sudo)
   --expose-ports           опубликовать порты сервисов (5432, 8000–8006, 3000, …)
   --http-port PORT         внешний порт nginx HTTP (по умолчанию 80)
@@ -50,6 +52,7 @@ Options:
 
 Примеры:
   ./scripts/cloud_deploy.sh 203.0.113.10 --install-docker --yandex-api-key KEY --yandex-folder-id b1g...
+  ./scripts/cloud_deploy.sh 203.0.113.10 --with-corpus --yandex-api-key KEY --yandex-folder-id b1g...
   ./scripts/cloud_deploy.sh 203.0.113.10 --with-demo --yandex-api-key KEY --yandex-folder-id b1g...
   ./scripts/cloud_deploy.sh 203.0.113.10 --expose-ports --http-port 8080
   ./scripts/cloud_deploy.sh demo.example.com --https --install-docker
@@ -78,6 +81,12 @@ while [[ $# -gt 0 ]]; do
       ;;
     --skip-corpus)
       SKIP_CORPUS=1
+      WITH_CORPUS=0
+      shift
+      ;;
+    --with-corpus)
+      SKIP_CORPUS=0
+      WITH_CORPUS=1
       shift
       ;;
     --install-docker)
@@ -408,22 +417,24 @@ if ! compose up -d --wait --wait-timeout "$WAIT_TIMEOUT"; then
   exit 1
 fi
 
-if [[ "$WITH_DEMO" -eq 1 ]]; then
+log "Seeding auth users"
+compose exec -T auth_audit auth-seed-users
+
+if [[ -n "$(env_value YANDEX_API_KEY)" && -n "$(env_value YANDEX_FOLDER_ID)" ]]; then
   log "Recreating model service to apply Yandex credentials"
   compose up -d --force-recreate model
   wait_for_model_yandex
 fi
 
-log "Seeding auth users"
-compose exec -T auth_audit auth-seed-users
-
 log "Ensuring active dictionary"
 python3 -m pip install -q httpx 2>/dev/null || pip3 install -q httpx
+ADMIN_USER="$(env_value AUTH_SEED_ADMIN_USERNAME)"
+ADMIN_USER="${ADMIN_USER:-admin}"
 ADMIN_PASSWORD="$(env_value AUTH_SEED_ADMIN_PASSWORD)"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin}"
 python3 scripts/seed_dictionary.py \
   --api-url "http://127.0.0.1/api" \
-  --username admin \
+  --username "$ADMIN_USER" \
   --password "$ADMIN_PASSWORD" || log "Dictionary seed skipped or already active"
 
 log "Seeding notification fixtures"
@@ -446,16 +457,13 @@ if [[ "$WITH_DEMO" -eq 1 ]]; then
     ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin}"
     python3 scripts/seed_demo.py \
       --api-url "http://127.0.0.1/api" \
-      --username admin \
+      --username "$ADMIN_USER" \
       --password "$ADMIN_PASSWORD"
   fi
-elif [[ "$SKIP_CORPUS" -eq 0 ]]; then
-  if [[ -z "$(env_value YANDEX_API_KEY)" ]] || [[ -z "$(env_value YANDEX_FOLDER_ID)" ]]; then
-    log "Yandex keys missing; skipping full corpus (use --skip-corpus to silence)"
+elif [[ "$WITH_CORPUS" -eq 1 && "$SKIP_CORPUS" -eq 0 ]]; then
+  if [[ -z "$(env_value YANDEX_API_KEY)" || -z "$(env_value YANDEX_FOLDER_ID)" ]]; then
+    log "Yandex keys missing; cannot index full corpus (need --yandex-api-key and --yandex-folder-id)"
   else
-    log "Recreating model service to apply Yandex credentials"
-    compose up -d --force-recreate model
-    wait_for_model_yandex
     ensure_full_corpus
   fi
 fi
@@ -491,7 +499,10 @@ ScientificTangle cloud deploy: SUCCESS
 Откройте в браузере:
   ${PUBLIC_URL}/
 
-Учётные данные:
+Вход в UI (из .env AUTH_SEED_*):
+  ${ADMIN_USER} / ${ADMIN_PASSWORD}
+
+Копия учётных данных:
   infra/deploy/credentials.txt
 
 Полезные команды:

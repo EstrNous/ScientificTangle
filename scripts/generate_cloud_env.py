@@ -27,6 +27,16 @@ def _first_nonempty(*values: str | None) -> str:
     return ""
 
 
+def _env_value(key: str, base: dict[str, str], existing: dict[str, str], default: str = "") -> str:
+    return _first_nonempty(existing.get(key), base.get(key), default)
+
+
+def _preserve_existing_secrets(lines: list[str], existing: dict[str, str], keys: list[str]) -> None:
+    for key in keys:
+        if key in existing:
+            _replace_line(lines, key, existing[key])
+
+
 def _replace_line(lines: list[str], key: str, value: str) -> None:
     prefix = f"{key}="
     for index, line in enumerate(lines):
@@ -122,26 +132,55 @@ def build_env(
     _upsert(lines, "NGINX_HTTP_PORT", str(http_port))
     _upsert(lines, "NGINX_HTTPS_PORT", str(https_port))
     _upsert(lines, "CLOUD_EXPOSE_PORTS", "true" if expose_ports else "false")
+    _preserve_existing_secrets(
+        lines,
+        existing,
+        [
+            "AUTH_SEED_ADMIN_USERNAME",
+            "AUTH_SEED_ADMIN_PASSWORD",
+            "AUTH_SEED_ADMIN_EMAIL",
+            "AUTH_SEED_RESEARCHER_USERNAME",
+            "AUTH_SEED_RESEARCHER_PASSWORD",
+            "AUTH_SEED_RESEARCHER_EMAIL",
+            "AUTH_SEED_ANALYST_USERNAME",
+            "AUTH_SEED_ANALYST_PASSWORD",
+            "AUTH_SEED_ANALYST_EMAIL",
+            "AUTH_SEED_MANAGER_USERNAME",
+            "AUTH_SEED_MANAGER_PASSWORD",
+            "AUTH_SEED_MANAGER_EMAIL",
+            "POSTGRES_PASSWORD",
+            "NEO4J_PASSWORD",
+            "MINIO_ROOT_PASSWORD",
+            "GRAFANA_ADMIN_PASSWORD",
+            "GRAFANA_NGINX_BASIC_PASSWORD",
+            "INTERNAL_SERVICE_TOKEN",
+        ],
+    )
 
     credentials = {
         "public_url": public_url,
         "public_host": host,
-        "admin_username": base.get("AUTH_SEED_ADMIN_USERNAME", "admin"),
-        "admin_password": base.get("AUTH_SEED_ADMIN_PASSWORD", "admin"),
-        "researcher_username": base.get("AUTH_SEED_RESEARCHER_USERNAME", "researcher"),
-        "researcher_password": base.get("AUTH_SEED_RESEARCHER_PASSWORD", "researcher"),
+        "admin_username": _env_value("AUTH_SEED_ADMIN_USERNAME", base, existing, "admin"),
+        "admin_password": _env_value("AUTH_SEED_ADMIN_PASSWORD", base, existing, "admin"),
+        "researcher_username": _env_value("AUTH_SEED_RESEARCHER_USERNAME", base, existing, "researcher"),
+        "researcher_password": _env_value("AUTH_SEED_RESEARCHER_PASSWORD", base, existing, "researcher"),
         "grafana_url": f"{public_url}/grafana/",
-        "grafana_admin_user": base.get("GRAFANA_ADMIN_USER", "admin"),
-        "grafana_admin_password": base.get("GRAFANA_ADMIN_PASSWORD", "admin"),
-        "grafana_nginx_basic_user": base.get("GRAFANA_NGINX_BASIC_USER", "grafana"),
-        "grafana_nginx_basic_password": base.get("GRAFANA_NGINX_BASIC_PASSWORD", "grafana"),
-        "postgres_user": base.get("POSTGRES_USER", "st_user"),
-        "postgres_password": base.get("POSTGRES_PASSWORD", "st_pass"),
-        "neo4j_user": base.get("NEO4J_USER", "neo4j"),
-        "neo4j_password": base.get("NEO4J_PASSWORD", "neo4j_pass"),
-        "minio_root_user": base.get("MINIO_ROOT_USER", "minioadmin"),
-        "minio_root_password": base.get("MINIO_ROOT_PASSWORD", "minioadmin123"),
-        "internal_service_token": base.get("INTERNAL_SERVICE_TOKEN", "change-me-internal-service-token"),
+        "grafana_admin_user": _env_value("GRAFANA_ADMIN_USER", base, existing, "admin"),
+        "grafana_admin_password": _env_value("GRAFANA_ADMIN_PASSWORD", base, existing, "admin"),
+        "grafana_nginx_basic_user": _env_value("GRAFANA_NGINX_BASIC_USER", base, existing, "grafana"),
+        "grafana_nginx_basic_password": _env_value("GRAFANA_NGINX_BASIC_PASSWORD", base, existing, "grafana"),
+        "postgres_user": _env_value("POSTGRES_USER", base, existing, "st_user"),
+        "postgres_password": _env_value("POSTGRES_PASSWORD", base, existing, "st_pass"),
+        "neo4j_user": _env_value("NEO4J_USER", base, existing, "neo4j"),
+        "neo4j_password": _env_value("NEO4J_PASSWORD", base, existing, "neo4j_pass"),
+        "minio_root_user": _env_value("MINIO_ROOT_USER", base, existing, "minioadmin"),
+        "minio_root_password": _env_value("MINIO_ROOT_PASSWORD", base, existing, "minioadmin123"),
+        "internal_service_token": _env_value(
+            "INTERNAL_SERVICE_TOKEN",
+            base,
+            existing,
+            "change-me-internal-service-token",
+        ),
         "yandex_configured": bool(yandex_api_key and yandex_folder_id),
     }
     return "\n".join(lines) + "\n", credentials
@@ -163,7 +202,7 @@ def format_credentials(credentials: dict[str, str]) -> str:
             "",
             yandex_line,
             "",
-            "Вход в UI (seed users):",
+            "Вход в UI (seed users, источник — AUTH_SEED_* в .env):",
             f"  admin:      {credentials['admin_username']} / {credentials['admin_password']}",
             f"  researcher: {credentials['researcher_username']} / {credentials['researcher_password']}",
             "",

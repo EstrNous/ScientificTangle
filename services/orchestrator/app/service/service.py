@@ -303,9 +303,15 @@ class OrchestratorService(BaseService):
                     warnings,
                 ),
             )
-        if task.dictionary_version_id is not None:
+        dictionary_version_id = task.dictionary_version_id
+        if dictionary_version_id is None:
+            try:
+                dictionary_version_id = (await self._fetch_active_dictionary(request_id)).id
+            except OrchestratorServiceError:
+                dictionary_version_id = None
+        if dictionary_version_id is not None:
             for document in normalized.documents:
-                document.metadata["dictionary_version_id"] = str(task.dictionary_version_id)
+                document.metadata["dictionary_version_id"] = str(dictionary_version_id)
         knowledge_results = []
         for document in normalized.documents:
             knowledge_results.append(
@@ -316,7 +322,7 @@ class OrchestratorService(BaseService):
                         "/v1/documents/extract",
                         KnowledgeIngestionRequest(
                             document=document,
-                            dictionary_version_id=task.dictionary_version_id,
+                            dictionary_version_id=dictionary_version_id,
                         ).model_dump(mode="json"),
                         request_id,
                         "knowledge",

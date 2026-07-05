@@ -35,6 +35,7 @@ router = APIRouter(prefix="/v1", tags=["retrieval"])
 
 COLLECTION_NAME = "st_evidence_v1"
 VECTOR_SIZE = 256
+EMBEDDING_BATCH_SIZE = 256
 TOKEN_PATTERN = re.compile(r"[\w%/.-]+", re.UNICODE)
 NUMBER_PATTERN = re.compile(r"[-+]?\d+(?:[,.]\d+)?")
 UNIT_PATTERN = re.compile(r"%|мг/л|mg/l|мг/дм3|мг/дм³|м/с|m/s|кг/т|kg/t", re.IGNORECASE)
@@ -93,6 +94,13 @@ class IndexDocumentsResponse(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class IndexStatusResponse(BaseModel):
+    collection: str
+    points_count: int = 0
+    status: str = "missing"
+    warnings: list[str] = Field(default_factory=list)
+
+
 class BootstrapIndexResponse(BaseModel):
     collection: str
     created: bool
@@ -116,6 +124,21 @@ class DeleteDocumentIndexResponse(BaseModel):
 async def bootstrap_index(app_request: Request) -> BootstrapIndexResponse:
     client: httpx.AsyncClient = app_request.app.state.http_client
     return await ensure_collection(client)
+
+
+@router.get("/index/status", response_model=IndexStatusResponse)
+async def index_status(app_request: Request) -> IndexStatusResponse:
+    client: httpx.AsyncClient = app_request.app.state.http_client
+    response = await client.get(qdrant_url(f"/collections/{COLLECTION_NAME}"))
+    if response.status_code == 404:
+        return IndexStatusResponse(collection=COLLECTION_NAME, points_count=0, status="missing")
+    response.raise_for_status()
+    payload = response.json().get("result", {})
+    return IndexStatusResponse(
+        collection=COLLECTION_NAME,
+        points_count=int(payload.get("points_count") or 0),
+        status=str(payload.get("status") or "unknown"),
+    )
 
 
 @router.post("/index/reset", response_model=ResetIndexResponse)
@@ -215,11 +238,18 @@ async def index_documents(
             ),
             warnings=warnings,
         )
-    vectors_response = await build_embeddings(
-        client,
-        [point["payload"]["text"] for point in points],
-        "document",
-    )
+    try:
+        vectors_response = await build_embeddings(
+            client,
+            [point["payload"]["text"] for point in points],
+            "document",
+        )
+    except httpx.HTTPError as error:
+        raise ServiceError(
+            502,
+            "embedding_failed",
+            f"Embedding request failed for {len(points)} points",
+        ) from error
     for point, vector in zip(points, vectors_response["vectors"], strict=True):
         point["vector"] = vector
     warnings.extend(vectors_response["warnings"])
@@ -650,20 +680,28 @@ async def build_embeddings(
     texts: list[str],
     input_type: str,
 ) -> dict[str, Any]:
-    response = await client.post(
-        f"{settings.model_url.rstrip('/')}/v1/embeddings",
-        json={
-            "texts": texts,
-            "dimensions": VECTOR_SIZE,
-            "input_type": input_type,
-        },
-    )
-    response.raise_for_status()
-    payload = response.json()
-    vectors = [item["vector"] for item in payload.get("embeddings", [])]
-    if len(vectors) != len(texts):
-        raise httpx.HTTPError("Model embeddings response size mismatch")
-    return {"vectors": vectors, "warnings": payload.get("warnings", [])}
+    if not texts:
+        return {"vectors": [], "warnings": []}
+    vectors: list[list[float]] = []
+    warnings: list[str] = []
+    for start in range(0, len(texts), EMBEDDING_BATCH_SIZE):
+        batch = texts[start : start + EMBEDDING_BATCH_SIZE]
+        response = await client.post(
+            f"{settings.model_url.rstrip('/')}/v1/embeddings",
+            json={
+                "texts": batch,
+                "dimensions": VECTOR_SIZE,
+                "input_type": input_type,
+            },
+        )
+        response.raise_for_status()
+        payload = response.json()
+        batch_vectors = [item["vector"] for item in payload.get("embeddings", [])]
+        if len(batch_vectors) != len(batch):
+            raise httpx.HTTPError("Model embeddings response size mismatch")
+        vectors.extend(batch_vectors)
+        warnings.extend(payload.get("warnings", []))
+    return {"vectors": vectors, "warnings": warnings}
 
 
 @router.post("/search", response_model=SearchResultPayload)

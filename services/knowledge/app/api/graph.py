@@ -4,10 +4,12 @@ from adapters.dto import (
     FactVersionHistoryDTO,
     GraphExactSearchResultDTO,
     GraphNeighborhood,
+    GraphStatsDTO,
     GraphSubgraphDTO,
     GroupComparisonDTO,
     MeasurementAggregateDTO,
     NeighborhoodFallbackResultDTO,
+    ProcessDirectionStatDTO,
     RankedClaimDTO,
 )
 from adapters.neo4j_adapter import Neo4jKnowledgeAdapter
@@ -159,6 +161,20 @@ async def find_gaps(request: GapsRequest, app_request: Request):
     request_id = getattr(app_request.state, "request_id", None) or generate_request_id()
     adapter: Neo4jKnowledgeAdapter = app_request.app.state.neo4j_adapter
     return await adapter.find_missing_edges(request.domain_profile, request_id=request_id)
+
+
+@router.get("/stats", response_model=GraphStatsDTO)
+async def graph_stats(app_request: Request) -> GraphStatsDTO:
+    request_id = getattr(app_request.state, "request_id", None) or generate_request_id()
+    adapter: Neo4jKnowledgeAdapter = app_request.app.state.neo4j_adapter
+    return await adapter.get_graph_stats(request_id=request_id)
+
+
+@router.get("/process-directions", response_model=list[ProcessDirectionStatDTO])
+async def process_directions(app_request: Request) -> list[ProcessDirectionStatDTO]:
+    request_id = getattr(app_request.state, "request_id", None) or generate_request_id()
+    adapter: Neo4jKnowledgeAdapter = app_request.app.state.neo4j_adapter
+    return await adapter.get_process_direction_stats(request_id=request_id)
 
 
 @router.post("/entities", response_model=FindEntitiesResponse)

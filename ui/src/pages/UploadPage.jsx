@@ -20,6 +20,7 @@ import {
 
 const baseURL = import.meta.env.VITE_API_URL || '/api';
 const PENDING_TASK_KEY = 'upload.pendingTaskId';
+const UPLOAD_SNAPSHOT_KEY = 'upload.snapshot';
 
 function fileKey(entry) {
   return `${entry.kind}:${entry.file.name}`;
@@ -55,6 +56,30 @@ function writePendingTaskId(taskId) {
   }
 }
 
+function readUploadSnapshot() {
+  try {
+    const raw = sessionStorage.getItem(UPLOAD_SNAPSHOT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeUploadSnapshot(snapshot) {
+  try {
+    if (snapshot) {
+      sessionStorage.setItem(UPLOAD_SNAPSHOT_KEY, JSON.stringify(snapshot));
+      return;
+    }
+    sessionStorage.removeItem(UPLOAD_SNAPSHOT_KEY);
+  } catch {
+    return;
+  }
+}
+
 export default function UploadPage() {
   const { t } = useTranslation();
   const location = useLocation();
@@ -81,8 +106,17 @@ export default function UploadPage() {
     if (!mountedRef.current || !payload) return;
     setTask(payload);
     if (payload.report) {
-      setUploadedDocuments(resolveUploadedDocuments(payload.report));
-      setEntities(deriveEntitiesFromReport(payload.report));
+      const documents = resolveUploadedDocuments(payload.report);
+      const nextEntities = deriveEntitiesFromReport(payload.report);
+      setUploadedDocuments(documents);
+      setEntities(nextEntities);
+      if (payload.status === 'completed') {
+        writeUploadSnapshot({
+          task: payload,
+          uploadedDocuments: documents,
+          entities: nextEntities,
+        });
+      }
     }
   }, []);
 
@@ -133,6 +167,20 @@ export default function UploadPage() {
   const focusedDocumentId = resolveDocumentIdFromState(location.state);
 
   useEffect(() => {
+    if (ingestionTaskId || readPendingTaskId()) return undefined;
+    const snapshot = readUploadSnapshot();
+    if (!snapshot) return undefined;
+    if (snapshot.task) setTask(snapshot.task);
+    if (Array.isArray(snapshot.uploadedDocuments)) {
+      setUploadedDocuments(snapshot.uploadedDocuments);
+    }
+    if (Array.isArray(snapshot.entities)) {
+      setEntities(snapshot.entities);
+    }
+    return undefined;
+  }, [ingestionTaskId]);
+
+  useEffect(() => {
     const taskId = ingestionTaskId ?? readPendingTaskId();
     if (!taskId) return undefined;
     let active = true;
@@ -178,6 +226,7 @@ export default function UploadPage() {
     setEntities([]);
     setUploadedDocuments([]);
     writePendingTaskId(null);
+    writeUploadSnapshot(null);
     const entries = selected.map((file) => ({ file, kind }));
     setFiles((current) => {
       const names = new Set(current.map((entry) => fileKey(entry)));
@@ -289,7 +338,13 @@ export default function UploadPage() {
           return next;
         });
         if (lastReport) {
-          setEntities(deriveEntitiesFromReport(lastReport));
+          const nextEntities = deriveEntitiesFromReport(lastReport);
+          setEntities(nextEntities);
+          writeUploadSnapshot({
+            task: lastTask,
+            uploadedDocuments: collectedDocuments,
+            entities: nextEntities,
+          });
         }
       }
     } catch (uploadError) {
